@@ -20,6 +20,7 @@ Add this environment variable in the Vercel project settings. Do not commit the 
 
 ```text
 XMANIUS_GEMINI_API_KEY=your_separate_gemini_key
+XMANIUS_GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Deploy from this repository root. Vercel automatically detects `api/xmanius-chat.js` as a serverless function.
