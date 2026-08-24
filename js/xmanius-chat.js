@@ -21,13 +21,13 @@
     return null;
   };
   const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = navigator.language || "en-US"; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
-  const addMessage = (text, type) => {
+  const addMessage = (text, type, { animate = false } = {}) => {
     empty.hidden = true;
     const item = document.createElement("article");
     item.className = `message ${type}`;
     const body = document.createElement("div");
     body.className = "message-body";
-    body.textContent = text;
+    body.textContent = animate ? "" : text;
     item.append(body);
     if (type === "assistant") {
       const actions = document.createElement("div");
@@ -40,9 +40,14 @@
       item.append(actions);
     }
     list.append(item);
+    if (animate) {
+      let index = 0;
+      const typeReply = () => { body.textContent = text.slice(0, index); index += 2; if (index <= text.length) requestAnimationFrame(typeReply); else body.textContent = text; };
+      requestAnimationFrame(typeReply);
+    }
     document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
   };
-  const ask = async (question) => { const q = question.trim(); if (!q) return; addMessage(q, "user"); input.value = ""; const local = localAnswer(q); if (local) { addMessage(local, "assistant"); return; } const thinking = document.createElement("article"); thinking.className = "message assistant thinking"; thinking.textContent = "Thinking…"; list.append(thinking); try { const response = await fetch("api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: q }) }); const data = await response.json(); thinking.remove(); addMessage(response.ok ? data.reply : "The online AI service is unavailable right now. Please try again shortly.", "assistant"); } catch { thinking.remove(); addMessage("The online AI service is unavailable right now. Please try again shortly.", "assistant"); } };
+  const ask = async (question) => { const q = question.trim(); if (!q) return; addMessage(q, "user"); input.value = ""; const local = localAnswer(q); if (local) { addMessage(local, "assistant", { animate: true }); return; } const thinking = document.createElement("article"); thinking.className = "message assistant thinking ai-message--thinking"; thinking.setAttribute("role", "status"); thinking.innerHTML = "<span>Thinking</span><i></i><i></i><i></i>"; list.append(thinking); document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight; try { const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: q }) }); const data = await response.json(); thinking.remove(); addMessage(response.ok ? data.reply : (data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true }); } catch (error) { thinking.remove(); addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true }); } };
   const startVoice = () => { const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!Recognition) { input.placeholder = "Voice needs Chrome or Edge over HTTPS or localhost"; return; } if (listening) { recognition.abort(); return; } recognition = new Recognition(); recognition.lang = navigator.language || "en-US"; recognition.interimResults = true; recognition.continuous = false; let finalText = ""; recognition.onstart = () => { listening = true; input.placeholder = "Listening…"; document.querySelector("[data-chat-mic]").classList.add("active"); }; recognition.onresult = (event) => { let interim = ""; for (let i = event.resultIndex; i < event.results.length; i++) event.results[i].isFinal ? finalText += event.results[i][0].transcript : interim += event.results[i][0].transcript; input.value = `${finalText}${interim}`.trim(); }; recognition.onerror = () => { input.placeholder = "Ask anything"; }; recognition.onend = () => { listening = false; document.querySelector("[data-chat-mic]").classList.remove("active"); input.placeholder = "Ask anything"; if (finalText.trim()) ask(finalText); }; recognition.start(); };
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
   document.querySelector("[data-chat-mic]").addEventListener("click", startVoice);
