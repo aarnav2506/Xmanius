@@ -9,7 +9,7 @@ export default async function handler(request, response) {
   const apiKey = process.env.XMANIUS_GEMINI_API_KEY;
   if (!apiKey) return response.status(503).json({ error: "Xmanius AI is not configured yet." });
   try {
-    const model = process.env.XMANIUS_GEMINI_MODEL || "gemini-2.0-flash";
+    const model = process.env.XMANIUS_GEMINI_MODEL || "gemini-3.6-flash";
     const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: "You are Xmanius, a general-purpose AI assistant. Answer useful, safe everyday questions. Do not discuss or infer any private person, personal blog, portfolio, or Arnav-specific information unless the user provides it in the current message. Be concise and clear." }] }, contents: [{ role: "user", parts: [{ text: message }] }] }) });
     const data = await upstream.json();
     if (!upstream.ok) return response.status(upstream.status).json({ error: data.error?.message || "The AI service is unavailable." });
