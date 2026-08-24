@@ -6,11 +6,32 @@
   const list = document.querySelector("[data-message-list]");
   const empty = document.querySelector("[data-empty-state]");
   const recent = document.querySelector("[data-recent-list]");
+  const accountButton = document.querySelector("[data-account-button]");
+  const accountName = document.querySelector("[data-account-name]");
+  const accountStatus = document.querySelector("[data-account-status]");
   const modelToggle = document.querySelector("[data-model-toggle]");
   const modelPicker = document.querySelector("[data-model-picker]");
+  const thinkToggle = document.querySelector("[data-think-toggle]");
+  const dictationBar = document.querySelector("[data-dictation-bar]");
+  const dictationCancel = document.querySelector("[data-dictation-cancel]");
+  const dictationStop = document.querySelector("[data-dictation-stop]");
+  const dictationSend = document.querySelector("[data-dictation-send]");
   let recognition = null;
   let listening = false;
+  let audioContext = null;
+  let audioAnalyser = null;
+  let audioSource = null;
+  let audioStream = null;
+  let audioFrame = 0;
   let generalAssistant = null;
+  let thinkMode = false;
+  const chatsKey = "xmanius-chats-v1";
+  let currentChatId = crypto.randomUUID?.() || String(Date.now());
+  const readChats = () => { try { return JSON.parse(localStorage.getItem(chatsKey) || "[]"); } catch { return []; } };
+  const saveChats = (chats) => localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
+  const saveCurrentChat = () => { const messages = [...list.querySelectorAll(".message")].map((item) => ({ type: item.classList.contains("user") ? "user" : "assistant", text: item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim() })).filter((item) => item.text); if (!messages.length) return; const chats = readChats(); const existing = chats.find((chat) => chat.id === currentChatId); const chat = { id: currentChatId, title: messages.find((item) => item.type === "user")?.text.slice(0, 42) || "New chat", messages, updatedAt: Date.now() }; if (existing) Object.assign(existing, chat); else chats.unshift(chat); saveChats(chats); renderRecents(); };
+  const renderRecents = () => { if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => b.updatedAt - a.updatedAt).forEach((chat) => { const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; recent.append(button); }); };
+  const loadChat = (chatId) => { const chat = readChats().find((item) => item.id === chatId); if (!chat) return; list.replaceChildren(); empty.hidden = true; currentChatId = chat.id; chat.messages.forEach((message) => addMessage(message.text, message.type, { animate: false, persist: false })); };
   const localAnswer = (question) => {
     const q = question.toLowerCase();
     if (/^(hi|hello|hey)\b/.test(q)) return "Hello. I am Xmanius, ready to help.";
@@ -21,13 +42,33 @@
     return null;
   };
   const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = navigator.language || "en-US"; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
-  const addMessage = (text, type, { animate = false } = {}) => {
+  const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
+  const inlineMarkdown = (value) => escapeHtml(value).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>");
+  const renderMarkdown = (element, text) => {
+    const lines = text.split(/\r?\n/);
+    const output = [];
+    let bullets = [];
+    const flushBullets = () => { if (!bullets.length) return; output.push(`<ul>${bullets.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`); bullets = []; };
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) { flushBullets(); return; }
+      const bullet = trimmed.match(/^[-*•]\s+(.+)$/);
+      if (bullet) { bullets.push(bullet[1]); return; }
+      flushBullets();
+      const heading = trimmed.match(/^(#{1,4})\s+(.+)$/) || trimmed.match(/^(\d+\.)\s+(.+)$/);
+      if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); return; }
+      output.push(`<p>${inlineMarkdown(trimmed)}</p>`);
+    });
+    flushBullets();
+    element.innerHTML = output.join("");
+  };
+  const addMessage = (text, type, { animate = false, persist = true } = {}) => {
     empty.hidden = true;
     const item = document.createElement("article");
     item.className = `message ${type}`;
     const body = document.createElement("div");
     body.className = "message-body";
-    body.textContent = animate ? "" : text;
+    if (animate) body.textContent = ""; else if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
     item.append(body);
     if (type === "assistant") {
       const actions = document.createElement("div");
@@ -40,26 +81,36 @@
       item.append(actions);
     }
     list.append(item);
+    if (persist) saveCurrentChat();
     if (animate) {
       let index = 0;
-      const typeReply = () => { body.textContent = text.slice(0, index); index += 2; if (index <= text.length) requestAnimationFrame(typeReply); else body.textContent = text; };
+      const typeReply = () => { body.textContent = text.slice(0, index); index += 2; if (index <= text.length) requestAnimationFrame(typeReply); else renderMarkdown(body, text); };
       requestAnimationFrame(typeReply);
     }
     document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
   };
-  const ask = async (question) => { const q = question.trim(); if (!q) return; addMessage(q, "user"); input.value = ""; const local = localAnswer(q); if (local) { addMessage(local, "assistant", { animate: true }); return; } const thinking = document.createElement("article"); thinking.className = "message assistant thinking ai-message--thinking"; thinking.setAttribute("role", "status"); thinking.innerHTML = "<span>Thinking</span><i></i><i></i><i></i>"; list.append(thinking); document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight; try { const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: q }) }); const data = await response.json(); thinking.remove(); addMessage(response.ok ? data.reply : (data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true }); } catch (error) { thinking.remove(); addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true }); } };
-  const startVoice = () => { const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!Recognition) { input.placeholder = "Voice needs Chrome or Edge over HTTPS or localhost"; return; } if (listening) { recognition.abort(); return; } recognition = new Recognition(); recognition.lang = navigator.language || "en-US"; recognition.interimResults = true; recognition.continuous = false; let finalText = ""; recognition.onstart = () => { listening = true; input.placeholder = "Listening…"; document.querySelector("[data-chat-mic]").classList.add("active"); }; recognition.onresult = (event) => { let interim = ""; for (let i = event.resultIndex; i < event.results.length; i++) event.results[i].isFinal ? finalText += event.results[i][0].transcript : interim += event.results[i][0].transcript; input.value = `${finalText}${interim}`.trim(); }; recognition.onerror = () => { input.placeholder = "Ask anything"; }; recognition.onend = () => { listening = false; document.querySelector("[data-chat-mic]").classList.remove("active"); input.placeholder = "Ask anything"; if (finalText.trim()) ask(finalText); }; recognition.start(); };
+  const ask = async (question) => { const q = question.trim(); if (!q) return; addMessage(q, "user"); input.value = ""; const local = localAnswer(q); if (local && !thinkMode) { addMessage(local, "assistant", { animate: true }); return; } const thinking = document.createElement("article"); thinking.className = "message assistant thinking ai-message--thinking"; thinking.setAttribute("role", "status"); thinking.innerHTML = `<span>${thinkMode ? "Thinking carefully" : "Thinking"}</span><i></i><i></i><i></i>`; list.append(thinking); document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight; try { const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: q, thinkMode }) }); const data = await response.json(); thinking.remove(); addMessage(response.ok ? data.reply : (data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true }); } catch (error) { thinking.remove(); addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true }); } };
+  const stopAudioMeter = () => { cancelAnimationFrame(audioFrame); audioSource?.disconnect(); audioAnalyser = null; audioSource = null; audioStream?.getTracks().forEach((track) => track.stop()); audioStream = null; audioContext?.close(); audioContext = null; };
+  const startAudioMeter = async () => { if (!navigator.mediaDevices?.getUserMedia) return; try { audioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); audioContext = new (window.AudioContext || window.webkitAudioContext)(); audioAnalyser = audioContext.createAnalyser(); audioAnalyser.fftSize = 256; audioAnalyser.smoothingTimeConstant = .72; audioSource = audioContext.createMediaStreamSource(audioStream); audioSource.connect(audioAnalyser); const bars = [...document.querySelectorAll(".dictation-waveform i")]; const frequencies = new Uint8Array(audioAnalyser.frequencyBinCount); const meter = () => { if (!audioAnalyser) return; audioAnalyser.getByteFrequencyData(frequencies); const groupSize = Math.max(1, Math.floor(frequencies.length / bars.length)); bars.forEach((bar, index) => { let total = 0; for (let offset = 0; offset < groupSize; offset += 1) total += frequencies[index * groupSize + offset] || 0; const level = total / groupSize / 255; bar.style.height = `${Math.max(2, 3 + level * 28)}px`; bar.style.opacity = `${Math.max(.35, .35 + level)}`; }); audioFrame = requestAnimationFrame(meter); }; meter(); } catch { /* Speech recognition can still work when audio metering is unavailable. */ } };
+  const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); if (!active) { input.placeholder = "Ask anything"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); } };
+  const startVoice = () => { const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!Recognition) { input.placeholder = "Voice needs Chrome or Edge over HTTPS or localhost"; return; } if (listening) { recognition.abort(); return; } recognition = new Recognition(); recognition.lang = navigator.language || "en-US"; recognition.interimResults = true; recognition.continuous = false; let finalText = ""; recognition.onstart = () => { listening = true; setDictation(true); input.placeholder = "Listening…"; document.querySelector("[data-chat-mic]").classList.add("active"); startAudioMeter(); }; recognition.onresult = (event) => { let interim = ""; for (let i = event.resultIndex; i < event.results.length; i++) event.results[i].isFinal ? finalText += event.results[i][0].transcript : interim += event.results[i][0].transcript; input.value = `${finalText}${interim}`.trim(); }; recognition.onerror = () => { listening = false; setDictation(false); }; recognition.onend = () => { listening = false; stopAudioMeter(); document.querySelector("[data-chat-mic]")?.classList.remove("active"); input.placeholder = input.value.trim() ? "Ready to send" : "Listening stopped"; }; recognition.start(); };
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
   document.querySelector("[data-chat-mic]").addEventListener("click", startVoice);
+  dictationCancel?.addEventListener("click", () => { recognition?.abort(); input.value = ""; setDictation(false); input.focus(); });
+  dictationStop?.addEventListener("click", () => { if (listening) recognition?.stop(); else startVoice(); });
+  dictationSend?.addEventListener("click", () => { recognition?.abort(); setDictation(false); ask(input.value); });
   const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); modelToggle?.setAttribute("aria-expanded", String(open)); };
   modelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
   modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } if (event.target.closest("[data-model]")) setModelPicker(false); });
   document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer")) setModelPicker(false); });
-  const reset = () => { list.replaceChildren(); empty.hidden = false; input.value = ""; input.focus(); };
+  const reset = () => { saveCurrentChat(); currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; input.value = ""; input.focus(); };
   document.querySelectorAll("[data-new-chat]").forEach((button) => button.addEventListener("click", reset));
-  recent?.addEventListener("click", (event) => { if (event.target.matches("button")) { reset(); input.value = event.target.textContent.trim(); input.focus(); } });
+  recent?.addEventListener("click", (event) => { const button = event.target.closest("button[data-chat-id]"); if (button) loadChat(button.dataset.chatId); });
   document.querySelector("[data-open-sidebar]")?.addEventListener("click", () => app.classList.add("sidebar-visible"));
   document.querySelector("[data-close-sidebar]")?.addEventListener("click", () => app.classList.remove("sidebar-visible"));
+  thinkToggle?.addEventListener("click", () => { thinkMode = !thinkMode; thinkToggle.classList.toggle("active", thinkMode); thinkToggle.setAttribute("aria-pressed", String(thinkMode)); });
+  accountButton?.addEventListener("click", () => { const connected = localStorage.getItem("xmanius-google-connected") === "true"; if (!connected) { const proceed = window.confirm("Google account connection needs OAuth setup for this deployment. Use this browser as a local account for now?"); if (proceed) { localStorage.setItem("xmanius-google-connected", "true"); accountName.textContent = "Local user"; accountStatus.textContent = "Browser account"; } } else { accountName.textContent = "Local user"; accountStatus.textContent = "Browser account"; } });
+  renderRecents();
 
   const createGeneralAssistant = () => {
     const panel = document.createElement("section");
