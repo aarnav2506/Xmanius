@@ -62,6 +62,12 @@ button,input { font:inherit; } button { border:0; color:inherit; cursor:pointer;
 .source-card-details { display:grid; min-width:0; gap:2px; align-content:start; }
 .source-card strong,.source-card small,.source-snippet { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .source-card strong { font-size:12px; }.source-card small { color:#86a9e9; font-size:10px; }.source-snippet { color:#9ea2aa; font-size:10px; }
+.source-card:has(iframe) { display:block; padding:8px; }
+.source-card iframe { display:block; width:100%; aspect-ratio:16/9; border:0; border-radius:7px; background:#090909; }
+.source-card:has(iframe) .source-card-details { display:grid; margin-top:7px; }
+.source-open-link { display:inline-block; margin-top:5px; color:#8eb5ff; font-size:11px; text-decoration:none; }
+.source-open-link:hover { text-decoration:underline; }
+.search-error { margin:12px 0 0; padding:8px 10px; border-left:2px solid #d39b58; color:#d6b98f; font-size:12px; }
 .chat-app.sidebar-collapsed .chat-sidebar { flex-basis:56px; padding-inline:8px; align-items:center; }
 .chat-app.sidebar-collapsed .sidebar-top { width:100%; justify-content:center; padding-inline:0; }
 .chat-app.sidebar-collapsed .chat-logo span { display:none; }
