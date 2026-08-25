@@ -1,0 +1,200 @@
+/*
+ * Xmanius ChatGPT-style typography override
+ *
+ * Add this file after xmanius-chat.css, or append it to the end of
+ * xmanius-chat.css so these rules take precedence.
+ *
+ * This matches the visual language of modern ChatGPT-style interfaces:
+ * neutral system sans-serif typography, 16px conversation text, soft-white
+ * foreground text, muted secondary text, and comfortable 1.5 line-height.
+ * It is a close visual equivalent, not a claim that ChatGPT has one fixed
+ * public font stylesheet.
+ */
+
+:root {
+  --xmanius-text-primary: #ececec;
+  --xmanius-text-secondary: #b4b4b4;
+  --xmanius-text-muted: #8e8e8e;
+  --xmanius-text-heading: #f7f7f8;
+  --xmanius-user-text: #ececec;
+  --xmanius-input-text: #ececec;
+  --xmanius-placeholder: #9b9b9b;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+html,
+body {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--xmanius-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.chat-logo,
+.model-name,
+.new-chat,
+.sidebar-account,
+.conversation,
+.chat-disclaimer,
+.usage-indicator,
+.composer-tool,
+.model-picker,
+.message,
+.chat-input,
+.dictation-bar,
+.source-panel,
+.code-block,
+.thinking-summary {
+  font-family: inherit;
+}
+
+.chat-logo {
+  color: var(--xmanius-text-heading);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.new-chat,
+.model-name,
+.sidebar-account,
+.conversation {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.sidebar-label,
+.sidebar-account small,
+.usage-indicator,
+.chat-disclaimer {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sidebar-label,
+.sidebar-account small,
+.chat-disclaimer {
+  color: var(--xmanius-text-muted);
+}
+
+.message {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--xmanius-text-primary);
+}
+
+.message.user {
+  color: var(--xmanius-user-text);
+}
+
+.message.assistant {
+  color: var(--xmanius-text-primary);
+}
+
+.message-body p,
+.message-body li {
+  color: var(--xmanius-text-primary);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.message-body strong {
+  color: var(--xmanius-text-heading);
+  font-weight: 600;
+}
+
+.message-body h3 {
+  color: var(--xmanius-text-heading);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.chat-input {
+  color: var(--xmanius-input-text);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.chat-input::placeholder {
+  color: var(--xmanius-placeholder);
+  opacity: 1;
+}
+
+.thinking-summary,
+.message.thinking,
+.search-error {
+  color: var(--xmanius-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.thinking-summary summary {
+  color: var(--xmanius-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.thinking-summary p {
+  color: var(--xmanius-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.source-heading,
+.source-card strong {
+  color: var(--xmanius-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.source-card small,
+.source-snippet {
+  color: var(--xmanius-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.code-block > header {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.code-block pre {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.message-actions button,
+.composer-tool,
+.dictation-cancel,
+.dictation-stop,
+.dictation-send {
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .message,
+  .message-body p,
+  .message-body li,
+  .chat-input {
+    font-size: 16px;
+  }
+}

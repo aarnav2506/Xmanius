@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 36" role="img" aria-labelledby="title">
+  <title>Xmanius</title>
+  <path fill="#25D3E8" d="M0 0h3v36H0z"/>
+  <g transform="translate(10 2)"><rect x="1" y="1" width="30" height="30" rx="7" fill="#fff"/><path fill="none" stroke="#101114" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.3" d="M7 7 16 16 25 7M7 25l9-9 9 9"/></g>
+  <text x="52" y="26" fill="#F5F7FB" font-family="Inter, SF Pro Display, Segoe UI, Arial, sans-serif" font-size="23" font-weight="650" letter-spacing="-.45">Xmanius</text>
+</svg>

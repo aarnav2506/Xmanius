@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+  <title>Xmanius</title>
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="#fff"/>
+  <path fill="none" stroke="#101114" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.3" d="M7 7 16 16 25 7M7 25l9-9 9 9"/>
+</svg>
