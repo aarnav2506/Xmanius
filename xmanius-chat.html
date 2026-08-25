@@ -10,18 +10,19 @@
 <body>
   <div class="chat-app">
     <aside class="chat-sidebar" id="sidebar">
-      <div class="sidebar-top"><a class="chat-logo" href="xmanius-ai.html">Xmanius</a><button class="icon-button" type="button" data-close-sidebar aria-label="Close sidebar">×</button></div>
-      <button class="new-chat" type="button" data-new-chat><span>＋</span> New chat</button>
+      <div class="sidebar-top"><a class="chat-logo" href="xmanius-ai.html">Xmanius</a><button class="icon-button sidebar-panel-button" type="button" data-close-sidebar aria-label="Close sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button></div>
+      <button class="new-chat" type="button" data-new-chat><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H14l6 6v8.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"></path><path d="m14 4 6 6h-5a1 1 0 0 1-1-1V4ZM8 15h8M8 18h5"></path></svg> New chat</button>
       <div class="sidebar-recents"><p class="sidebar-label">Recents</p><div class="recent-list" data-recent-list></div></div>
       <button class="sidebar-account" type="button" data-account-button><span class="avatar">G</span><span><b data-account-name>Guest user</b><small data-account-status>Connect Google</small></span><span class="account-more">•••</span></button>
     </aside>
     <div class="chat-main">
-      <header class="chat-header"><button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar">☰</button><button class="model-name" type="button" data-model-menu>Xmanius 1 <span>⌄</span></button><button class="icon-button" type="button" aria-label="New conversation" data-new-chat>＋</button></header>
+      <header class="chat-header"><button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button><button class="model-name" type="button" data-model-menu>Xmanius 1 <span>⌄</span></button><div class="header-tools"><button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit"><span class="usage-ring"><span></span></span><span data-usage-label>0%</span></button><button class="icon-button" type="button" aria-label="New conversation" data-new-chat>＋</button></div></header>
       <main class="chat-content" id="chat-content"><section class="empty-state" data-empty-state><h1>Where should we begin?</h1><p>Ask Xmanius anything.</p></section><section class="message-list" data-message-list aria-live="polite"></section></main>
       <form class="chat-composer" data-chat-form>
         <button class="composer-icon composer-plus" type="button" data-model-toggle aria-expanded="false" aria-label="Choose model">+</button>
         <input class="chat-input" data-chat-input type="text" maxlength="1000" autocomplete="off" placeholder="Ask anything" aria-label="Ask Xmanius anything">
         <button class="composer-tool think-composer" type="button" data-think-toggle aria-pressed="false" aria-label="Toggle Think mode" title="Think"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8.5a3.5 3.5 0 0 0-2 6.38A3.5 3.5 0 0 0 10.5 18H12V6h-.5A3.5 3.5 0 0 0 9 8.5ZM15 8.5a3.5 3.5 0 0 1 2 6.38A3.5 3.5 0 0 1 13.5 18H12V6h.5A3.5 3.5 0 0 1 15 8.5Z"></path><path d="M12 9v6"></path></svg><span>Think</span></button>
+        <button class="composer-tool search-composer" type="button" data-web-search aria-pressed="false" aria-label="Toggle web search" title="Search web"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4M4.5 11h13M11 4.5c2 2 2 11 0 13M11 4.5c-2 2-2 11 0 13"></path></svg><span>Web</span></button>
         <button class="composer-icon composer-mic" type="button" data-chat-mic aria-label="Use voice input">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
         </button>
@@ -32,6 +33,7 @@
           <button type="button" class="model-option is-selected" data-model="xmanius-1" aria-pressed="true"><strong>Xmanius 1</strong><b aria-hidden="true">✓</b></button>
           <button type="button" class="model-option model-option-voice" data-voice-chat><strong>Voice chat</strong><span aria-hidden="true">↗</span></button>
         </div>
+        <div class="usage-notice" data-usage-notice role="status" aria-live="polite"></div>
       </form>
       <p class="chat-disclaimer">Xmanius can make mistakes. Check important information.</p>
     </div>
