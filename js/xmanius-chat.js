@@ -102,7 +102,7 @@
     flushBullets();
     element.innerHTML = output.join("");
   };
-  const addMessage = (text, type, { animate = false, persist = true, sources = [] } = {}) => {
+  const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "" } = {}) => {
     empty.hidden = true;
     const item = document.createElement("article");
     item.className = `message ${type}`;
@@ -113,11 +113,12 @@
     if (type === "assistant" && thinkMode) {
       thoughtSummary = document.createElement("details");
       thoughtSummary.className = "thinking-summary";
-      thoughtSummary.innerHTML = `<summary><span class="thought-glyph">✥</span> Thought for ${thinkingSeconds} second${thinkingSeconds === 1 ? "" : "s"} <span class="thought-chevron">⌄</span></summary><p>I considered the question, checked the relevant assumptions, and organized the response for clarity. Private chain-of-thought is not displayed.</p>`;
+      thoughtSummary.innerHTML = `<summary><span class="thought-glyph">✥</span> Thought for ${thinkingSeconds} second${thinkingSeconds === 1 ? "" : "s"}</summary><p>I interpreted the request, identified the relevant constraints, checked the available information, and organized the answer. Private chain-of-thought is not displayed.</p>`;
       item.append(thoughtSummary);
     }
     item.append(body);
     if (type === "assistant") {
+      if (searchError) { const notice = document.createElement("p"); notice.className = "search-error"; notice.textContent = searchError; item.append(notice); }
       if (Array.isArray(sources) && sources.length) {
         const sourcePanel = document.createElement("section");
         sourcePanel.className = "source-panel";
@@ -126,11 +127,11 @@
         sourceGrid.className = "source-grid";
         sources.slice(0, 8).forEach((source) => {
           if (!source?.url) return;
-          const card = document.createElement("a");
+          const youtubeMatch = source.url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
+          const card = document.createElement(youtubeMatch ? "article" : "a");
           card.className = "source-card";
-          card.href = source.url;
-          card.target = "_blank";
-          card.rel = "noopener noreferrer";
+          if (!youtubeMatch) { card.href = source.url; card.target = "_blank"; card.rel = "noopener noreferrer"; }
+          if (youtubeMatch) { const frame = document.createElement("iframe"); frame.src = `https://www.youtube-nocookie.com/embed/${youtubeMatch[1]}?rel=0`; frame.title = source.title || "YouTube video preview"; frame.loading = "lazy"; frame.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"; frame.referrerPolicy = "strict-origin-when-cross-origin"; frame.setAttribute("allowfullscreen", "true"); card.append(frame); }
           const details = document.createElement("span");
           details.className = "source-card-details";
           const title = document.createElement("strong");
@@ -143,6 +144,7 @@
           details.append(title, domain, snippet);
           if (source.thumbnail) { const image = document.createElement("img"); image.src = source.thumbnail; image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer"; card.append(image); }
           card.append(details);
+          if (youtubeMatch) { const link = document.createElement("a"); link.className = "source-open-link"; link.href = source.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = "Open on YouTube ↗"; card.append(link); }
           sourceGrid.append(card);
         });
         sourcePanel.append(sourceGrid);
