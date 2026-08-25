@@ -34,6 +34,7 @@
   let thinkMode = false;
   let webSearch = false;
   let selectedModel = "xmanius-1";
+  let thinkingSeconds = 1;
   const usageKey = "xmanius-usage-v1";
   const usageLimit = 50;
   const usageWindow = 5 * 60 * 60 * 1000;
@@ -59,34 +60,94 @@
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
   const cleanMath = (value) => value.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1");
   const inlineMarkdown = (value) => escapeHtml(cleanMath(value)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const tableCells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+  const isTableDivider = (line) => /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line.trim());
+  const renderTable = (header, rows) => `<div class="table-scroll"><table><thead><tr>${header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, index) => `<td>${inlineMarkdown(row[index] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const renderMarkdown = (element, text) => {
     const lines = text.split(/\r?\n/);
     const output = [];
     let bullets = [];
+    let index = 0;
     const flushBullets = () => { if (!bullets.length) return; output.push(`<ul>${bullets.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`); bullets = []; };
-    lines.forEach((line) => {
+    while (index < lines.length) {
+      const line = lines[index];
       const trimmed = line.trim();
-      if (!trimmed) { flushBullets(); return; }
+      if (!trimmed) { flushBullets(); index += 1; continue; }
+      if (index + 1 < lines.length && trimmed.includes("|") && isTableDivider(lines[index + 1])) {
+        flushBullets();
+        const header = tableCells(trimmed);
+        const rows = [];
+        index += 2;
+        while (index < lines.length && lines[index].trim().includes("|") && lines[index].trim()) { rows.push(tableCells(lines[index])); index += 1; }
+        output.push(renderTable(header, rows));
+        continue;
+      }
       const bullet = trimmed.match(/^[-*•]\s+(.+)$/);
-      if (bullet) { bullets.push(bullet[1]); return; }
+      if (bullet) { bullets.push(bullet[1]); index += 1; continue; }
       flushBullets();
       const heading = trimmed.match(/^(#{1,4})\s+(.+)$/) || trimmed.match(/^(\d+\.)\s+(.+)$/);
-      if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); return; }
-      if (trimmed.includes("|") && /^\|?\s*:?-{3,}/.test(lines[lines.indexOf(line) + 1] || "")) return;
+      if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); index += 1; continue; }
+      if (/^\s*(\$\$|\\\[)/.test(trimmed)) {
+        const close = trimmed.startsWith("$$") ? "$$" : "\\]";
+        let math = trimmed.replace(/^\$\$|^\\\[/, "");
+        index += 1;
+        while (index < lines.length && !lines[index].includes(close)) { math += `\\n${lines[index]}`; index += 1; }
+        math = math.replace(new RegExp(`${close.replace(/[$\\]/g, "\\\\")}$`), "");
+        output.push(`<div class="math-block" data-math="true">${escapeHtml(cleanMath(math))}</div>`);
+        continue;
+      }
       output.push(`<p>${inlineMarkdown(trimmed)}</p>`);
-    });
+      index += 1;
+    }
     flushBullets();
     element.innerHTML = output.join("");
   };
-  const addMessage = (text, type, { animate = false, persist = true } = {}) => {
+  const addMessage = (text, type, { animate = false, persist = true, sources = [] } = {}) => {
     empty.hidden = true;
     const item = document.createElement("article");
     item.className = `message ${type}`;
     const body = document.createElement("div");
     body.className = "message-body";
     if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
+    let thoughtSummary = null;
+    if (type === "assistant" && thinkMode) {
+      thoughtSummary = document.createElement("details");
+      thoughtSummary.className = "thinking-summary";
+      thoughtSummary.innerHTML = `<summary><span class="thought-glyph">✥</span> Thought for ${thinkingSeconds} second${thinkingSeconds === 1 ? "" : "s"} <span class="thought-chevron">⌄</span></summary><p>I considered the question, checked the relevant assumptions, and organized the response for clarity. Private chain-of-thought is not displayed.</p>`;
+      item.append(thoughtSummary);
+    }
     item.append(body);
     if (type === "assistant") {
+      if (Array.isArray(sources) && sources.length) {
+        const sourcePanel = document.createElement("section");
+        sourcePanel.className = "source-panel";
+        sourcePanel.innerHTML = `<div class="source-heading"><span class="source-earth">◎</span><strong>Sources searched</strong><span>${sources.length}</span></div>`;
+        const sourceGrid = document.createElement("div");
+        sourceGrid.className = "source-grid";
+        sources.slice(0, 8).forEach((source) => {
+          if (!source?.url) return;
+          const card = document.createElement("a");
+          card.className = "source-card";
+          card.href = source.url;
+          card.target = "_blank";
+          card.rel = "noopener noreferrer";
+          const details = document.createElement("span");
+          details.className = "source-card-details";
+          const title = document.createElement("strong");
+          title.textContent = source.title || source.url;
+          const domain = document.createElement("small");
+          domain.textContent = source.displayLink || (() => { try { return new URL(source.url).hostname; } catch { return source.url; } })();
+          const snippet = document.createElement("span");
+          snippet.className = "source-snippet";
+          snippet.textContent = source.snippet || "Open source";
+          details.append(title, domain, snippet);
+          if (source.thumbnail) { const image = document.createElement("img"); image.src = source.thumbnail; image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer"; card.append(image); }
+          card.append(details);
+          sourceGrid.append(card);
+        });
+        sourcePanel.append(sourceGrid);
+        item.append(sourcePanel);
+      }
       const actions = document.createElement("div");
       actions.className = "message-actions";
       actions.innerHTML = '<button type="button" data-copy-message aria-label="Copy response" title="Copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" data-read-message aria-label="Read response aloud" title="Read aloud"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"></path><path d="M16 9.5a4 4 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"></path></svg></button>';
@@ -102,7 +163,6 @@
       actions.append(shareButton);
       actions.querySelector("[data-read-message]").addEventListener("click", () => speak(text));
       shareButton.addEventListener("click", async () => { if (navigator.share) await navigator.share({ title: "Xmanius response", text }).catch(() => {}); else await navigator.clipboard?.writeText(text); });
-      if (thinkMode) { const summary = document.createElement("details"); summary.className = "thinking-summary"; summary.innerHTML = "<summary>How I approached this</summary><p>I checked the question, considered the relevant factors, and organized the answer for clarity. Private chain-of-thought is not displayed.</p>"; item.append(summary); }
       item.append(actions);
     }
     list.append(item);
@@ -112,7 +172,7 @@
   };
   const setSendingState = (active) => { sendButton?.classList.toggle("is-stop", active); if (sendButton) { sendButton.setAttribute("aria-label", active ? "Stop response" : "Send message"); sendButton.title = active ? "Stop response" : "Send message"; sendButton.innerHTML = active ? '<span class="send-stop-icon" aria-hidden="true"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>'; } };
   const conversationHistory = () => [...list.querySelectorAll(".message")].slice(-12).map((item) => ({ role: item.classList.contains("user") ? "user" : "model", text: item.querySelector(".message-body")?.textContent?.trim() || "" })).filter((item) => item.text);
-  const ask = async (question) => { const q = question.trim(); if (!q || activeRequestController) return; if (!updateUsage()) return; const history = conversationHistory(); addMessage(q, "user"); input.value = ""; updateUsage(true); const local = localAnswer(q); if (local && !thinkMode && !webSearch && selectedModel === "xmanius-1") { addMessage(local, "assistant", { animate: true }); return; } const thinking = document.createElement("article"); thinking.className = "message assistant thinking ai-message--thinking"; thinking.setAttribute("role", "status"); thinking.innerHTML = `<span>${thinkMode ? "Thinking carefully" : webSearch ? "Searching the web" : "Thinking"}</span><i></i><i></i><i></i>`; list.append(thinking); document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight; activeRequestController = new AbortController(); const timeout = window.setTimeout(() => activeRequestController?.abort(), 30000); setSendingState(true); try { const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: q, model: selectedModel, thinkMode, webSearch, history }), signal: activeRequestController.signal }); const data = await response.json().catch(() => ({})); thinking.remove(); addMessage(response.ok ? data.reply : (data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true }); } catch (error) { thinking.remove(); if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true }); else addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true }); } finally { window.clearTimeout(timeout); activeRequestController = null; setSendingState(false); } };
+  const ask = async (question) => { const q = question.trim(); if (!q || activeRequestController) return; if (!updateUsage()) return; const history = conversationHistory(); addMessage(q, "user"); input.value = ""; updateUsage(true); const local = localAnswer(q); if (local && !thinkMode && !webSearch && selectedModel === "xmanius-1") { addMessage(local, "assistant", { animate: true }); return; } const thinking = document.createElement("article"); thinking.className = "message assistant thinking ai-message--thinking"; thinking.setAttribute("role", "status"); thinking.innerHTML = `<span>${thinkMode ? "Thinking carefully" : webSearch ? "Searching multiple sources" : "Thinking"}</span><i></i><i></i><i></i>`; list.append(thinking); document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight; activeRequestController = new AbortController(); const startedAt = performance.now(); const timeout = window.setTimeout(() => activeRequestController?.abort(), 30000); setSendingState(true); try { const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: q, model: selectedModel, thinkMode, webSearch, history }), signal: activeRequestController.signal }); const data = await response.json().catch(() => ({})); thinkingSeconds = Math.max(1, Math.round((performance.now() - startedAt) / 1000)); thinking.remove(); addMessage(response.ok ? data.reply : (data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [] }); } catch (error) { thinking.remove(); if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true }); else addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true }); } finally { window.clearTimeout(timeout); activeRequestController = null; setSendingState(false); } };
   const stopAudioMeter = () => { cancelAnimationFrame(audioFrame); audioSource?.disconnect(); audioAnalyser = null; audioSource = null; audioStream?.getTracks().forEach((track) => track.stop()); audioStream = null; audioContext?.close(); audioContext = null; };
   const startAudioMeter = async () => { if (!navigator.mediaDevices?.getUserMedia) return; try { audioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); audioContext = new (window.AudioContext || window.webkitAudioContext)(); audioAnalyser = audioContext.createAnalyser(); audioAnalyser.fftSize = 256; audioAnalyser.smoothingTimeConstant = .72; audioSource = audioContext.createMediaStreamSource(audioStream); audioSource.connect(audioAnalyser); const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } const bars = [...document.querySelectorAll(".dictation-waveform i")]; const frequencies = new Uint8Array(audioAnalyser.frequencyBinCount); const meter = () => { if (!audioAnalyser) return; audioAnalyser.getByteFrequencyData(frequencies); const groupSize = Math.max(1, Math.floor(frequencies.length / bars.length)); bars.forEach((bar, index) => { let total = 0; for (let offset = 0; offset < groupSize; offset += 1) total += frequencies[index * groupSize + offset] || 0; const level = total / groupSize / 255; bar.style.height = `${Math.max(2, 3 + level * 28)}px`; bar.style.opacity = `${Math.max(.35, .35 + level)}`; }); audioFrame = requestAnimationFrame(meter); }; meter(); } catch { /* Speech recognition can still work when audio metering is unavailable. */ } };
   const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); dictationBar?.style.setProperty("display", active ? "flex" : "none", "important"); if (active) { const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } } else { input.placeholder = "Ask anything"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); } };
@@ -132,7 +192,7 @@
   recent?.addEventListener("click", async (event) => { const menuButton = event.target.closest("[data-chat-menu]"); if (menuButton) { recent.querySelectorAll(".conversation-row.is-menu-open").forEach((row) => row.classList.remove("is-menu-open")); menuButton.closest(".conversation-row").classList.toggle("is-menu-open"); return; } const action = event.target.closest("[data-chat-action]"); if (action) { const row = action.closest(".conversation-row"); const chats = readChats(); const chat = chats.find((item) => item.id === row.dataset.chatId); if (!chat) return; if (action.dataset.chatAction === "pin") chat.pinned = !chat.pinned; if (action.dataset.chatAction === "delete") { saveChats(chats.filter((item) => item.id !== chat.id)); if (chat.id === currentChatId) { currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; input.value = ""; } renderRecents(); return; } if (action.dataset.chatAction === "share") { const shareText = `${chat.title}\n\n${chat.messages.map((item) => `${item.type === "user" ? "You" : "Xmanius"}: ${item.text}`).join("\n\n")}`; if (navigator.share) await navigator.share({ title: chat.title, text: shareText }).catch(() => {}); else await navigator.clipboard?.writeText(shareText); } saveChats(chats); renderRecents(); return; } const button = event.target.closest("button[data-chat-id]"); if (button) { loadChat(button.dataset.chatId); recent.querySelectorAll(".is-menu-open").forEach((row) => row.classList.remove("is-menu-open")); } });
   document.addEventListener("click", (event) => { if (!event.target.closest(".conversation-row")) recent?.querySelectorAll(".is-menu-open").forEach((row) => row.classList.remove("is-menu-open")); });
   document.querySelector("[data-open-sidebar]")?.addEventListener("click", () => app.classList.add("sidebar-visible"));
-  document.querySelector("[data-close-sidebar]")?.addEventListener("click", () => { if (window.matchMedia("(max-width: 720px)").matches) app.classList.remove("sidebar-visible"); else app.classList.toggle("sidebar-collapsed"); });
+  document.querySelector("[data-close-sidebar]")?.addEventListener("click", () => { if (window.matchMedia("(max-width: 720px)").matches) app.classList.remove("sidebar-visible"); else { const collapsed = app.classList.toggle("sidebar-collapsed"); const button = document.querySelector("[data-close-sidebar]"); button?.setAttribute("aria-label", collapsed ? "Open sidebar" : "Collapse sidebar"); button?.setAttribute("title", collapsed ? "Open sidebar" : "Collapse sidebar"); } });
   thinkToggle?.addEventListener("click", () => { thinkMode = !thinkMode; thinkToggle.classList.toggle("active", thinkMode); thinkToggle.setAttribute("aria-pressed", String(thinkMode)); });
   webSearchToggle?.addEventListener("click", () => { webSearch = !webSearch; webSearchToggle.classList.toggle("active", webSearch); webSearchToggle.setAttribute("aria-pressed", String(webSearch)); });
   usageIndicator?.addEventListener("click", () => { updateUsage(); usageNotice?.classList.toggle("is-visible"); });
