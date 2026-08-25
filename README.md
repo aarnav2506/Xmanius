@@ -45,6 +45,8 @@ Add this environment variable in the Vercel project settings. Do not commit the 
 ```text
 XMANIUS_GEMINI_API_KEY=your_separate_gemini_key
 XMANIUS_GEMINI_MODEL=gemini-3.6-flash
+XMANIUS_GEMINI_API_KEY_2=your_second_gemini_key
+XMANIUS_GEMINI_MODEL_2=gemini-3.6-flash
 # Optional, required only for the Web button:
 XMANIUS_GOOGLE_SEARCH_API_KEY=your_google_search_key
 XMANIUS_GOOGLE_SEARCH_CX=your_programmable_search_engine_id
@@ -53,6 +55,8 @@ XMANIUS_GOOGLE_SEARCH_CX=your_programmable_search_engine_id
 Deploy from this repository root. Vercel automatically detects `api/xmanius-chat.js` as a serverless function.
 
 The Web button uses Google’s server-side Custom Search JSON API when both optional variables are configured. Google requires both an API key and a Programmable Search Engine ID; without them, Xmanius remains a normal Gemini chat and does not expose any key in the browser.
+
+Xmanius 1 and Xmanius 2 both use Gemini, but each uses a separate API key. Add both Gemini keys to Vercel; the selected model determines which server-side key is used.
 
 ## GitHub Pages
 
