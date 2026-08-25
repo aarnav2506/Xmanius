@@ -30,10 +30,10 @@ export default async function handler(request, response) {
   const thinkMode = body.thinkMode === true;
   const webSearch = body.webSearch === true;
   const rethink = body.rethink === true || /\b(rethink|re\s*consider|you(?:'re| are)\s+wrong|that\s+is\s+wrong|incorrect|not\s+correct|try\s+again)\b/i.test(message);
-  const selectedModel = body.model === "xmanius-2" ? "xmanius-2" : "xmanius-1";
+  const selectedModel = ["xmanius-1", "xmanius-2", "xmanius-3"].includes(body.model) ? body.model : "xmanius-1";
   const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_ITEMS).filter((item) => item && (item.role === "user" || item.role === "model") && typeof item.text === "string").map((item) => ({ role: item.role, parts: [{ text: item.text.slice(0, MAX_HISTORY_TEXT) }] })) : [];
-  const apiKey = selectedModel === "xmanius-2" ? process.env.XMANIUS_GEMINI_API_KEY_2 : process.env.XMANIUS_GEMINI_API_KEY;
-  if (!apiKey) return fail(503, `${selectedModel === "xmanius-2" ? "Xmanius 2 (Gemini)" : "Xmanius 1 (Gemini)"} is not configured yet. Add its server-side Vercel environment variable.`, "auth_config");
+  const apiKey = selectedModel === "xmanius-3" ? process.env.XMANIUS_GEMINI_API_KEY_3 : selectedModel === "xmanius-2" ? process.env.XMANIUS_GEMINI_API_KEY_2 : process.env.XMANIUS_GEMINI_API_KEY;
+  if (!apiKey) return fail(503, `${selectedModel.replace("xmanius-", "Xmanius ")} (Gemini) is not configured yet. Add its server-side Vercel environment variable.`, "auth_config");
   try {
     const model = process.env.XMANIUS_GEMINI_MODEL || "gemini-3.6-flash";
     let searchContext = "";
@@ -76,7 +76,7 @@ export default async function handler(request, response) {
     const contextInstruction = "Use the conversation history only when it is relevant to the current question. If the topic clearly changes, answer the new topic independently.";
     const instruction = `${thinkMode ? "You are Xmanius in Think mode, a general-purpose AI assistant. Analyze carefully, check assumptions and edge cases, and prioritize accuracy. Do not reveal private chain-of-thought; provide only the answer and a brief rationale when useful." : "You are Xmanius, a general-purpose AI assistant. Answer safe everyday questions quickly and clearly."} Do not discuss Arnav or any personal blog or portfolio. ${correctionInstruction} ${videoInstruction} ${contextInstruction} ${formatInstruction}`;
     const contents = [...history, { role: "user", parts: [{ text: searchContext ? `${message}\n\nWeb search results (use as sources, verify conflicts, and cite links in the answer):\n${searchContext}` : message }] }];
-    const geminiModel = selectedModel === "xmanius-2" ? (process.env.XMANIUS_GEMINI_MODEL_2 || "gemini-3.6-flash") : model;
+    const geminiModel = selectedModel === "xmanius-3" ? (process.env.XMANIUS_GEMINI_MODEL_3 || "gemini-3.6-flash") : selectedModel === "xmanius-2" ? (process.env.XMANIUS_GEMINI_MODEL_2 || "gemini-3.6-flash") : model;
     const modelCandidates = [...new Set([geminiModel, process.env.XMANIUS_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash"])];
     let upstream;
     for (const candidate of modelCandidates) {

@@ -125,17 +125,6 @@
     });
   };
 
-  const addTypingCursor = (article, duration = 1400) => {
-    if (!article || article.classList.contains("user")) return;
-    const body = article.querySelector(".message-body");
-    if (!body || body.querySelector(".xmanius-typing-cursor,.xmanius-live-cursor")) return;
-    const cursor = document.createElement("span");
-    cursor.className = "xmanius-typing-cursor";
-    cursor.setAttribute("aria-hidden", "true");
-    body.append(cursor);
-    window.setTimeout(() => cursor.remove(), duration);
-  };
-
   const addUserActions = (article) => {
     if (!article || !article.classList.contains("user") || article.dataset.xmaniusActions === "true") return;
     article.dataset.xmaniusActions = "true";
@@ -219,7 +208,6 @@
     article.append(body);
     list.append(article);
     appendCodeActions(article);
-    addTypingCursor(article);
     return article;
   };
 
@@ -395,12 +383,10 @@
           if (node.matches(".message.user")) addUserActions(node);
           if (node.matches(".message.assistant")) {
             appendCodeActions(node);
-            addTypingCursor(node);
           }
           node.querySelectorAll?.(".message.user").forEach(addUserActions);
           node.querySelectorAll?.(".message.assistant").forEach((item) => {
             appendCodeActions(item);
-            addTypingCursor(item);
           });
         });
       }
@@ -433,7 +419,6 @@
     list.querySelectorAll(".message.user").forEach(addUserActions);
     list.querySelectorAll(".message.assistant").forEach((item) => {
       appendCodeActions(item);
-      addTypingCursor(item, 0);
     });
     rebuildSidebarSections();
   } catch (error) {
