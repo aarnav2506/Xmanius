@@ -1,67 +1,91 @@
+const MAX_BODY_BYTES = 90000;
+const MAX_HISTORY_ITEMS = 12;
+const MAX_HISTORY_TEXT = 3000;
+const UPSTREAM_TIMEOUT_MS = 55000;
+
+const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const fetchWithTimeout = async (url, options = {}, timeoutMs = UPSTREAM_TIMEOUT_MS) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try { return await fetch(url, { ...options, signal: controller.signal }); }
+  finally { clearTimeout(timer); }
+};
+
+const errorKind = (status) => status === 429 ? "provider_quota" : status === 401 || status === 403 ? "auth_config" : status === 400 ? "invalid_request" : status >= 500 ? "provider_outage" : "provider_error";
+
 export default async function handler(request, response) {
-  if (request.method !== "POST") return response.status(405).json({ error: "Method not allowed" });
+  const requestId = requestIdFor();
+  const fail = (status, userMessage, kind = "request", extra = {}) => response.status(status).json({ error: userMessage, userMessage, kind, canRetry: status >= 500 || status === 429, retryAfterMs: status === 429 ? 15000 : 0, requestId, ...extra });
+  if (request.method !== "POST") return fail(405, "Only POST requests are supported.");
   let body = request.body || {};
   if (typeof body === "string") {
-    try { body = JSON.parse(body || "{}"); } catch { return response.status(400).json({ error: "Invalid JSON request body" }); }
+    if (body.length > MAX_BODY_BYTES) return fail(413, "This request is too large. Please shorten the conversation and try again.", "request_too_large");
+    try { body = JSON.parse(body || "{}"); } catch { return fail(400, "The request body is not valid JSON.", "invalid_json"); }
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return fail(400, "The request body must be an object.", "invalid_request");
   const message = typeof body.message === "string" ? body.message.trim() : "";
+  if (!message) return fail(400, "Message is required.", "missing_message");
+  if (message.length > 12000) return fail(413, "That message is too long. Please shorten it and try again.", "message_too_large");
   const thinkMode = body.thinkMode === true;
   const webSearch = body.webSearch === true;
   const rethink = body.rethink === true || /\b(rethink|re\s*consider|you(?:'re| are)\s+wrong|that\s+is\s+wrong|incorrect|not\s+correct|try\s+again)\b/i.test(message);
   const selectedModel = body.model === "xmanius-2" ? "xmanius-2" : "xmanius-1";
-  const history = Array.isArray(body.history) ? body.history : [];
-  if (!message) return response.status(400).json({ error: "Message is required" });
+  const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_ITEMS).filter((item) => item && (item.role === "user" || item.role === "model") && typeof item.text === "string").map((item) => ({ role: item.role, parts: [{ text: item.text.slice(0, MAX_HISTORY_TEXT) }] })) : [];
   const apiKey = selectedModel === "xmanius-2" ? process.env.XMANIUS_GEMINI_API_KEY_2 : process.env.XMANIUS_GEMINI_API_KEY;
-  if (!apiKey) return response.status(503).json({ error: `${selectedModel === "xmanius-2" ? "Xmanius 2 (Gemini)" : "Xmanius 1 (Gemini)"} is not configured yet.` });
+  if (!apiKey) return fail(503, `${selectedModel === "xmanius-2" ? "Xmanius 2 (Gemini)" : "Xmanius 1 (Gemini)"} is not configured yet. Add its server-side Vercel environment variable.`, "auth_config");
   try {
     const model = process.env.XMANIUS_GEMINI_MODEL || "gemini-3.6-flash";
     let searchContext = "";
     let searchResults = [];
     let searchError = "";
+    const activity = [];
     const wantsYouTube = /youtube|video|watch|lecture|class\s*\d+/i.test(message);
-    if (webSearch && wantsYouTube && (process.env.XMANIUS_YOUTUBE_API_KEY || process.env.XMANIUS_GOOGLE_SEARCH_API_KEY)) {
+    const youtubeKey = process.env.XMANIUS_YOUTUBE_API_KEY || process.env.XMANIUS_GOOGLE_SEARCH_API_KEY;
+    if (webSearch && wantsYouTube && youtubeKey) {
+      activity.push({ type: "search", label: "Searching YouTube", status: "running" });
       const youtubeUrl = new URL("https://www.googleapis.com/youtube/v3/search");
-      youtubeUrl.searchParams.set("part", "snippet");
-      youtubeUrl.searchParams.set("type", "video");
-      youtubeUrl.searchParams.set("maxResults", "8");
-      youtubeUrl.searchParams.set("q", message.replace(/\b(on|in)\s+youtube\b/ig, ""));
-      youtubeUrl.searchParams.set("key", process.env.XMANIUS_YOUTUBE_API_KEY || process.env.XMANIUS_GOOGLE_SEARCH_API_KEY);
-      const youtubeResponse = await fetch(youtubeUrl);
+      youtubeUrl.searchParams.set("part", "snippet"); youtubeUrl.searchParams.set("type", "video"); youtubeUrl.searchParams.set("maxResults", "8"); youtubeUrl.searchParams.set("q", message.replace(/\b(on|in)\s+youtube\b/ig, "")); youtubeUrl.searchParams.set("key", youtubeKey);
+      const youtubeResponse = await fetchWithTimeout(youtubeUrl);
       if (youtubeResponse.ok) {
         const youtubeData = await youtubeResponse.json();
         searchResults = (youtubeData.items || []).filter((item) => item.id?.videoId).map((item) => ({ title: item.snippet?.title || "YouTube video", url: `https://www.youtube.com/watch?v=${item.id.videoId}`, snippet: item.snippet?.description || "YouTube video", displayLink: "youtube.com", thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || "" }));
         searchContext = searchResults.map((item, index) => `[${index + 1}] ${item.title}\n${item.snippet}\nURL: ${item.url}`).join("\n\n");
         if (!searchResults.length) searchError = "YouTube returned no matching videos.";
-      } else { const errorData = await youtubeResponse.json().catch(() => ({})); searchError = errorData.error?.message || `YouTube search failed (${youtubeResponse.status}).`; }
-    } else if (webSearch && (!process.env.XMANIUS_GOOGLE_SEARCH_API_KEY || !process.env.XMANIUS_GOOGLE_SEARCH_CX)) searchError = "Web search is not configured. Add both XMANIUS_GOOGLE_SEARCH_API_KEY and XMANIUS_GOOGLE_SEARCH_CX in Vercel.";
-    else if (webSearch && process.env.XMANIUS_GOOGLE_SEARCH_API_KEY && process.env.XMANIUS_GOOGLE_SEARCH_CX) {
+      } else { const status = youtubeResponse.status; searchError = status === 401 || status === 403 ? "YouTube search credentials were rejected. Check XMANIUS_YOUTUBE_API_KEY and enable YouTube Data API v3." : status === 429 ? "YouTube search is temporarily rate-limited." : `YouTube search failed (${status}).`; }
+      activity[activity.length - 1].status = searchError ? "failed" : "completed";
+    } else if (webSearch && (!process.env.XMANIUS_GOOGLE_SEARCH_API_KEY || !process.env.XMANIUS_GOOGLE_SEARCH_CX)) {
+      searchError = "Web search is not configured. Add both XMANIUS_GOOGLE_SEARCH_API_KEY and XMANIUS_GOOGLE_SEARCH_CX in Vercel.";
+      activity.push({ type: "search", label: "Web search unavailable", status: "failed" });
+    } else if (webSearch) {
+      activity.push({ type: "search", label: "Searching the web", status: "running" });
       const searchUrl = new URL("https://www.googleapis.com/customsearch/v1");
-      searchUrl.searchParams.set("key", process.env.XMANIUS_GOOGLE_SEARCH_API_KEY);
-      searchUrl.searchParams.set("cx", process.env.XMANIUS_GOOGLE_SEARCH_CX);
-      searchUrl.searchParams.set("q", message);
-      searchUrl.searchParams.set("num", "5");
-      const searchResponse = await fetch(searchUrl);
+      searchUrl.searchParams.set("key", process.env.XMANIUS_GOOGLE_SEARCH_API_KEY); searchUrl.searchParams.set("cx", process.env.XMANIUS_GOOGLE_SEARCH_CX); searchUrl.searchParams.set("q", message); searchUrl.searchParams.set("num", "5");
+      const searchResponse = await fetchWithTimeout(searchUrl);
       if (searchResponse.ok) {
         const searchData = await searchResponse.json();
         searchResults = (searchData.items || []).slice(0, 8).map((item) => ({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", displayLink: item.displayLink || "", thumbnail: item.pagemap?.cse_thumbnail?.[0]?.src || item.pagemap?.cse_image?.[0]?.src || "" }));
         searchContext = searchResults.map((item, index) => `[${index + 1}] ${item.title}\n${item.snippet}\nURL: ${item.url}`).join("\n\n");
         if (!searchResults.length) searchError = "Google returned no matching sources for this search.";
-      } else { const errorData = await searchResponse.json().catch(() => ({})); searchError = errorData.error?.message || `Google search failed (${searchResponse.status}).`; }
+      } else { const status = searchResponse.status; searchError = status === 401 || status === 403 ? "Google web-search credentials were rejected. Check the API key, Custom Search engine ID, and enabled API." : status === 429 ? "Google web search is temporarily rate-limited." : `Google search failed (${status}).`; }
+      activity[activity.length - 1].status = searchError ? "failed" : "completed";
     }
     const formatInstruction = "Write like a polished modern AI assistant. Start with a direct answer, then organize details with descriptive Markdown headings (##), bold only important terms, numbered steps for procedures, bullets for grouped facts, and blank lines between sections. Use symbols such as →, ✓, •, and em dashes naturally when they improve clarity. Use a Markdown table when comparing multiple search results, prices, features, dates, or options. For web research, distinguish verified facts from snippets, include useful source links in Markdown, and never claim that a flight or product is the cheapest unless the source actually verifies current pricing. For math, parse the user's wording carefully, preserve brackets such as (3x − y), write each standalone equation on its own line, center important equations with $$...$$, show substitutions in a clean sequence, and end with a clearly labeled final answer. Never output escaped dollar artifacts or unrendered commands. Do not put every sentence in a heading, do not repeat the question, and do not include a hidden thought process.";
-    const contextInstruction = "Use the conversation history only when it is relevant to the current question. If the topic clearly changes, answer the new topic independently.";
     const correctionInstruction = rethink ? "The user asked you to rethink or challenged the previous answer. Re-evaluate the prior answer carefully, identify the likely mistake or ambiguity, correct it, and give the improved answer. Do not repeat the same wording and briefly state what changed." : "";
     const videoInstruction = webSearch && /youtube|video|watch|lecture/i.test(message) ? "When YouTube results are available, recommend the actual result and include its direct URL. Do not say that videos cannot be played; the interface can embed YouTube results." : "";
-    const instruction = thinkMode ? `You are Xmanius in Think mode, a general-purpose AI assistant. Analyze carefully, check assumptions and edge cases, and prioritize accuracy. Do not reveal private chain-of-thought; provide only the answer and a brief rationale when useful. Do not discuss Arnav or any personal blog or portfolio. ${correctionInstruction} ${videoInstruction} ${contextInstruction} ${formatInstruction}` : `You are Xmanius, a general-purpose AI assistant. Answer safe everyday questions quickly and clearly. Do not discuss Arnav or any personal blog or portfolio. ${correctionInstruction} ${videoInstruction} ${contextInstruction} ${formatInstruction}`;
-    const safeHistory = history.filter((item) => item && (item.role === "user" || item.role === "model") && typeof item.text === "string").slice(-12).map((item) => ({ role: item.role, parts: [{ text: item.text.slice(0, 3000) }] }));
-    const contents = [...safeHistory, { role: "user", parts: [{ text: searchContext ? `${message}\n\nWeb search results (use as sources, verify conflicts, and cite links in the answer):\n${searchContext}` : message }] }];
-    let upstream;
+    const contextInstruction = "Use the conversation history only when it is relevant to the current question. If the topic clearly changes, answer the new topic independently.";
+    const instruction = `${thinkMode ? "You are Xmanius in Think mode, a general-purpose AI assistant. Analyze carefully, check assumptions and edge cases, and prioritize accuracy. Do not reveal private chain-of-thought; provide only the answer and a brief rationale when useful." : "You are Xmanius, a general-purpose AI assistant. Answer safe everyday questions quickly and clearly."} Do not discuss Arnav or any personal blog or portfolio. ${correctionInstruction} ${videoInstruction} ${contextInstruction} ${formatInstruction}`;
+    const contents = [...history, { role: "user", parts: [{ text: searchContext ? `${message}\n\nWeb search results (use as sources, verify conflicts, and cite links in the answer):\n${searchContext}` : message }] }];
     const geminiModel = selectedModel === "xmanius-2" ? (process.env.XMANIUS_GEMINI_MODEL_2 || "gemini-3.6-flash") : model;
-    upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig: { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 2048 : 1024 } }) });
-    const data = await upstream.json();
-    if (!upstream.ok) return response.status(upstream.status).json({ error: data.error?.message || "The AI service is unavailable." });
+    const upstream = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig: { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 2048 : 1024 } }) });
+    const data = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) { const kind = errorKind(upstream.status); const providerMessage = kind === "provider_quota" ? "This model is temporarily rate-limited. Please wait or switch models." : kind === "auth_config" ? "The selected model credentials were rejected. Check its Vercel environment variable and model name." : kind === "invalid_request" ? "The AI provider rejected this request. Please try a shorter or clearer message." : "The AI service is temporarily unavailable. Please try again."; return fail(upstream.status >= 500 ? 502 : upstream.status, providerMessage, kind, { providerStatus: upstream.status }); }
     const reply = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
     const finalReply = searchError && webSearch ? `${reply || "I could not produce an answer for that."}\n\n> Web search status: ${searchError}` : (reply || "I could not produce an answer for that.");
-    return response.status(200).json({ reply: finalReply, model: selectedModel, webSearchUsed: Boolean(searchContext), sources: searchResults, searchError });
-  } catch { return response.status(502).json({ error: "The AI service is unavailable." }); }
+    activity.push({ type: "answer", label: rethink ? "Rechecked and formatted the answer" : "Prepared and formatted the answer", status: "completed" });
+    return response.status(200).json({ reply: finalReply, model: selectedModel, webSearchUsed: Boolean(searchContext), sources: searchResults, searchError, requestId, activity, reasoningSummary: thinkMode ? { label: rethink ? "Re-evaluated the answer" : "Checked assumptions and organized the response", safe: true } : null });
+  } catch (error) {
+    const timedOut = error?.name === "AbortError";
+    return fail(504, timedOut ? "The AI service took too long to respond. Please try again or switch models." : "The AI service is temporarily unavailable. Please try again.", timedOut ? "provider_timeout" : "provider_unavailable");
+  }
 }
