@@ -70,7 +70,7 @@
     item.className = `message ${type}`;
     const body = document.createElement("div");
     body.className = "message-body";
-    if (animate) body.textContent = ""; else if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
+    if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
     item.append(body);
     if (type === "assistant") {
       const actions = document.createElement("div");
@@ -88,15 +88,12 @@
       actions.append(shareButton);
       actions.querySelector("[data-read-message]").addEventListener("click", () => speak(text));
       shareButton.addEventListener("click", async () => { if (navigator.share) await navigator.share({ title: "Xmanius response", text }).catch(() => {}); else await navigator.clipboard?.writeText(text); });
+      if (thinkMode) { const summary = document.createElement("details"); summary.className = "thinking-summary"; summary.innerHTML = "<summary>How I approached this</summary><p>I checked the question, considered the relevant factors, and organized the answer for clarity. Private chain-of-thought is not displayed.</p>"; item.append(summary); }
       item.append(actions);
     }
     list.append(item);
     if (persist) saveCurrentChat();
-    if (animate) {
-      let index = 0;
-      const typeReply = () => { body.textContent = text.slice(0, index); index += 2; if (index <= text.length) requestAnimationFrame(typeReply); else renderMarkdown(body, text); };
-      requestAnimationFrame(typeReply);
-    }
+    if (animate && type === "assistant") { item.classList.add("message-entering"); requestAnimationFrame(() => item.classList.remove("message-entering")); }
     document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
   };
   const setSendingState = (active) => { sendButton?.classList.toggle("is-stop", active); if (sendButton) { sendButton.setAttribute("aria-label", active ? "Stop response" : "Send message"); sendButton.title = active ? "Stop response" : "Send message"; sendButton.innerHTML = active ? '<span class="send-stop-icon" aria-hidden="true"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>'; } };
