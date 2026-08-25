@@ -10,7 +10,7 @@
 <body>
   <div class="chat-app">
     <aside class="chat-sidebar" id="sidebar">
-      <div class="sidebar-top"><a class="chat-logo" href="xmanius-ai.html">Xmanius</a><button class="icon-button sidebar-panel-button" type="button" data-close-sidebar aria-label="Close sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button></div>
+      <div class="sidebar-top"><a class="chat-logo" href="xmanius-ai.html" aria-label="Xmanius home"><svg class="xmanius-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 6 16 14.8 25 6M7 26l9-8.8 9 8.8"></path><path d="M10.5 6 16 11.3 21.5 6M10.5 26l5.5-5.3 5.5 5"></path></svg><span>Xmanius</span></a><button class="icon-button sidebar-panel-button" type="button" data-close-sidebar aria-label="Collapse sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button></div>
       <button class="new-chat" type="button" data-new-chat><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H14l6 6v8.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"></path><path d="m14 4 6 6h-5a1 1 0 0 1-1-1V4ZM8 15h8M8 18h5"></path></svg> New chat</button>
       <div class="sidebar-recents"><p class="sidebar-label">Recents</p><div class="recent-list" data-recent-list></div></div>
       <button class="sidebar-account" type="button" data-account-button><span class="avatar">G</span><span><b data-account-name>Guest user</b><small data-account-status>Connect Google</small></span><span class="account-more">•••</span></button>
@@ -22,7 +22,7 @@
         <button class="composer-icon composer-plus" type="button" data-model-toggle aria-expanded="false" aria-label="Choose model">+</button>
         <input class="chat-input" data-chat-input type="text" maxlength="1000" autocomplete="off" placeholder="Ask anything" aria-label="Ask Xmanius anything">
         <button class="composer-tool think-composer" type="button" data-think-toggle aria-pressed="false" aria-label="Toggle Think mode" title="Think"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8.5a3.5 3.5 0 0 0-2 6.38A3.5 3.5 0 0 0 10.5 18H12V6h-.5A3.5 3.5 0 0 0 9 8.5ZM15 8.5a3.5 3.5 0 0 1 2 6.38A3.5 3.5 0 0 1 13.5 18H12V6h.5A3.5 3.5 0 0 1 15 8.5Z"></path><path d="M12 9v6"></path></svg><span>Think</span></button>
-        <button class="composer-tool search-composer" type="button" data-web-search aria-pressed="false" aria-label="Toggle web search" title="Search web"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4M4.5 11h13M11 4.5c2 2 2 11 0 13M11 4.5c-2 2-2 11 0 13"></path></svg><span>Web</span></button>
+        <button class="composer-tool search-composer" type="button" data-web-search aria-pressed="false" aria-label="Toggle web search" title="Search the web"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.8 2.7 2.8 14.3 0 17M12 3.5c-2.8 2.7-2.8 14.3 0 17"></path></svg></button>
         <button class="composer-icon composer-mic" type="button" data-chat-mic aria-label="Use voice input">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
         </button>
