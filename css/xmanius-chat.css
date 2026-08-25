@@ -78,6 +78,7 @@ button,input { font:inherit; } button { border:0; color:inherit; cursor:pointer;
 .code-block > header button:hover { background:#3a3c43; color:#fff; }
 .code-block pre { max-width:100%; margin:0; padding:16px 14px; overflow:auto; color:#dce7ff; font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace; tab-size:2; }
 .code-block code { padding:0; background:transparent; color:inherit; font:inherit; white-space:pre; }
+.syntax-keyword { color:#c792ea; }.syntax-string { color:#c3e88d; }.syntax-comment { color:#697386; font-style:italic; }.syntax-tag { color:#82aaff; }
 .chat-app.sidebar-collapsed .chat-sidebar { flex-basis:56px; padding-inline:8px; align-items:center; }
 .chat-app.sidebar-collapsed .sidebar-top { width:100%; justify-content:center; padding-inline:0; }
 .chat-app.sidebar-collapsed .chat-logo span { display:none; }

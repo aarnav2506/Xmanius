@@ -60,6 +60,8 @@
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
   const cleanMath = (value) => value.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1");
   const inlineMarkdown = (value) => escapeHtml(cleanMath(value)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const highlightCode = (value) => escapeHtml(value).replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="syntax-comment">$1</span>').replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span class="syntax-string">$1</span>').replace(/\b(const|let|var|function|return|if|else|for|while|new|class|async|await|import|from|true|false|null|undefined)\b/g, '<span class="syntax-keyword">$1</span>').replace(/(&lt;\/?)([A-Za-z][\w-]*)/g, '$1<span class="syntax-tag">$2</span>');
+  const youtubeSourcesFromText = (value) => [...value.matchAll(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)[A-Za-z0-9_-]{6,}|youtu\.be\/[A-Za-z0-9_-]{6,})[^\s)<>]*/gi)].map((match) => ({ title: "YouTube video", url: match[0].replace(/[.,]$/, ""), snippet: "Open or watch this video preview", displayLink: "youtube.com" }));
   const tableCells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
   const isTableDivider = (line) => /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line.trim());
   const renderTable = (header, rows) => `<div class="table-scroll"><table><thead><tr>${header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, index) => `<td>${inlineMarkdown(row[index] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
@@ -67,12 +69,14 @@
     const lines = text.split(/\r?\n/);
     const output = [];
     let bullets = [];
+    let numbered = [];
     let index = 0;
     const flushBullets = () => { if (!bullets.length) return; output.push(`<ul>${bullets.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`); bullets = []; };
+    const flushNumbered = () => { if (!numbered.length) return; output.push(`<ol>${numbered.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ol>`); numbered = []; };
     while (index < lines.length) {
       const line = lines[index];
       const trimmed = line.trim();
-      if (!trimmed) { flushBullets(); index += 1; continue; }
+      if (!trimmed) { flushBullets(); flushNumbered(); index += 1; continue; }
       const fence = trimmed.match(/^```\s*([\w+#.-]*)\s*$/);
       if (fence) {
         flushBullets();
@@ -81,11 +85,11 @@
         index += 1;
         while (index < lines.length && !/^```\s*$/.test(lines[index].trim())) { codeLines.push(lines[index]); index += 1; }
         if (index < lines.length) index += 1;
-        output.push(`<section class="code-block" data-code-block data-language="${escapeHtml(language)}"><header><span>${escapeHtml(language)}</span><div><button type="button" data-code-action="copy">Copy</button><button type="button" data-code-action="download">Download</button><button type="button" data-code-action="run">Run</button></div></header><pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre></section>`);
+        output.push(`<section class="code-block" data-code-block data-language="${escapeHtml(language)}"><header><span>${escapeHtml(language)}</span><div><button type="button" data-code-action="copy">Copy</button><button type="button" data-code-action="download">Download</button><button type="button" data-code-action="run">Run</button></div></header><pre><code>${highlightCode(codeLines.join("\n"))}</code></pre></section>`);
         continue;
       }
       if (index + 1 < lines.length && trimmed.includes("|") && isTableDivider(lines[index + 1])) {
-        flushBullets();
+        flushBullets(); flushNumbered();
         const header = tableCells(trimmed);
         const rows = [];
         index += 2;
@@ -95,8 +99,11 @@
       }
       const bullet = trimmed.match(/^[-*•]\s+(.+)$/);
       if (bullet) { bullets.push(bullet[1]); index += 1; continue; }
-      flushBullets();
-      const heading = trimmed.match(/^(#{1,4})\s+(.+)$/) || trimmed.match(/^(\d+\.)\s+(.+)$/);
+      const ordered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+      if (ordered) { flushBullets(); numbered.push(ordered[1]); index += 1; continue; }
+      flushBullets(); flushNumbered();
+      if (/^(-{3,}|_{3,}|\*{3,})$/.test(trimmed)) { output.push("<hr>"); index += 1; continue; }
+      const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
       if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); index += 1; continue; }
       if (/^\s*(\$\$|\\\[)/.test(trimmed)) {
         const close = trimmed.startsWith("$$") ? "$$" : "\\]";
@@ -110,11 +117,12 @@
       output.push(`<p>${inlineMarkdown(trimmed)}</p>`);
       index += 1;
     }
-    flushBullets();
+    flushBullets(); flushNumbered();
     element.innerHTML = output.join("");
   };
   const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "" } = {}) => {
     empty.hidden = true;
+    const displaySources = [...new Map([...sources, ...youtubeSourcesFromText(text)].filter((source) => source?.url).map((source) => [source.url, source])).values()];
     const item = document.createElement("article");
     item.className = `message ${type}`;
     const body = document.createElement("div");
@@ -137,13 +145,13 @@
         block.querySelector('[data-code-action="run"]')?.addEventListener("click", () => { if (!/^html?$/i.test(language)) { window.alert("Run is available for HTML code blocks."); return; } const preview = window.open("about:blank", "_blank"); if (!preview) return; preview.document.open(); preview.document.write(code); preview.document.close(); });
       });
       if (searchError) { const notice = document.createElement("p"); notice.className = "search-error"; notice.textContent = searchError; item.append(notice); }
-      if (Array.isArray(sources) && sources.length) {
+      if (displaySources.length) {
         const sourcePanel = document.createElement("section");
         sourcePanel.className = "source-panel";
-        sourcePanel.innerHTML = `<div class="source-heading"><span class="source-earth">◎</span><strong>Sources searched</strong><span>${sources.length}</span></div>`;
+        sourcePanel.innerHTML = `<div class="source-heading"><span class="source-earth">◎</span><strong>Sources searched</strong><span>${displaySources.length}</span></div>`;
         const sourceGrid = document.createElement("div");
         sourceGrid.className = "source-grid";
-        sources.slice(0, 8).forEach((source) => {
+        displaySources.slice(0, 8).forEach((source) => {
           if (!source?.url) return;
           const youtubeMatch = source.url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
           const card = document.createElement(youtubeMatch ? "article" : "a");
