@@ -73,6 +73,17 @@
       const line = lines[index];
       const trimmed = line.trim();
       if (!trimmed) { flushBullets(); index += 1; continue; }
+      const fence = trimmed.match(/^```\s*([\w+#.-]*)\s*$/);
+      if (fence) {
+        flushBullets();
+        const language = fence[1] || "code";
+        const codeLines = [];
+        index += 1;
+        while (index < lines.length && !/^```\s*$/.test(lines[index].trim())) { codeLines.push(lines[index]); index += 1; }
+        if (index < lines.length) index += 1;
+        output.push(`<section class="code-block" data-code-block data-language="${escapeHtml(language)}"><header><span>${escapeHtml(language)}</span><div><button type="button" data-code-action="copy">Copy</button><button type="button" data-code-action="download">Download</button><button type="button" data-code-action="run">Run</button></div></header><pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre></section>`);
+        continue;
+      }
       if (index + 1 < lines.length && trimmed.includes("|") && isTableDivider(lines[index + 1])) {
         flushBullets();
         const header = tableCells(trimmed);
@@ -118,6 +129,13 @@
     }
     item.append(body);
     if (type === "assistant") {
+      body.querySelectorAll("[data-code-block]").forEach((block) => {
+        const code = block.querySelector("code")?.textContent || "";
+        const language = block.dataset.language || "code";
+        block.querySelector('[data-code-action="copy"]')?.addEventListener("click", async (event) => { try { await navigator.clipboard.writeText(code); event.currentTarget.textContent = "Copied"; window.setTimeout(() => { event.currentTarget.textContent = "Copy"; }, 1300); } catch { event.currentTarget.textContent = "Copy failed"; } });
+        block.querySelector('[data-code-action="download"]')?.addEventListener("click", () => { const extension = language === "html" ? "html" : language === "javascript" || language === "js" ? "js" : language === "css" ? "css" : "txt"; const blob = new Blob([code], { type: "text/plain;charset=utf-8" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `xmanius-code.${extension}`; link.click(); URL.revokeObjectURL(link.href); });
+        block.querySelector('[data-code-action="run"]')?.addEventListener("click", () => { if (!/^html?$/i.test(language)) { window.alert("Run is available for HTML code blocks."); return; } const preview = window.open("about:blank", "_blank"); if (!preview) return; preview.document.open(); preview.document.write(code); preview.document.close(); });
+      });
       if (searchError) { const notice = document.createElement("p"); notice.className = "search-error"; notice.textContent = searchError; item.append(notice); }
       if (Array.isArray(sources) && sources.length) {
         const sourcePanel = document.createElement("section");

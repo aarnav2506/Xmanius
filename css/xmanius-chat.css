@@ -51,6 +51,9 @@ button,input { font:inherit; } button { border:0; color:inherit; cursor:pointer;
 .table-scroll { max-width:100%; overflow-x:auto; }
 .message-body table { min-width:560px; }
 .math-block { max-width:100%; overflow-x:auto; overflow-y:hidden; white-space:pre-wrap; overflow-wrap:anywhere; }
+.math-block { text-align:center; color:#eaf0ff; font:600 17px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.thinking-summary[open] p { animation:thought-open .2s ease-out both; }
+@keyframes thought-open { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
 .source-panel { margin-top:16px; padding-top:12px; border-top:1px solid #2d2e31; }
 .source-heading { display:flex; align-items:center; gap:7px; margin-bottom:9px; color:#c9cbd0; font-size:12px; }
 .source-heading > span:last-child { display:grid; min-width:18px; height:18px; place-items:center; border-radius:999px; background:#2a2d35; color:#aeb9cd; font-size:10px; }
@@ -68,6 +71,13 @@ button,input { font:inherit; } button { border:0; color:inherit; cursor:pointer;
 .source-open-link { display:inline-block; margin-top:5px; color:#8eb5ff; font-size:11px; text-decoration:none; }
 .source-open-link:hover { text-decoration:underline; }
 .search-error { margin:12px 0 0; padding:8px 10px; border-left:2px solid #d39b58; color:#d6b98f; font-size:12px; }
+.code-block { margin:18px 0; overflow:hidden; border:1px solid #35373d; border-radius:12px; background:#17181b; }
+.code-block > header { display:flex; align-items:center; justify-content:space-between; min-height:40px; padding:0 10px 0 13px; border-bottom:1px solid #35373d; background:#25262a; color:#b8c9ec; font:600 11px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace; text-transform:lowercase; }
+.code-block > header div { display:flex; align-items:center; gap:4px; }
+.code-block > header button { padding:6px 8px; border-radius:6px; background:transparent; color:#d7d9df; font:500 12px/1 system-ui,sans-serif; }
+.code-block > header button:hover { background:#3a3c43; color:#fff; }
+.code-block pre { max-width:100%; margin:0; padding:16px 14px; overflow:auto; color:#dce7ff; font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace; tab-size:2; }
+.code-block code { padding:0; background:transparent; color:inherit; font:inherit; white-space:pre; }
 .chat-app.sidebar-collapsed .chat-sidebar { flex-basis:56px; padding-inline:8px; align-items:center; }
 .chat-app.sidebar-collapsed .sidebar-top { width:100%; justify-content:center; padding-inline:0; }
 .chat-app.sidebar-collapsed .chat-logo span { display:none; }
