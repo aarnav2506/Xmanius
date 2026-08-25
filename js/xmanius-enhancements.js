@@ -142,15 +142,15 @@
 
     const actions = document.createElement("div");
     actions.className = "message-actions xmanius-user-actions";
-    actions.innerHTML = '<button type="button" data-xmanius-copy-user aria-label="Copy message" title="Copy message">Copy</button><button type="button" data-xmanius-edit-user aria-label="Edit message" title="Edit message">Edit</button>';
+    actions.innerHTML = '<button type="button" data-xmanius-copy-user aria-label="Copy message" title="Copy message"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" data-xmanius-edit-user aria-label="Edit message" title="Edit message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h7"></path><path d="m16.5 3.5 4 4L11 17l-4 1 1-4 9.5-10.5Z"></path></svg></button>';
 
     actions.querySelector("[data-xmanius-copy-user]")?.addEventListener("click", async (event) => {
       try {
         await navigator.clipboard.writeText(textFromArticle(article));
-        event.currentTarget.textContent = "Copied";
-        window.setTimeout(() => { event.currentTarget.textContent = "Copy"; }, 1200);
+        event.currentTarget.setAttribute("data-copied", "true");
+        window.setTimeout(() => event.currentTarget.removeAttribute("data-copied"), 1200);
       } catch {
-        event.currentTarget.textContent = "Copy failed";
+        event.currentTarget.setAttribute("data-copy-failed", "true");
       }
     });
 

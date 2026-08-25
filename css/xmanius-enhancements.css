@@ -1,0 +1,181 @@
+/* Xmanius enhancement styles. Load after the existing chat stylesheet. */
+
+.xmanius-user-actions {
+  opacity: 0;
+  margin-top: 6px;
+  gap: 12px;
+  transition: opacity .15s ease;
+}
+
+.message.user:hover .xmanius-user-actions,
+.message.user:focus-within .xmanius-user-actions,
+.message.user.xmanius-editing .xmanius-user-actions {
+  opacity: 1;
+}
+
+.xmanius-user-actions button {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  color: #9fa1a8;
+  font-size: 0;
+}
+
+.xmanius-user-actions svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.xmanius-user-actions button[data-copied]::after { content: "✓"; position: absolute; font-size: 12px; }
+
+.xmanius-user-actions button:hover {
+  color: #f1f3f7;
+}
+
+.message.user.xmanius-editing {
+  outline: 1px solid #5f89d8;
+  outline-offset: 4px;
+}
+
+.xmanius-edit-banner {
+  position: absolute;
+  right: 20px;
+  bottom: calc(100% + 8px);
+  left: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid #3b4d72;
+  border-radius: 10px;
+  background: #1b263e;
+  color: #cbdcff;
+  font-size: 13px;
+}
+
+.xmanius-edit-banner button {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: transparent;
+  color: #9cc7ff;
+}
+
+.xmanius-edit-banner button:hover {
+  background: #2b3c5d;
+  color: #fff;
+}
+
+.xmanius-sidebar-heading {
+  margin-top: 10px;
+  margin-bottom: 3px;
+  color: #b8c9e8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.xmanius-pinned-list,
+.xmanius-recent-list {
+  display: grid;
+  gap: 1px;
+}
+
+.xmanius-pinned-list + .xmanius-sidebar-heading,
+.xmanius-recent-list + .xmanius-sidebar-heading {
+  margin-top: 12px;
+}
+
+.xmanius-scroll-bottom[hidden] {
+  display: none !important;
+}
+
+.xmanius-scroll-bottom {
+  position: absolute;
+  right: 26px;
+  bottom: 116px;
+  z-index: 4;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #4b4c51;
+  border-radius: 50%;
+  background: #25262a;
+  color: #e8ebf2;
+  font-size: 21px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .4);
+}
+
+.xmanius-scroll-bottom:hover {
+  background: #34363c;
+  transform: translateY(-1px);
+}
+
+.xmanius-typing-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 18px;
+  margin-left: 4px;
+  vertical-align: -3px;
+  border-radius: 999px;
+  background: #6de5ff;
+  box-shadow: 0 0 10px rgba(109, 229, 255, .62);
+  animation: xmanius-cursor-blink .8s steps(2, start) infinite;
+}
+
+.xmanius-approach-content {
+  max-width: 700px;
+  margin: 8px 0 0 8px;
+  padding-left: 12px;
+  border-left: 1px solid #4a4d55;
+}
+
+.xmanius-approach-content p {
+  margin: 6px 0;
+  color: #aeb3bf;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.xmanius-approach-content strong {
+  color: #e5e9f2;
+}
+
+.xmanius-math-box {
+  display: block;
+  margin: 14px 0;
+  padding: 12px 16px;
+  border: 1px solid #3f5f98;
+  border-left: 4px solid #71a7ff;
+  border-radius: 10px;
+  background: #121c30;
+  color: #e9f2ff;
+  font-family: "STIX Two Math", "Cambria Math", ui-monospace, monospace;
+  font-size: 17px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+@keyframes xmanius-cursor-blink {
+  50% { opacity: .25; }
+}
+
+@media (max-width: 720px) {
+  .xmanius-scroll-bottom {
+    right: 16px;
+    bottom: 112px;
+  }
+
+  .xmanius-edit-banner {
+    right: 12px;
+    left: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xmanius-typing-cursor,
+  .xmanius-user-actions,
+  .xmanius-scroll-bottom {
+    animation: none;
+    transition: none;
+  }
+}
