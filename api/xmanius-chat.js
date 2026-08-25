@@ -7,10 +7,11 @@ export default async function handler(request, response) {
   const message = typeof body.message === "string" ? body.message.trim() : "";
   const thinkMode = body.thinkMode === true;
   const webSearch = body.webSearch === true;
+  const selectedModel = body.model === "xmanius-2" ? "xmanius-2" : "xmanius-1";
   const history = Array.isArray(body.history) ? body.history : [];
   if (!message) return response.status(400).json({ error: "Message is required" });
-  const apiKey = process.env.XMANIUS_GEMINI_API_KEY;
-  if (!apiKey) return response.status(503).json({ error: "Xmanius AI is not configured yet." });
+  const apiKey = selectedModel === "xmanius-2" ? process.env.XMANIUS_GEMINI_API_KEY_2 : process.env.XMANIUS_GEMINI_API_KEY;
+  if (!apiKey) return response.status(503).json({ error: `${selectedModel === "xmanius-2" ? "Xmanius 2 (Gemini)" : "Xmanius 1 (Gemini)"} is not configured yet.` });
   try {
     const model = process.env.XMANIUS_GEMINI_MODEL || "gemini-3.6-flash";
     let searchContext = "";
@@ -31,10 +32,12 @@ export default async function handler(request, response) {
     const instruction = thinkMode ? `You are Xmanius in Think mode, a general-purpose AI assistant. Analyze carefully, check assumptions and edge cases, and prioritize accuracy. Do not reveal private chain-of-thought; provide only the answer and a brief rationale when useful. Do not discuss Arnav or any personal blog or portfolio. ${contextInstruction} ${formatInstruction}` : `You are Xmanius, a general-purpose AI assistant. Answer safe everyday questions quickly and clearly. Do not discuss Arnav or any personal blog or portfolio. ${contextInstruction} ${formatInstruction}`;
     const safeHistory = history.filter((item) => item && (item.role === "user" || item.role === "model") && typeof item.text === "string").slice(-12).map((item) => ({ role: item.role, parts: [{ text: item.text.slice(0, 3000) }] }));
     const contents = [...safeHistory, { role: "user", parts: [{ text: searchContext ? `${message}\n\nWeb search results (use as sources, verify conflicts, and cite links in the answer):\n${searchContext}` : message }] }];
-    const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig: { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 2048 : 1024 } }) });
+    let upstream;
+    const geminiModel = selectedModel === "xmanius-2" ? (process.env.XMANIUS_GEMINI_MODEL_2 || "gemini-3.6-flash") : model;
+    upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig: { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 2048 : 1024 } }) });
     const data = await upstream.json();
     if (!upstream.ok) return response.status(upstream.status).json({ error: data.error?.message || "The AI service is unavailable." });
     const reply = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
-    return response.status(200).json({ reply: reply || "I could not produce an answer for that.", webSearchUsed: Boolean(searchContext) });
+    return response.status(200).json({ reply: reply || "I could not produce an answer for that.", model: selectedModel, webSearchUsed: Boolean(searchContext) });
   } catch { return response.status(502).json({ error: "The AI service is unavailable." }); }
 }
