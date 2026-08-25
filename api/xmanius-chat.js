@@ -18,13 +18,27 @@ export default async function handler(request, response) {
     let searchContext = "";
     let searchResults = [];
     let searchError = "";
-    if (webSearch && (!process.env.XMANIUS_GOOGLE_SEARCH_API_KEY || !process.env.XMANIUS_GOOGLE_SEARCH_CX)) searchError = "Web search is not configured. Add both XMANIUS_GOOGLE_SEARCH_API_KEY and XMANIUS_GOOGLE_SEARCH_CX in Vercel.";
-    if (webSearch && process.env.XMANIUS_GOOGLE_SEARCH_API_KEY && process.env.XMANIUS_GOOGLE_SEARCH_CX) {
+    const wantsYouTube = /youtube|video|watch|lecture|class\s*\d+/i.test(message);
+    if (webSearch && wantsYouTube && (process.env.XMANIUS_YOUTUBE_API_KEY || process.env.XMANIUS_GOOGLE_SEARCH_API_KEY)) {
+      const youtubeUrl = new URL("https://www.googleapis.com/youtube/v3/search");
+      youtubeUrl.searchParams.set("part", "snippet");
+      youtubeUrl.searchParams.set("type", "video");
+      youtubeUrl.searchParams.set("maxResults", "8");
+      youtubeUrl.searchParams.set("q", message.replace(/\b(on|in)\s+youtube\b/ig, ""));
+      youtubeUrl.searchParams.set("key", process.env.XMANIUS_YOUTUBE_API_KEY || process.env.XMANIUS_GOOGLE_SEARCH_API_KEY);
+      const youtubeResponse = await fetch(youtubeUrl);
+      if (youtubeResponse.ok) {
+        const youtubeData = await youtubeResponse.json();
+        searchResults = (youtubeData.items || []).filter((item) => item.id?.videoId).map((item) => ({ title: item.snippet?.title || "YouTube video", url: `https://www.youtube.com/watch?v=${item.id.videoId}`, snippet: item.snippet?.description || "YouTube video", displayLink: "youtube.com", thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || "" }));
+        searchContext = searchResults.map((item, index) => `[${index + 1}] ${item.title}\n${item.snippet}\nURL: ${item.url}`).join("\n\n");
+        if (!searchResults.length) searchError = "YouTube returned no matching videos.";
+      } else { const errorData = await youtubeResponse.json().catch(() => ({})); searchError = errorData.error?.message || `YouTube search failed (${youtubeResponse.status}).`; }
+    } else if (webSearch && (!process.env.XMANIUS_GOOGLE_SEARCH_API_KEY || !process.env.XMANIUS_GOOGLE_SEARCH_CX)) searchError = "Web search is not configured. Add both XMANIUS_GOOGLE_SEARCH_API_KEY and XMANIUS_GOOGLE_SEARCH_CX in Vercel.";
+    else if (webSearch && process.env.XMANIUS_GOOGLE_SEARCH_API_KEY && process.env.XMANIUS_GOOGLE_SEARCH_CX) {
       const searchUrl = new URL("https://www.googleapis.com/customsearch/v1");
       searchUrl.searchParams.set("key", process.env.XMANIUS_GOOGLE_SEARCH_API_KEY);
       searchUrl.searchParams.set("cx", process.env.XMANIUS_GOOGLE_SEARCH_CX);
-      const wantsYouTube = /youtube|video|watch|lecture|class\s*\d+/i.test(message);
-      searchUrl.searchParams.set("q", wantsYouTube ? `${message} site:youtube.com` : message);
+      searchUrl.searchParams.set("q", message);
       searchUrl.searchParams.set("num", "5");
       const searchResponse = await fetch(searchUrl);
       if (searchResponse.ok) {

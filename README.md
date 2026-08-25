@@ -50,11 +50,14 @@ XMANIUS_GEMINI_MODEL_2=gemini-3.6-flash
 # Optional, required only for the Web button:
 XMANIUS_GOOGLE_SEARCH_API_KEY=your_google_search_key
 XMANIUS_GOOGLE_SEARCH_CX=your_programmable_search_engine_id
+XMANIUS_YOUTUBE_API_KEY=your_youtube_data_api_key
 ```
 
 Deploy from this repository root. Vercel automatically detects `api/xmanius-chat.js` as a serverless function.
 
 The Web button uses Google’s server-side Custom Search JSON API when both optional variables are configured. Google requires both an API key and a Programmable Search Engine ID; without them, Xmanius remains a normal Gemini chat and does not expose any key in the browser.
+
+YouTube requests use the YouTube Data API search endpoint so the app receives real video IDs and thumbnails for embedded previews. Set `XMANIUS_YOUTUBE_API_KEY` to a Google Cloud API key with YouTube Data API v3 enabled, or reuse the Google search key if that API is enabled on the same project.
 
 Xmanius 1 and Xmanius 2 both use Gemini, but each uses a separate API key. Add both Gemini keys to Vercel; the selected model determines which server-side key is used.
 
