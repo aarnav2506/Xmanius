@@ -79,6 +79,13 @@ button,input { font:inherit; } button { border:0; color:inherit; cursor:pointer;
 .code-block pre { max-width:100%; margin:0; padding:16px 14px; overflow:auto; color:#dce7ff; font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace; tab-size:2; }
 .code-block code { padding:0; background:transparent; color:inherit; font:inherit; white-space:pre; }
 .syntax-keyword { color:#c792ea; }.syntax-string { color:#c3e88d; }.syntax-comment { color:#697386; font-style:italic; }.syntax-tag { color:#82aaff; }
+.message-body h3 { margin:1.7rem 0 .65rem; color:#f2f5ff; font-size:1.22rem; line-height:1.3; font-weight:780; letter-spacing:-.01em; }
+.message-body h3:first-child { margin-top:0; }
+.message-body p,.message-body li { color:#d9dce4; }
+.message-body strong { color:#ffffff; font-weight:780; }
+.message-body ol { margin:.15rem 0 1.1rem 1.45rem; padding:0; }
+.message-body ol li { margin:.5rem 0; padding-left:.2rem; }
+.message-body hr { margin:1.35rem 0; border:0; border-top:1px solid #3b3d43; }
 .chat-app.sidebar-collapsed .chat-sidebar { flex-basis:56px; padding-inline:8px; align-items:center; }
 .chat-app.sidebar-collapsed .sidebar-top { width:100%; justify-content:center; padding-inline:0; }
 .chat-app.sidebar-collapsed .chat-logo span { display:none; }
