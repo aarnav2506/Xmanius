@@ -59,7 +59,7 @@
   const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = navigator.language || "en-US"; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
   const normalizeResponseText = (value) => String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
-  const cleanMath = (value) => normalizeResponseText(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1");
+  const cleanMath = (value) => normalizeResponseText(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1").replace(/\$/g, "");
   const renderMathMarkup = (value) => {
     let markup = escapeHtml(normalizeResponseText(value).replace(/^\$\$|^\$|\$\$$|\$$/g, "").replace(/^\\\[|\\\]$/g, "").replace(/^\\\(|\\\)$/g, "").replace(/\\left|\\right/g, ""));
     for (let pass = 0; pass < 3; pass += 1) markup = markup.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="math-fraction"><span>$1</span><span>$2</span></span>').replace(/\\sqrt\{([^{}]+)\}/g, '<span class="math-sqrt">√<span>$1</span></span>').replace(/\\boxed\{([^{}]+)\}/g, '<span class="math-answer-box">$1</span>').replace(/\\text\{([^{}]+)\}/g, "$1");
@@ -125,14 +125,18 @@
       if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); index += 1; continue; }
       if (/^\s*(\$\$|\\\[)/.test(trimmed)) {
         const close = trimmed.startsWith("$$") ? "$$" : "\\]";
-        let math = trimmed.replace(/^\$\$|^\\\[/, "");
+        const openingLength = trimmed.startsWith("$$") ? 2 : 2;
+        const sameLineEnd = trimmed.indexOf(close, openingLength);
+        let math = trimmed.slice(openingLength, sameLineEnd >= 0 ? sameLineEnd : undefined);
         index += 1;
-        while (index < lines.length && !lines[index].includes(close)) { math += `\n${lines[index]}`; index += 1; }
-        math = math.replace(new RegExp(`${close.replace(/[$\\]/g, "\\\\")}$`), "");
+        while (sameLineEnd < 0 && index < lines.length && !lines[index].includes(close)) { math += `\n${lines[index]}`; index += 1; }
+        if (sameLineEnd < 0 && index < lines.length) math += `\n${lines[index].slice(0, lines[index].indexOf(close))}`;
+        if (sameLineEnd < 0 && index < lines.length) index += 1;
         output.push(`<div class="math-block" data-math="true">${renderMathMarkup(math)}</div>`);
         continue;
       }
-      if (/^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\^|≤|≥|∈)).{2,90}$/.test(trimmed) && !/[.!?]$/.test(trimmed)) {
+      const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
+      if (/^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\^|≤|≥|∈)).{2,90}$/.test(trimmed) && !mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)) {
         output.push(`<div class="math-block" data-math="true">${renderMathMarkup(trimmed)}</div>`);
         index += 1;
         continue;

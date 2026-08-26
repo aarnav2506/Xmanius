@@ -24,19 +24,19 @@
 /* Long answers use the centered presentation layout and never inherit the
    narrow bubble width that is intended for short assistant replies. */
 .message.assistant.long-response {
-  width: min(100%, 760px);
-  max-width: 760px;
-  justify-self: center;
+  width: min(100%, 780px);
+  max-width: 780px;
+  justify-self: start;
   padding: 0;
 }
 
 .message.assistant.long-response > .message-body {
   width: 100%;
-  padding: 18px 16px 22px;
-  border: 1px solid #343538;
-  border-radius: 20px;
-  background: #202122;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, .18);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .message.assistant.long-response .message-body p,
@@ -58,8 +58,8 @@
   }
 
   .message.assistant.long-response > .message-body {
-    padding: 16px 14px 20px;
-    border-radius: 16px;
+    padding: 0;
+    border-radius: 0;
   }
 }
 
