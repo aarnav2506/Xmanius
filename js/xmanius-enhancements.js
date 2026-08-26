@@ -189,6 +189,7 @@
   const createUserArticle = (text) => {
     const article = document.createElement("article");
     article.className = "message user";
+    article.dataset.rawText = text;
     const body = document.createElement("div");
     body.className = "message-body";
     body.textContent = text;
@@ -201,6 +202,7 @@
   const createAssistantArticle = (text, approach = null) => {
     const article = document.createElement("article");
     article.className = "message assistant";
+    article.dataset.rawText = text;
     if (approach) article.append(createApproachPanel(approach));
     const body = document.createElement("div");
     body.className = "message-body";

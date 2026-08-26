@@ -44,7 +44,7 @@
   let currentChatId = crypto.randomUUID?.() || String(Date.now());
   const readChats = () => { try { return JSON.parse(localStorage.getItem(chatsKey) || "[]"); } catch { return []; } };
   const saveChats = (chats) => localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
-  const saveCurrentChat = () => { const messages = [...list.querySelectorAll(".message")].map((item) => ({ type: item.classList.contains("user") ? "user" : "assistant", text: item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim() })).filter((item) => item.text); if (!messages.length) return; const chats = readChats(); const existing = chats.find((chat) => chat.id === currentChatId); const chat = { id: currentChatId, title: messages.find((item) => item.type === "user")?.text.slice(0, 42) || "New chat", messages, updatedAt: Date.now() }; if (existing) Object.assign(existing, chat); else chats.unshift(chat); saveChats(chats); renderRecents(); };
+  const saveCurrentChat = () => { const messages = [...list.querySelectorAll(".message")].map((item) => ({ type: item.classList.contains("user") ? "user" : "assistant", text: item.dataset.rawText || item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim() })).filter((item) => item.text); if (!messages.length) return; const chats = readChats(); const existing = chats.find((chat) => chat.id === currentChatId); const chat = { id: currentChatId, title: messages.find((item) => item.type === "user")?.text.slice(0, 42) || "New chat", messages, updatedAt: Date.now() }; if (existing) Object.assign(existing, chat); else chats.unshift(chat); saveChats(chats); renderRecents(); };
   const renderRecents = () => { if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => { const row = document.createElement("div"); row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`; row.dataset.chatId = chat.id; const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; const more = document.createElement("button"); more.className = "conversation-more"; more.type = "button"; more.dataset.chatMenu = chat.id; more.setAttribute("aria-label", `Options for ${chat.title}`); more.title = "Chat options"; more.textContent = "•••"; const menu = document.createElement("div"); menu.className = "conversation-menu"; menu.innerHTML = `<button type="button" data-chat-action="pin">${chat.pinned ? "Unpin" : "Pin"} chat</button><button type="button" data-chat-action="share">Share</button><button type="button" data-chat-action="delete">Delete</button>`; row.append(button, more, menu); recent.append(row); }); };
   const loadChat = (chatId) => { const chat = readChats().find((item) => item.id === chatId); if (!chat) return; list.replaceChildren(); empty.hidden = true; currentChatId = chat.id; chat.messages.forEach((message) => addMessage(message.text, message.type, { animate: false, persist: false })); };
   const localAnswer = (question) => {
@@ -89,6 +89,7 @@
     let bullets = [];
     let numbered = [];
     let index = 0;
+    let highlightNextMath = false;
     const flushBullets = () => { if (!bullets.length) return; output.push(`<ul>${bullets.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`); bullets = []; };
     const flushNumbered = () => { if (!numbered.length) return; output.push(`<ol>${numbered.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ol>`); numbered = []; };
     while (index < lines.length) {
@@ -122,7 +123,7 @@
       flushBullets(); flushNumbered();
       if (/^(-{3,}|_{3,}|\*{3,})$/.test(trimmed)) { output.push("<hr>"); index += 1; continue; }
       const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
-      if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); index += 1; continue; }
+      if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); highlightNextMath = /final answer/i.test(heading[2]); index += 1; continue; }
       if (/^\s*(\$\$|\\\[)/.test(trimmed)) {
         const close = trimmed.startsWith("$$") ? "$$" : "\\]";
         const openingLength = trimmed.startsWith("$$") ? 2 : 2;
@@ -132,15 +133,19 @@
         while (sameLineEnd < 0 && index < lines.length && !lines[index].includes(close)) { math += `\n${lines[index]}`; index += 1; }
         if (sameLineEnd < 0 && index < lines.length) math += `\n${lines[index].slice(0, lines[index].indexOf(close))}`;
         if (sameLineEnd < 0 && index < lines.length) index += 1;
-        output.push(`<div class="math-block" data-math="true">${renderMathMarkup(math)}</div>`);
+        const important = /\\boxed|final answer/i.test(math) || highlightNextMath;
+        output.push(`<div class="math-block${important ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(math)}</div>`);
+        highlightNextMath = false;
         continue;
       }
       const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
       if (/^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\^|≤|≥|∈)).{2,90}$/.test(trimmed) && !mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)) {
-        output.push(`<div class="math-block" data-math="true">${renderMathMarkup(trimmed)}</div>`);
+        output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
+        highlightNextMath = false;
         index += 1;
         continue;
       }
+      highlightNextMath = /final answer\s*:?$/i.test(trimmed);
       output.push(`<p>${inlineMarkdown(trimmed)}</p>`);
       index += 1;
     }
@@ -196,6 +201,7 @@
     const displaySources = [...new Map([...sources, ...youtubeSourcesFromText(text)].filter((source) => source?.url).map((source) => [source.url, source])).values()];
     const item = document.createElement("article");
     item.className = `message ${type}${type === "assistant" && text.length >= 650 ? " long-response" : ""}`;
+    item.dataset.rawText = text;
     const body = document.createElement("div");
     body.className = "message-body";
     if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
