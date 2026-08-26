@@ -60,7 +60,23 @@
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
   const normalizeResponseText = (value) => String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
   const cleanMath = (value) => normalizeResponseText(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1");
-  const inlineMarkdown = (value) => escapeHtml(cleanMath(value)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*\*/g, "").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const renderMathMarkup = (value) => {
+    let markup = escapeHtml(normalizeResponseText(value).replace(/^\$\$|^\$|\$\$$|\$$/g, "").replace(/^\\\[|\\\]$/g, "").replace(/^\\\(|\\\)$/g, "").replace(/\\left|\\right/g, ""));
+    for (let pass = 0; pass < 3; pass += 1) markup = markup.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="math-fraction"><span>$1</span><span>$2</span></span>').replace(/\\sqrt\{([^{}]+)\}/g, '<span class="math-sqrt">√<span>$1</span></span>').replace(/\\boxed\{([^{}]+)\}/g, '<span class="math-answer-box">$1</span>').replace(/\\text\{([^{}]+)\}/g, "$1");
+    return markup.replace(/\\leq?|&lt;=/g, "≤").replace(/\\geq?|&gt;=/g, "≥").replace(/\\neq/g, "≠").replace(/\\in\b/g, "∈").replace(/\\notin\b/g, "∉").replace(/\\times|\\cdot/g, "×").replace(/\\pm/g, "±").replace(/\\dots?|\\ldots/g, "…").replace(/\\to/g, "→").replace(/\\pi/g, "π").replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\theta/g, "θ").replace(/\\([{}])/g, "$1").replace(/\^\{([^{}]+)\}/g, "<sup>$1</sup>").replace(/\^([A-Za-z0-9]+)/g, "<sup>$1</sup>").replace(/_\{([^{}]+)\}/g, "<sub>$1</sub>").replace(/_([A-Za-z0-9]+)/g, "<sub>$1</sub>");
+  };
+  const inlineMarkdown = (value) => {
+    const mathPattern = /(\$\$[^$]+\$\$|\$[^$]+\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
+    let output = "";
+    let cursor = 0;
+    for (const match of String(value).matchAll(mathPattern)) {
+      output += escapeHtml(cleanMath(value.slice(cursor, match.index))).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*\*/g, "").replace(/`(.+?)`/g, "<code>$1</code>");
+      output += `<span class="math-inline">${renderMathMarkup(match[0])}</span>`;
+      cursor = match.index + match[0].length;
+    }
+    output += escapeHtml(cleanMath(String(value).slice(cursor))).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*\*/g, "").replace(/`(.+?)`/g, "<code>$1</code>");
+    return output.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  };
   const highlightCode = (value) => escapeHtml(value).replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="syntax-comment">$1</span>').replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span class="syntax-string">$1</span>').replace(/\b(const|let|var|function|return|if|else|for|while|new|class|async|await|import|from|true|false|null|undefined)\b/g, '<span class="syntax-keyword">$1</span>').replace(/(&lt;\/?)([A-Za-z][\w-]*)/g, '$1<span class="syntax-tag">$2</span>');
   const youtubeSourcesFromText = (value) => [...value.matchAll(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)[A-Za-z0-9_-]{6,}|youtu\.be\/[A-Za-z0-9_-]{6,})[^\s)<>]*/gi)].map((match) => ({ title: "YouTube video", url: match[0].replace(/[.,]$/, ""), snippet: "Open or watch this video preview", displayLink: "youtube.com" }));
   const tableCells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
@@ -113,7 +129,12 @@
         index += 1;
         while (index < lines.length && !lines[index].includes(close)) { math += `\n${lines[index]}`; index += 1; }
         math = math.replace(new RegExp(`${close.replace(/[$\\]/g, "\\\\")}$`), "");
-        output.push(`<div class="math-block" data-math="true">${escapeHtml(cleanMath(math))}</div>`);
+        output.push(`<div class="math-block" data-math="true">${renderMathMarkup(math)}</div>`);
+        continue;
+      }
+      if (/^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\^|≤|≥|∈)).{2,90}$/.test(trimmed) && !/[.!?]$/.test(trimmed)) {
+        output.push(`<div class="math-block" data-math="true">${renderMathMarkup(trimmed)}</div>`);
+        index += 1;
         continue;
       }
       output.push(`<p>${inlineMarkdown(trimmed)}</p>`);
