@@ -58,14 +58,16 @@
   };
   const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = navigator.language || "en-US"; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
-  const cleanMath = (value) => value.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1");
-  const inlineMarkdown = (value) => escapeHtml(cleanMath(value)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const normalizeResponseText = (value) => String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
+  const cleanMath = (value) => normalizeResponseText(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1");
+  const inlineMarkdown = (value) => escapeHtml(cleanMath(value)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*\*/g, "").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   const highlightCode = (value) => escapeHtml(value).replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="syntax-comment">$1</span>').replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span class="syntax-string">$1</span>').replace(/\b(const|let|var|function|return|if|else|for|while|new|class|async|await|import|from|true|false|null|undefined)\b/g, '<span class="syntax-keyword">$1</span>').replace(/(&lt;\/?)([A-Za-z][\w-]*)/g, '$1<span class="syntax-tag">$2</span>');
   const youtubeSourcesFromText = (value) => [...value.matchAll(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)[A-Za-z0-9_-]{6,}|youtu\.be\/[A-Za-z0-9_-]{6,})[^\s)<>]*/gi)].map((match) => ({ title: "YouTube video", url: match[0].replace(/[.,]$/, ""), snippet: "Open or watch this video preview", displayLink: "youtube.com" }));
   const tableCells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
   const isTableDivider = (line) => /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line.trim());
   const renderTable = (header, rows) => `<div class="table-scroll"><table><thead><tr>${header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, index) => `<td>${inlineMarkdown(row[index] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const renderMarkdown = (element, text) => {
+    text = normalizeResponseText(text);
     const lines = text.split(/\r?\n/);
     const output = [];
     let bullets = [];
@@ -109,7 +111,7 @@
         const close = trimmed.startsWith("$$") ? "$$" : "\\]";
         let math = trimmed.replace(/^\$\$|^\\\[/, "");
         index += 1;
-        while (index < lines.length && !lines[index].includes(close)) { math += `\\n${lines[index]}`; index += 1; }
+        while (index < lines.length && !lines[index].includes(close)) { math += `\n${lines[index]}`; index += 1; }
         math = math.replace(new RegExp(`${close.replace(/[$\\]/g, "\\\\")}$`), "");
         output.push(`<div class="math-block" data-math="true">${escapeHtml(cleanMath(math))}</div>`);
         continue;
@@ -121,13 +123,34 @@
     element.innerHTML = output.join("");
   };
   const animateAssistantText = (body, text, cursor) => {
-    if (!body || !cursor || !text || /```/.test(text)) return;
+    if (!body || !cursor || !text) return;
+    if (/```/.test(text)) {
+      body.replaceChildren();
+      renderMarkdown(body, text);
+      cursor.remove();
+      return;
+    }
+    if (text.length > 6000) {
+      body.replaceChildren();
+      renderMarkdown(body, text);
+      cursor.remove();
+      return;
+    }
     const total = text.length;
-    const duration = Math.min(9000, Math.max(1800, total * 22));
+    const duration = Math.min(20000, Math.max(1800, total * 22));
     const interval = 18;
     const chunk = Math.max(1, Math.ceil(total / (duration / interval)));
     let position = 0;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      body.replaceChildren();
+      renderMarkdown(body, text);
+      cursor.remove();
+    };
     const tick = () => {
+      if (finished) return;
       position = Math.min(total, position + chunk);
       body.replaceChildren();
       renderMarkdown(body, text.slice(0, position));
@@ -135,17 +158,19 @@
       target.append(cursor);
       document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
       if (position < total) window.setTimeout(tick, 18);
-      else window.setTimeout(() => cursor.remove(), 3500);
+      else window.setTimeout(finish, 0);
     };
     body.replaceChildren();
     body.append(cursor);
     tick();
+    window.setTimeout(finish, duration + 1000);
   };
   const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "" } = {}) => {
+    text = normalizeResponseText(text);
     empty.hidden = true;
     const displaySources = [...new Map([...sources, ...youtubeSourcesFromText(text)].filter((source) => source?.url).map((source) => [source.url, source])).values()];
     const item = document.createElement("article");
-    item.className = `message ${type}`;
+    item.className = `message ${type}${type === "assistant" && text.length >= 650 ? " long-response" : ""}`;
     const body = document.createElement("div");
     body.className = "message-body";
     if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;

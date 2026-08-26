@@ -1,7 +1,7 @@
 const MAX_BODY_BYTES = 90000;
 const MAX_HISTORY_ITEMS = 12;
 const MAX_HISTORY_TEXT = 3000;
-const UPSTREAM_TIMEOUT_MS = 55000;
+const UPSTREAM_TIMEOUT_MS = 60000;
 
 const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -80,7 +80,7 @@ export default async function handler(request, response) {
     const modelCandidates = [...new Set([geminiModel, process.env.XMANIUS_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash"])];
     let upstream;
     for (const candidate of modelCandidates) {
-      upstream = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig: { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 1536 : 1024 } }) });
+      upstream = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig: { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 8192 : 6144 } }) });
       if (upstream.ok || upstream.status !== 429 || candidate === modelCandidates.at(-1)) break;
     }
     const data = await upstream.json().catch(() => ({}));
