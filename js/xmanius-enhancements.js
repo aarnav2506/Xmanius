@@ -12,7 +12,7 @@
  * - Pinned and Recent sidebar groups.
  * - Scroll-to-bottom button.
  * - Generated-text cursor and streaming helper API.
- * - Safe public "How I approached it" panel.
+ * - Generic answer-status panel without exposing private reasoning.
  *
  * The existing application remains responsible for normal sends. The edit
  * flow calls /api/xmanius-chat directly so it can work without private access
@@ -203,7 +203,6 @@
     const article = document.createElement("article");
     article.className = "message assistant";
     article.dataset.rawText = text;
-    if (approach) article.append(createApproachPanel(approach));
     const body = document.createElement("div");
     body.className = "message-body";
     body.innerHTML = renderSimpleMarkdown(text);
@@ -289,7 +288,6 @@
         chatContent.scrollTop = chatContent.scrollHeight;
       }, (value) => { approach = value; });
       stopCursor();
-      if (approach) assistant.prepend(createApproachPanel(approach));
     } catch (error) {
       body.innerHTML = renderSimpleMarkdown(`The edited request could not be completed. ${error.message || "Please try again."}`);
       stopCursor();
@@ -309,22 +307,12 @@
     if (value) void resendEdited(value, editingArticle);
   }, true);
 
-  const createApproachPanel = (approach) => {
+  const createApproachPanel = () => {
     const details = document.createElement("details");
     details.className = "thinking-summary xmanius-approach";
     const summary = document.createElement("summary");
-    summary.innerHTML = '<span class="thought-glyph">✥</span> How I approached it';
+    summary.textContent = "Answer checked";
     details.append(summary);
-    const content = document.createElement("div");
-    content.className = "xmanius-approach-content";
-    const sections = [
-      ["Objective", approach.objective],
-      ["Approach", Array.isArray(approach.approach) ? approach.approach.join(" ") : approach.approach],
-      ["Checks", Array.isArray(approach.checks) ? approach.checks.join(" ") : approach.checks],
-      ["Uncertainty", approach.uncertainty],
-    ].filter(([, value]) => value);
-    content.innerHTML = sections.map(([label, value]) => `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`).join("");
-    details.append(content);
     return details;
   };
 
@@ -411,7 +399,6 @@
     },
     finishAssistantMessage: (article, approach) => {
       article?.querySelector(".xmanius-typing-cursor")?.remove();
-      if (approach && article && !article.querySelector(".xmanius-approach")) article.prepend(createApproachPanel(approach));
     },
   }); } catch (error) { window.XmaniusUI = Object.freeze({ version: "verified-feature-patch" }); console.warn("[Xmanius enhancements] public API setup failed", error); }
 

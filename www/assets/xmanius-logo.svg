@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" role="img" aria-labelledby="title">
   <title>Xmanius</title>
-  <rect width="640" height="160" rx="16" fill="#fff"/>
-  <g transform="translate(16 18) scale(.7)">
-    <path fill="#050505" d="M28 25h38l53 61 28-40h38l-48 65 35 44h-39l-25-30-22 30H48l42-57-62-73Zm36 22 37 43 15-22-18-21H64Zm-1 86h20l21-29-13-15-28 44Z"/>
+  <rect x="8" y="8" width="112" height="112" rx="22" fill="#050505"/>
+  <g transform="translate(10 10) scale(4.5)">
+    <path fill="#fff" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.681l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
   </g>
-  <text x="190" y="104" fill="#050505" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="500" letter-spacing="-3">manius</text>
+  <text x="129" y="101" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="600" letter-spacing="-1.5">MANIUS</text>
 </svg>
