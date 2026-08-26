@@ -104,14 +104,14 @@ button,input { font:inherit; } button { border:0; color:inherit; cursor:pointer;
 .chat-app.sidebar-collapsed .avatar { width:27px; height:27px; }
 @media (max-width:720px) { .chat-app.sidebar-collapsed .chat-sidebar { flex-basis:auto; width:min(82vw,290px); padding:17px 10px 10px; align-items:stretch; }.chat-app.sidebar-collapsed .chat-logo span,.chat-app.sidebar-collapsed .sidebar-panel-button,.chat-app.sidebar-collapsed .sidebar-label,.chat-app.sidebar-collapsed .conversation,.chat-app.sidebar-collapsed .conversation-more,.chat-app.sidebar-collapsed .sidebar-account > span:not(.avatar),.chat-app.sidebar-collapsed .account-more { display:initial; }.chat-app.sidebar-collapsed .sidebar-panel-button { display:grid; }.chat-app.sidebar-collapsed .new-chat,.chat-app.sidebar-collapsed .recent-list,.chat-app.sidebar-collapsed .conversation-row,.chat-app.sidebar-collapsed .sidebar-account { width:100%; }.chat-app.sidebar-collapsed .new-chat { height:auto; justify-content:flex-start; padding:10px 11px; }.chat-app.sidebar-collapsed .recent-list { margin-top:0; }.chat-app.sidebar-collapsed .conversation-row { height:auto; justify-content:initial; }.chat-app.sidebar-collapsed .conversation-row::after { display:none; } }
 .chat-logo img { display:block; width:190px; height:auto; }
-.chat-logo-icon { display:none !important; width:28px !important; height:28px !important; }
+.chat-logo-icon { display:none !important; width:31px !important; height:31px !important; object-fit:contain; }
 .dictation-bar[aria-hidden="true"] { pointer-events:none; }
 .dictation-waveform i { will-change:height,opacity; }
 .composer-mic.active { color:#8be9ff; filter:drop-shadow(0 0 8px rgba(139,233,255,.45)); }
 @media (prefers-reduced-motion:reduce) { .dictation-waveform i,.message-entering,.message-entering .message-body > * { transition:none !important; animation:none !important; } }
 @media (max-width:720px) { .chat-logo img { width:128px; } }
 .chat-app.sidebar-collapsed .chat-logo-full { display:none !important; }
-.chat-app.sidebar-collapsed .chat-logo-icon { display:block !important; }
+.chat-app.sidebar-collapsed .chat-logo-icon { display:block !important; width:31px !important; height:31px !important; }
 .message-list { width:min(100%,900px); gap:30px; padding-top:34px; }
 .message-body p,.message-body li { font-size:17px; line-height:1.65; }
 .message-body h3 { font-size:1.35rem; line-height:1.3; }
