@@ -70,10 +70,13 @@
   };
   const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = navigator.language || "en-US"; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
+  const stripAnswerSummaryTags = (value) => { let summary = ""; const text = normalizeResponseText(value).replace(/\[\[ANSWER_SUMMARY\]\]([\s\S]*?)\[\[\/ANSWER_SUMMARY\]\]/gi, (_, content) => { if (!summary) summary = content.trim(); return ""; }).replace(/\[\[\/?ANSWER_SUMMARY\]\]/gi, ""); return { text: text.trim(), summary }; };
   const normalizeResponseText = (value) => String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
-  const cleanMath = (value) => normalizeResponseText(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1").replace(/\$/g, "");
+  const normalizeLatex = (value) => normalizeResponseText(value).replace(/\\ext\b/g, "\\text").replace(/\\longrightarrow|\\rightarrow|\\to\b/g, "→").replace(/\\longleftrightarrow|\\leftrightarrow/g, "↔").replace(/\\Delta\b/g, "Δ").replace(/\\alpha\b/g, "α").replace(/\\beta\b/g, "β").replace(/\\theta\b/g, "θ").replace(/\\pi\b/g, "π").replace(/\\leq\b|\\le\b/g, "≤").replace(/\\geq\b|\\ge\b/g, "≥").replace(/\\neq\b/g, "≠").replace(/\\pm\b/g, "±").replace(/\\times\b|\\cdot\b/g, "×").replace(/\\,|\\;/g, " ");
+  const unwrapLatexGroups = (value) => { let result = normalizeLatex(value); for (let pass = 0; pass < 6; pass += 1) result = result.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\s*\{([^{}]*)\}/g, "$1"); return result; };
+  const cleanMath = (value) => unwrapLatexGroups(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1").replace(/\$/g, "");
   const renderMathMarkup = (value) => {
-    let markup = escapeHtml(normalizeResponseText(value).replace(/^\$\$|^\$|\$\$$|\$$/g, "").replace(/^\\\[|\\\]$/g, "").replace(/^\\\(|\\\)$/g, "").replace(/\\left|\\right/g, ""));
+    let markup = escapeHtml(unwrapLatexGroups(value).replace(/^\$\$|^\$|\$\$$|\$$/g, "").replace(/^\\\[|\\\]$/g, "").replace(/^\\\(|\\\)$/g, "").replace(/\\left|\\right/g, ""));
     for (let pass = 0; pass < 3; pass += 1) markup = markup.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="math-fraction"><span>$1</span><span>$2</span></span>').replace(/\\sqrt\{([^{}]+)\}/g, '<span class="math-sqrt">√<span>$1</span></span>').replace(/\\boxed\{([^{}]+)\}/g, '<span class="math-answer-box">$1</span>').replace(/\\text\{([^{}]+)\}/g, "$1");
     return markup.replace(/\\leq?|&lt;=/g, "≤").replace(/\\geq?|&gt;=/g, "≥").replace(/\\neq/g, "≠").replace(/\\in\b/g, "∈").replace(/\\notin\b/g, "∉").replace(/\\times|\\cdot/g, "×").replace(/\\pm/g, "±").replace(/\\dots?|\\ldots/g, "…").replace(/\\to/g, "→").replace(/\\pi/g, "π").replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\theta/g, "θ").replace(/\\([{}])/g, "$1").replace(/\^\{([^{}]+)\}/g, "<sup>$1</sup>").replace(/\^([A-Za-z0-9]+)/g, "<sup>$1</sup>").replace(/_\{([^{}]+)\}/g, "<sub>$1</sub>").replace(/_([A-Za-z0-9]+)/g, "<sub>$1</sub>");
   };
@@ -219,7 +222,9 @@
     window.setTimeout(finish, duration + 1000);
   };
   const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false } = {}) => {
-    text = normalizeResponseText(text);
+    const answerEnvelope = stripAnswerSummaryTags(text);
+    text = answerEnvelope.text;
+    reasoningSummary = reasoningSummary || answerEnvelope.summary;
     empty.hidden = true;
     const displaySources = [...new Map([...sources, ...youtubeSourcesFromText(text)].filter((source) => source?.url).map((source) => [source.url, source])).values()];
     const item = document.createElement("article");
@@ -239,7 +244,7 @@
       attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = `📎 ${name}`; attached.append(chip); });
       item.append(attached);
     }
-    if (type === "assistant" && (thinkMode || reasoningSummary || reasoningSeconds)) {
+    if (type === "assistant" && (thinkMode || reasoningSeconds)) {
       const summary = document.createElement("details");
       summary.className = "thinking-summary";
       const summaryLabel = document.createElement("summary");

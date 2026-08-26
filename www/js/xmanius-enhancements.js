@@ -269,6 +269,8 @@
     const stopCursor = () => assistant.querySelector(".xmanius-typing-cursor")?.remove();
     let answer = "";
     let approach = null;
+    const startedAt = performance.now();
+    const thinkEnabled = document.querySelector("[data-think-toggle]")?.classList.contains("active") === true;
 
     try {
       const response = await fetch("/api/xmanius-chat", {
@@ -277,7 +279,8 @@
         body: JSON.stringify({
           message: text,
           history,
-          mode: document.querySelector("[data-web-search].active") ? "research" : document.querySelector("[data-think-toggle].active") ? "deep_research" : "fast",
+          thinkMode: thinkEnabled,
+          webSearch: document.querySelector("[data-web-search]")?.classList.contains("active") === true,
         }),
       });
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
@@ -287,6 +290,18 @@
         appendCodeActions(assistant);
         chatContent.scrollTop = chatContent.scrollHeight;
       }, (value) => { approach = value; });
+      const summaryMatch = answer.match(/\[\[ANSWER_SUMMARY\]\]([\s\S]*?)\[\[\/ANSWER_SUMMARY\]\]/i);
+      const answerSummary = summaryMatch?.[1]?.trim() || "I checked the relevant context and assumptions before preparing the corrected answer.";
+      answer = answer.replace(/\[\[ANSWER_SUMMARY\]\][\s\S]*?\[\[\/ANSWER_SUMMARY\]\]/gi, "").replace(/\[\[\/?ANSWER_SUMMARY\]\]/gi, "").trim();
+      assistant.dataset.rawText = answer;
+      body.innerHTML = renderSimpleMarkdown(answer);
+      if (thinkEnabled) {
+        const details = document.createElement("details");
+        details.className = "thinking-summary";
+        details.innerHTML = `<summary><span class="thought-glyph" aria-hidden="true">✦</span><span>Thought for ${Math.max(1, Math.round((performance.now() - startedAt) / 1000))} seconds</span><span class="thought-chevron" aria-hidden="true">⌄</span></summary><p></p>`;
+        details.querySelector("p").textContent = answerSummary;
+        assistant.prepend(details);
+      }
       stopCursor();
     } catch (error) {
       body.innerHTML = renderSimpleMarkdown(`The edited request could not be completed. ${error.message || "Please try again."}`);
