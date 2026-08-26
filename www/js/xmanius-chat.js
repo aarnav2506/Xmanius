@@ -56,9 +56,9 @@
   let currentChatId = crypto.randomUUID?.() || String(Date.now());
   const readChats = () => { try { return JSON.parse(localStorage.getItem(chatsKey) || "[]"); } catch { return []; } };
   const saveChats = (chats) => localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
-  const saveCurrentChat = () => { const messages = [...list.querySelectorAll(".message")].map((item) => ({ type: item.classList.contains("user") ? "user" : "assistant", text: item.dataset.rawText || item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim() })).filter((item) => item.text); if (!messages.length) return; const chats = readChats(); const existing = chats.find((chat) => chat.id === currentChatId); const chat = { id: currentChatId, title: messages.find((item) => item.type === "user")?.text.slice(0, 42) || "New chat", messages, updatedAt: Date.now() }; if (existing) Object.assign(existing, chat); else chats.unshift(chat); saveChats(chats); renderRecents(); };
+  const saveCurrentChat = () => { const messages = [...list.querySelectorAll(".message")].map((item) => ({ type: item.classList.contains("user") ? "user" : "assistant", text: item.dataset.rawText || item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim(), reasoningSummary: item.dataset.reasoningSummary || "", reasoningSeconds: Number(item.dataset.reasoningSeconds || 0) })).filter((item) => item.text); if (!messages.length) return; const chats = readChats(); const existing = chats.find((chat) => chat.id === currentChatId); const chat = { id: currentChatId, title: messages.find((item) => item.type === "user")?.text.slice(0, 42) || "New chat", messages, updatedAt: Date.now() }; if (existing) Object.assign(existing, chat); else chats.unshift(chat); saveChats(chats); renderRecents(); };
   const renderRecents = () => { if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => { const row = document.createElement("div"); row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`; row.dataset.chatId = chat.id; const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; const more = document.createElement("button"); more.className = "conversation-more"; more.type = "button"; more.dataset.chatMenu = chat.id; more.setAttribute("aria-label", `Options for ${chat.title}`); more.title = "Chat options"; more.textContent = "•••"; const menu = document.createElement("div"); menu.className = "conversation-menu"; menu.innerHTML = `<button type="button" data-chat-action="pin">${chat.pinned ? "Unpin" : "Pin"} chat</button><button type="button" data-chat-action="share">Share</button><button type="button" data-chat-action="delete">Delete</button>`; row.append(button, more, menu); recent.append(row); }); };
-  const loadChat = (chatId) => { const chat = readChats().find((item) => item.id === chatId); if (!chat) return; list.replaceChildren(); empty.hidden = true; currentChatId = chat.id; chat.messages.forEach((message) => addMessage(message.text, message.type, { animate: false, persist: false })); };
+  const loadChat = (chatId) => { const chat = readChats().find((item) => item.id === chatId); if (!chat) return; list.replaceChildren(); empty.hidden = true; currentChatId = chat.id; chat.messages.forEach((message) => addMessage(message.text, message.type, { animate: false, persist: false, reasoningSummary: message.reasoningSummary || "", reasoningSeconds: message.reasoningSeconds || 0 })); };
   const localAnswer = (question) => {
     const q = question.toLowerCase();
     if (/^(hi|hello|hey)\b/.test(q)) return "Hello. I am Xmanius, ready to help.";
@@ -218,13 +218,15 @@
     tick();
     window.setTimeout(finish, duration + 1000);
   };
-  const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "", attachmentNames = [] } = {}) => {
+  const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false } = {}) => {
     text = normalizeResponseText(text);
     empty.hidden = true;
     const displaySources = [...new Map([...sources, ...youtubeSourcesFromText(text)].filter((source) => source?.url).map((source) => [source.url, source])).values()];
     const item = document.createElement("article");
     item.className = `message ${type}${type === "assistant" && text.length >= 650 ? " long-response" : ""}`;
     item.dataset.rawText = text;
+    if (reasoningSummary) item.dataset.reasoningSummary = reasoningSummary;
+    if (reasoningSeconds) item.dataset.reasoningSeconds = String(reasoningSeconds);
     const body = document.createElement("div");
     body.className = "message-body";
     if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
@@ -236,6 +238,16 @@
       attached.className = "message-attachments";
       attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = `📎 ${name}`; attached.append(chip); });
       item.append(attached);
+    }
+    if (type === "assistant" && (thinkMode || reasoningSummary || reasoningSeconds)) {
+      const summary = document.createElement("details");
+      summary.className = "thinking-summary";
+      const summaryLabel = document.createElement("summary");
+      summaryLabel.innerHTML = `<span class="thought-glyph" aria-hidden="true">✦</span><span>Thought for ${Math.max(1, reasoningSeconds || 1)} seconds</span><span class="thought-chevron" aria-hidden="true">⌄</span>`;
+      const summaryText = document.createElement("p");
+      summaryText.textContent = reasoningSummary || "I checked the relevant context, assumptions, and constraints before preparing the answer.";
+      summary.append(summaryLabel, summaryText);
+      item.prepend(summary);
     }
     if (type === "assistant") {
       body.querySelectorAll("[data-code-block]").forEach((block) => {
@@ -325,17 +337,18 @@
     list.append(thinking);
     document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
     activeRequestController = new AbortController();
+    const reasoningStartedAt = performance.now();
     const timeout = window.setTimeout(() => activeRequestController?.abort(), 180000);
     setSendingState(true);
     try {
       const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest) }), signal: activeRequestController.signal });
       const data = await response.json().catch(() => ({}));
       thinking.remove();
-      addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "" });
+      addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "", reasoningSummary: response.ok && thinkMode ? data.reasoningSummary : "", reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
     } catch (error) {
       thinking.remove();
-      if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true });
-      else addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true });
+      if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
+      else addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
     } finally {
       window.clearTimeout(timeout);
       activeRequestController = null;
