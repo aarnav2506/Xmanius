@@ -1611,3 +1611,29 @@ body.xmanius-theme-light .message-body .math-function {
   .profile-menu { position: fixed; left: 12px; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom)); width: auto; max-width: none; }
   body.xmanius-theme-light .composer-icon, body.xmanius-theme-light .composer-tool { color: #273444 !important; }
 }
+
+/* Android portrait streaming alignment.  Keep the live assistant response
+   in the same left-to-right reading position from its first character through
+   completion; desktop alignment and centered display-math remain unchanged. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .message.assistant,
+  .message.assistant.long-response,
+  .message.ai-message--thinking {
+    justify-self: start;
+    align-self: start;
+    text-align: left;
+  }
+
+  .message.assistant > .message-body,
+  .message.assistant.long-response > .message-body {
+    margin-left: 0;
+    margin-right: 0;
+    text-align: left;
+  }
+
+  .message.assistant > .message-body > :not(.math-block),
+  .message.assistant.long-response > .message-body > :not(.math-block),
+  .message.ai-message--thinking > .message-body {
+    text-align: left;
+  }
+}
