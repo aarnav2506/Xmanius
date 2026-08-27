@@ -203,16 +203,45 @@
     // Some model responses lose the backslash in \text{...}; restore it
     // before tokenising so chemical labels and units render as math text.
     .replace(/(^|[^\\\w])ext(?=\s*\{)/g, "$1\\text");
+  const normalizeCombinatoricsNotation = (value) => {
+    let source = normalizeResponseText(value);
+    const atom = "(?:[A-Za-z]|\\d+(?:\\.\\d+)?)";
+    // Convert common plain-text/model variants into the same internal math
+    // commands. This covers C(n,r), P(n,r), nCr, nPr, and superscript forms.
+    source = source
+      .replace(/\\(?:mathrm|mathbf|text)\s*\{\s*([CcPp])\s*\}\s*\(\s*([^(),]+?)\s*,\s*([^()]+?)\s*\)/g, (_, operator, upper, lower) => operator.toLowerCase() === "c" ? `\\binom{${upper.trim()}}{${lower.trim()}}` : `\\perm{${upper.trim()}}{${lower.trim()}}`)
+      .replace(/(?<![A-Za-z])([CcPp])\s*\(\s*([^(),]+?)\s*,\s*([^()]+?)\s*\)/g, (_, operator, upper, lower) => operator.toLowerCase() === "c" ? `\\binom{${upper.trim()}}{${lower.trim()}}` : `\\perm{${upper.trim()}}{${lower.trim()}}`)
+      .replace(new RegExp(`(?:\\{\\s*\\})?\\s*\\^\\s*\\{?(${atom})\\}?\\s*([CcPp])\\s*_\\s*\\{?(${atom})\\}?`, "g"), (_, upper, operator, lower) => operator.toLowerCase() === "c" ? `\\binom{${upper}}{${lower}}` : `\\perm{${upper}}{${lower}}`)
+      .replace(new RegExp(`(?<![A-Za-z])\\\\(?:mathrm|mathbf|text)\\s*\\{\\s*([CcPp])\\s*\\}\\s*_\\s*\\{?(${atom})\\}?\\s*\\^\\s*\\{?(${atom})\\}?`, "g"), (_, operator, lower, upper) => operator.toLowerCase() === "c" ? `\\binom{${upper}}{${lower}}` : `\\perm{${upper}}{${lower}}`)
+      .replace(new RegExp(`(?<![A-Za-z])([CcPp])\\s*_\\s*\\{?(${atom})\\}?\\s*\\^\\s*\\{?(${atom})\\}?`, "g"), (_, operator, lower, upper) => operator.toLowerCase() === "c" ? `\\binom{${upper}}{${lower}}` : `\\perm{${upper}}{${lower}}`)
+      .replace(new RegExp(`(?<![A-Za-z])(${atom})\\s*([CcPp])\\s*_\\s*\\{?(${atom})\\}?`, "g"), (_, upper, operator, lower) => operator.toLowerCase() === "c" ? `\\binom{${upper}}{${lower}}` : `\\perm{${upper}}{${lower}}`)
+      .replace(new RegExp(`(?<![A-Za-z])(${atom})\\s*([CcPp])\\s*(${atom})(?![A-Za-z])`, "g"), (_, upper, operator, lower) => operator.toLowerCase() === "c" ? `\\binom{${upper}}{${lower}}` : `\\perm{${upper}}{${lower}}`);
+    // Give factorials a dedicated math node so n!, (n + 1)!, and repeated
+    // factorials stay readable inside prose as well as display equations.
+    return source
+      .replace(/\bQdiamondsuit\b/g, "Q♦")
+      .replace(/\bQheartsuit\b/g, "Q♥")
+      .replace(/\bQspadesuit\b/g, "Q♠")
+      .replace(/\bQclubsuit\b/g, "Q♣")
+      .replace(/\bdiamondsuit\b/g, "♦")
+      .replace(/\bheartsuit\b/g, "♥")
+      .replace(/\bspadesuit\b/g, "♠")
+      .replace(/\bclubsuit\b/g, "♣")
+      .replace(/(?<![A-Za-z])(\\d+(?:\\.\\d+)?|[A-Za-z]|\\([^()\\n]+\\))(!+)/g, (_, term, marks) => `\\factorial{${term}}${marks.length > 1 ? marks.slice(1) : ""}`);
+  };
   const mathCommandMap = Object.freeze({
     longrightarrow: "→", rightarrow: "→", to: "→", longleftrightarrow: "↔", leftrightarrow: "↔",
     Delta: "Δ", delta: "δ", alpha: "α", beta: "β", gamma: "γ", theta: "θ", lambda: "λ", mu: "μ", sigma: "σ", omega: "ω", phi: "φ", psi: "ψ",
     pi: "π", infty: "∞", partial: "∂", nabla: "∇", sum: "Σ", prod: "Π", int: "∫", approx: "≈", cong: "≅", circ: "°",
     exp: "exp", ln: "ln", log: "log", leq: "≤", le: "≤", geq: "≥", ge: "≥", neq: "≠", pm: "±", times: "×", cdot: "×",
     div: "÷", in: "∈", notin: "∉", subset: "⊂", subseteq: "⊆", supset: "⊃", supseteq: "⊇", cup: "∪", cap: "∩", emptyset: "∅", degree: "°",
+    diamondsuit: "♦", heartsuit: "♥", spadesuit: "♠", clubsuit: "♣", qquad: "  ", quad: " ",
     dots: "…", ldots: "…", cdots: "⋯"
   });
   const mathWrapperCommands = new Set(["text", "textbf", "textrm", "mathrm", "mathbf", "mathit", "mathbb", "mathsf", "operatorname", "boldsymbol", "overline", "underline", "vec"]);
-  const mathArgumentCommands = new Set(["frac", "dfrac", "tfrac", "binom", "sqrt", "boxed", "fbox", ...mathWrapperCommands]);
+  const combinationCommandNames = new Set(["comb", "choose", "combination"]);
+  const permutationCommandNames = new Set(["perm", "permutation"]);
+  const mathArgumentCommands = new Set(["frac", "dfrac", "tfrac", "binom", "sqrt", "boxed", "fbox", "factorial", ...combinationCommandNames, ...permutationCommandNames, ...mathWrapperCommands]);
   const skipMathWhitespace = (source, start) => { let cursor = start; while (cursor < source.length && /\s/.test(source[cursor])) cursor += 1; return cursor; };
   const readBalancedMathGroup = (source, start, opener = "{", closer = "}") => {
     const cursor = skipMathWhitespace(source, start);
@@ -297,7 +326,7 @@
     return result.replace(/\*\*|__/g, "");
   };
   const renderMathExpression = (value) => {
-    const source = normalizeBareMatrixCommands(stripMathDelimiters(value));
+    const source = normalizeBareMatrixCommands(normalizeCombinatoricsNotation(stripMathDelimiters(value)));
     let output = "";
     let cursor = 0;
     while (cursor < source.length) {
@@ -334,10 +363,19 @@
           const denominator = numerator && readMathArgument(source, numerator.next);
           if (numerator && denominator) { output += `<span class="math-fraction"><span>${renderMathExpression(numerator.value)}</span><span>${renderMathExpression(denominator.value)}</span></span>`; cursor = denominator.next; continue; }
         }
-        if (command === "binom") {
+        if (command === "binom" || combinationCommandNames.has(command)) {
           const upper = readMathArgument(source, cursor);
           const lower = upper && readMathArgument(source, upper.next);
           if (upper && lower) { output += `<span class="math-binomial"><span>${renderMathExpression(upper.value)}</span><span>${renderMathExpression(lower.value)}</span></span>`; cursor = lower.next; continue; }
+        }
+        if (permutationCommandNames.has(command)) {
+          const upper = readMathArgument(source, cursor);
+          const lower = upper && readMathArgument(source, upper.next);
+          if (upper && lower) { output += `<span class="math-permutation"><sup>${renderMathExpression(upper.value)}</sup><span>P</span><sub>${renderMathExpression(lower.value)}</sub></span>`; cursor = lower.next; continue; }
+        }
+        if (command === "factorial") {
+          const argument = readMathArgument(source, cursor);
+          if (argument) { output += `<span class="math-factorial">${renderMathExpression(argument.value)}!</span>`; cursor = argument.next; continue; }
         }
         if (command === "sqrt") {
           let degree = null;
@@ -398,7 +436,7 @@
       if (matrix) return { end: matrix.next };
     }
     if (mathArgumentCommands.has(command)) {
-      const count = command === "frac" || command === "dfrac" || command === "tfrac" || command === "binom" ? 2 : 1;
+      const count = command === "frac" || command === "dfrac" || command === "tfrac" || command === "binom" || combinationCommandNames.has(command) || permutationCommandNames.has(command) ? 2 : 1;
       for (let index = 0; index < count; index += 1) { const argument = readMathArgument(source, cursor); if (!argument) return null; cursor = argument.next; }
       return { end: cursor };
     }
@@ -413,7 +451,7 @@
     return null;
   };
   const renderTextWithMath = (value) => {
-    const source = normalizeBareMatrixCommands(normalizeLatex(value));
+    const source = normalizeBareMatrixCommands(normalizeCombinatoricsNotation(normalizeLatex(value)));
     let output = "";
     let cursor = 0;
     let textStart = 0;
@@ -562,7 +600,7 @@
       }
       const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
       const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\b)/.test(trimmed);
-      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|≤|≥|∈)).{2,900}$/.test(trimmed);
+      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|!|≤|≥|∈|(?<![A-Za-z])(?:\\d+|[A-Za-z])\\s*[CPcp]\\s*(?:\\d+|[A-Za-z])|(?<![A-Za-z])[CPcp]\s*\([^)]*,[^)]*\))).{2,900}$/.test(trimmed);
       if ((hasMatrix || hasScalarMath) && (hasMatrix || (!mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)))) {
         output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
         highlightNextMath = false;
