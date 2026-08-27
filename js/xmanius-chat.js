@@ -38,6 +38,7 @@
   let audioStream = null;
   let audioFrame = 0;
   let activeRequestController = null;
+  let activeRequestStopReason = "";
   let generalAssistant = null;
   let thinkMode = false;
   let webSearch = false;
@@ -197,12 +198,27 @@
   const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
   const stripAnswerSummaryTags = (value) => { let summary = ""; const text = normalizeResponseText(value).replace(/\[\[ANSWER_SUMMARY\]\]([\s\S]*?)\[\[\/ANSWER_SUMMARY\]\]/gi, (_, content) => { if (!summary) summary = content.trim(); return ""; }).replace(/\[\[\/?ANSWER_SUMMARY\]\]/gi, ""); return { text: text.trim(), summary }; };
-  const normalizeResponseText = (value) => String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
+  const decodeHtmlEntities = (value) => {
+    let decoded = String(value || "");
+    const decodePass = (source) => source.replace(/&(#x?[0-9a-f]+|amp|lt|gt|quot|apos|nbsp);/gi, (full, entity) => {
+      const normalized = entity.toLowerCase();
+      const named = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+      if (named[normalized]) return named[normalized];
+      const codePoint = normalized.startsWith("#x") ? Number.parseInt(normalized.slice(2), 16) : Number.parseInt(normalized.slice(1), 10);
+      try { return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : full; } catch (_) { return full; }
+    });
+    // A few providers double-escape entities (for example &amp;gt;). Two
+    // bounded passes clean those artifacts without repeatedly transforming
+    // normal user text.
+    decoded = decodePass(decodePass(decoded));
+    return decoded;
+  };
+  const normalizeResponseText = (value) => decodeHtmlEntities(String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t"));
   const normalizeLatex = (value) => normalizeResponseText(value)
     .replace(/\\ext\b/g, "\\text")
     // Some model responses lose the backslash in \text{...}; restore it
     // before tokenising so chemical labels and units render as math text.
-    .replace(/(^|[^\\\w])ext(?=\s*\{)/g, "$1\\text");
+    .replace(/(^|[^\\A-Za-z])ext(?=\s*\{)/g, "$1\\text");
   const normalizeCombinatoricsNotation = (value) => {
     let source = normalizeResponseText(value);
     const atom = "(?:[A-Za-z]|\\d+(?:\\.\\d+)?)";
@@ -227,13 +243,47 @@
       .replace(/\bheartsuit\b/g, "♥")
       .replace(/\bspadesuit\b/g, "♠")
       .replace(/\bclubsuit\b/g, "♣")
-      .replace(/(?<![A-Za-z])(\\d+(?:\\.\\d+)?|[A-Za-z]|\\([^()\\n]+\\))(!+)/g, (_, term, marks) => `\\factorial{${term}}${marks.length > 1 ? marks.slice(1) : ""}`);
+      .replace(/(?<![A-Za-z])(\d+(?:\.\d+)?|[A-Za-z]|\([^()\n]+\))(!+)/g, (_, term, marks) => `\\factorial{${term}}${marks.length > 1 ? marks.slice(1) : ""}`);
+  };
+  const normalizeExtendedMathNotation = (value) => {
+    let source = normalizeCombinatoricsNotation(normalizeLatex(value));
+    const superscripts = { "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁺": "+", "⁻": "-", "⁽": "(", "⁾": ")" };
+    const unit = "(?:mm|cm|dm|km|m|µm|um|nm|in|ft|yd|kg|mg|g|L|mL)";
+    source = source
+      .replace(/\b(?:square\s+)(centimeters?|centimetres?)\b/gi, "cm^{2}")
+      .replace(/\b(?:square\s+)(millimeters?|millimetres?)\b/gi, "mm^{2}")
+      .replace(/\b(?:square\s+)(meters?|metres?)\b/gi, "m^{2}")
+      .replace(/\b(?:square\s+)(kilometers?|kilometres?)\b/gi, "km^{2}")
+      .replace(/\b(?:centimeters?|centimetres?)\s+square(?:d)?\b/gi, "cm^{2}")
+      .replace(/\b(?:millimeters?|millimetres?)\s+square(?:d)?\b/gi, "mm^{2}")
+      .replace(/\b(?:meters?|metres?)\s+square(?:d)?\b/gi, "m^{2}")
+      .replace(/\b(?:kilometers?|kilometres?)\s+square(?:d)?\b/gi, "km^{2}")
+      .replace(new RegExp(`\\b(${unit})\\s+square(?:d)?\\b`, "gi"), "$1^{2}")
+      .replace(new RegExp(`\\b(${unit})\\s+squared\\b`, "gi"), "$1^{2}")
+      .replace(/\b(centimeters?|centimetres?)\s+squared\b/gi, "cm^{2}")
+      .replace(/\b(millimeters?|millimetres?)\s+squared\b/gi, "mm^{2}")
+      .replace(/\b(meters?|metres?)\s+squared\b/gi, "m^{2}")
+      .replace(/\b(kilometers?|kilometres?)\s+squared\b/gi, "km^{2}")
+      .replace(new RegExp(`\\b(${unit})([2-9])\\b`, "gi"), "$1^{$2}")
+      .replace(new RegExp(`\\b(${unit})\\s*²`, "gi"), "$1^{2}")
+      .replace(new RegExp(`\\b(${unit})\\s*³`, "gi"), "$1^{3}")
+      .replace(/([A-Za-z0-9)])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}^{${[...power].map((character) => superscripts[character] || character).join("")}}`)
+      .replace(/\bsqrt\s*\(([^()\n]+)\)/gi, "\\sqrt{$1}")
+      .replace(/\bexp\s*\(([^()\n]+)\)/gi, "\\exp{$1}")
+      .replace(/\b(?:determinant|det)\s*\(\s*([A-Za-z][A-Za-z0-9_]*)\s*\)/gi, "\\det{$1}")
+      .replace(/\b(?:arcsin|asin)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\sin^{-1}")
+      .replace(/\b(?:arccos|acos)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\cos^{-1}")
+      .replace(/\b(?:arctan|atan)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\tan^{-1}")
+      .replace(/\b(sin|cos|tan)\s+inverse\b/gi, "\\$1^{-1}")
+      .replace(/\b(?:determinant|det)\s+(?=[A-Za-z0-9{])/gi, "\\det ")
+      .replace(/(?<![A-Za-z0-9])(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/g, "\\frac{$1}{$2}");
+    return source;
   };
   const mathCommandMap = Object.freeze({
     longrightarrow: "→", rightarrow: "→", to: "→", longleftrightarrow: "↔", leftrightarrow: "↔",
     Delta: "Δ", delta: "δ", alpha: "α", beta: "β", gamma: "γ", theta: "θ", lambda: "λ", mu: "μ", sigma: "σ", omega: "ω", phi: "φ", psi: "ψ",
     pi: "π", infty: "∞", partial: "∂", nabla: "∇", sum: "Σ", prod: "Π", int: "∫", approx: "≈", cong: "≅", circ: "°",
-    exp: "exp", ln: "ln", log: "log", leq: "≤", le: "≤", geq: "≥", ge: "≥", neq: "≠", pm: "±", times: "×", cdot: "×",
+    exp: "exp", ln: "ln", log: "log", sin: "sin", cos: "cos", tan: "tan", cot: "cot", sec: "sec", csc: "csc", sinh: "sinh", cosh: "cosh", tanh: "tanh", det: "det", determinant: "det", leq: "≤", le: "≤", geq: "≥", ge: "≥", neq: "≠", pm: "±", times: "×", cdot: "×",
     div: "÷", in: "∈", notin: "∉", subset: "⊂", subseteq: "⊆", supset: "⊃", supseteq: "⊇", cup: "∪", cap: "∩", emptyset: "∅", degree: "°",
     diamondsuit: "♦", heartsuit: "♥", spadesuit: "♠", clubsuit: "♣", qquad: "  ", quad: " ",
     dots: "…", ldots: "…", cdots: "⋯"
@@ -241,7 +291,7 @@
   const mathWrapperCommands = new Set(["text", "textbf", "textrm", "mathrm", "mathbf", "mathit", "mathbb", "mathsf", "operatorname", "boldsymbol", "overline", "underline", "vec"]);
   const combinationCommandNames = new Set(["comb", "choose", "combination"]);
   const permutationCommandNames = new Set(["perm", "permutation"]);
-  const mathArgumentCommands = new Set(["frac", "dfrac", "tfrac", "binom", "sqrt", "boxed", "fbox", "factorial", ...combinationCommandNames, ...permutationCommandNames, ...mathWrapperCommands]);
+  const mathArgumentCommands = new Set(["frac", "dfrac", "tfrac", "binom", "sqrt", "boxed", "fbox", "factorial", "det", "determinant", ...combinationCommandNames, ...permutationCommandNames, ...mathWrapperCommands]);
   const skipMathWhitespace = (source, start) => { let cursor = start; while (cursor < source.length && /\s/.test(source[cursor])) cursor += 1; return cursor; };
   const readBalancedMathGroup = (source, start, opener = "{", closer = "}") => {
     const cursor = skipMathWhitespace(source, start);
@@ -269,7 +319,7 @@
     if (cursor >= source.length) return null;
     return { value: source[cursor], next: cursor + 1 };
   };
-  const matrixCommandNames = new Set(["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix"]);
+  const matrixCommandNames = new Set(["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "smallmatrix", "array"]);
   const normalizeBareMatrixCommands = (value) => {
     const source = String(value || "");
     // Recover the common provider output `pmatrix ... pmatrix` without
@@ -282,7 +332,7 @@
     if (!Object.values(counts).some((count) => count > 1)) return source;
     return source.replace(tokenPattern, (full, prefix, kind) => counts[kind] > 1 ? `${prefix}\\${kind}` : full);
   };
-  const matrixBracketClass = (kind) => ({ matrix: "round", pmatrix: "round", bmatrix: "square", Bmatrix: "curly", vmatrix: "single", Vmatrix: "double" }[kind] || "round");
+  const matrixBracketClass = (kind) => ({ matrix: "round", pmatrix: "round", smallmatrix: "round", array: "round", bmatrix: "square", Bmatrix: "curly", vmatrix: "single", Vmatrix: "double" }[kind] || "round");
   const readBareMatrixBody = (source, start, kind) => {
     const close = source.slice(start).match(new RegExp(`\\\\?${kind}\\b`));
     if (!close || typeof close.index !== "number") return null;
@@ -303,6 +353,7 @@
       // slash followed by whitespace, which is also safe to recover.
       .replace(/\\\\/g, "\n")
       .replace(/(?:^|\s)\\(?=\s|$)/g, "\n")
+      .replace(/^\s*\{[^{}\n]+\}\s*(?=\S)/, "")
       .split(/\n+/)
       .map((row) => row.trim())
       .filter(Boolean)
@@ -326,7 +377,7 @@
     return result.replace(/\*\*|__/g, "");
   };
   const renderMathExpression = (value) => {
-    const source = normalizeBareMatrixCommands(normalizeCombinatoricsNotation(stripMathDelimiters(value)));
+    const source = normalizeBareMatrixCommands(normalizeExtendedMathNotation(stripMathDelimiters(value)));
     let output = "";
     let cursor = 0;
     while (cursor < source.length) {
@@ -367,6 +418,10 @@
           const upper = readMathArgument(source, cursor);
           const lower = upper && readMathArgument(source, upper.next);
           if (upper && lower) { output += `<span class="math-binomial"><span>${renderMathExpression(upper.value)}</span><span>${renderMathExpression(lower.value)}</span></span>`; cursor = lower.next; continue; }
+        }
+        if (command === "det" || command === "determinant") {
+          const argument = readMathArgument(source, cursor);
+          if (argument) { output += `<span class="math-function math-determinant"><span class="math-function-name">det</span><span class="math-function-argument">(${renderMathExpression(argument.value)})</span></span>`; cursor = argument.next; continue; }
         }
         if (permutationCommandNames.has(command)) {
           const upper = readMathArgument(source, cursor);
@@ -409,15 +464,88 @@
     return output;
   };
   const renderMathMarkup = (value) => renderMathExpression(value);
-  const formatMarkdownText = (value) => escapeHtml(normalizeResponseText(value)
-    .replace(/\$\$?/g, "")
-    .replace(/(^|\n)\s*#{1,6}\s+/g, "$1")
-    .replace(/\\([{}])/g, "$1"))
-    .replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>")
-    .replace(/__(.+?)__/gs, "<strong>$1</strong>")
-    .replace(/~~(.+?)~~/gs, "<del>$1</del>")
-    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  const isSafeHttpUrl = (value) => {
+    try {
+      const url = new URL(String(value || ""));
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch (_) { return false; }
+  };
+  const isImageUrl = (value) => {
+    if (!isSafeHttpUrl(value)) return false;
+    try { return /\.(?:png|jpe?g|webp|gif|avif|svg)(?:$|[?#])/i.test(new URL(value).pathname); } catch (_) { return false; }
+  };
+  const cleanEmbeddedLabel = (value) => String(value || "Image").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim() || "Image";
+  const normalizeEmbeddedMarkup = (value) => normalizeResponseText(value)
+    .replace(/<img\b[^>]*?\bsrc\s*=\s*["'](https?:\/\/[^"']+)["'][^>]*>/gi, (tag, url) => {
+      const alt = tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] || "Image preview";
+      return `![${cleanEmbeddedLabel(alt)}](${url})`;
+    })
+    .replace(/<a\b[^>]*?\bhref\s*=\s*["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_, url, label) => `[${cleanEmbeddedLabel(label)}](${url})`)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\b(?:target|rel)\s*=\s*(?:["'][^"']*["']|[^\s>]+)/gi, "");
+  const formatMarkdownText = (value) => {
+    const tokens = [];
+    const tokenFor = (html) => { const token = `\uE000${tokens.length}\uE001`; tokens.push(html); return token; };
+    let source = normalizeEmbeddedMarkup(value)
+      .replace(/\$\$?/g, "")
+      .replace(/(^|\n)\s*#{1,6}\s+/g, "$1")
+      .replace(/\\([{}])/g, "$1");
+    // Models sometimes emit a Markdown blockquote marker for ordinary
+    // prompt labels or prose. The app does not render blockquotes, so the
+    // marker should never leak into the visible answer as a stray `>`.
+    source = source.replace(/(^|\n)[ \t]*>[ \t]+(?=[^<>])/g, "$1");
+    // Keep common video specifications readable and consistent while leaving
+    // fenced code untouched (code is rendered by highlightCode separately).
+    source = source.replace(/\b(\d+(?:[.,]\d+)?)\s*(?:fps|frames?\s+per\s+second)\b/gi, "$1 FPS");
+    const imageCard = (url, label) => {
+      if (!isSafeHttpUrl(url)) return escapeHtml(label || url);
+      const safeUrl = escapeHtml(url);
+      const safeLabel = escapeHtml(cleanEmbeddedLabel(label));
+      return `<a class="inline-image-preview-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="Open image: ${safeLabel}"><img class="inline-image-preview" src="${safeUrl}" alt="${safeLabel}" loading="lazy" referrerpolicy="no-referrer"><span class="inline-image-caption">${safeLabel}</span></a>`;
+    };
+    const sourceLink = (url, label = url) => {
+      if (!isSafeHttpUrl(url)) return escapeHtml(label);
+      return `<a class="inline-source-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(cleanEmbeddedLabel(label))}</a>`;
+    };
+    source = source.replace(/!\[([^\]]*)\]\(\s*(https?:\/\/[^\s)]+)(?:\s+["'][^)]*["'])?\s*\)/gi, (_, label, url) => tokenFor(imageCard(url, label || "Image preview")));
+    source = source.replace(/\[([^\]]+)\]\(\s*(https?:\/\/[^\s)]+)\s*\)/gi, (_, label, url) => tokenFor(isImageUrl(url) ? imageCard(url, label) : sourceLink(url, label)));
+    source = source.replace(/https?:\/\/[^\s<>"')]+/gi, (url, offset, whole) => {
+      const trailing = url.match(/[.,;:!?]+$/)?.[0] || "";
+      const cleanUrl = trailing ? url.slice(0, -trailing.length) : url;
+      if (!isSafeHttpUrl(cleanUrl) || (offset > 0 && /["'=]/.test(whole[offset - 1]))) return url;
+      return tokenFor(isImageUrl(cleanUrl) ? imageCard(cleanUrl, "Image preview") : sourceLink(cleanUrl, cleanUrl)) + trailing;
+    });
+    let output = escapeHtml(source)
+      .replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>")
+      .replace(/__(.+?)__/gs, "<strong>$1</strong>")
+      .replace(/~~(.+?)~~/gs, "<del>$1</del>")
+      .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+    tokens.forEach((html, index) => { output = output.split(`\uE000${index}\uE001`).join(html); });
+    return output;
+  };
+  const findPlainMathToken = (source, start) => {
+    const previous = source[start - 1];
+    if (previous && /[A-Za-z0-9_]/.test(previous)) return null;
+    const remainder = source.slice(start);
+    const patterns = [
+      /^(?:[A-Za-zπ])\s*[\^_]\s*(?:\{[^{}\n]+\}|[A-Za-z0-9+\-]+)/,
+      /^(?:mm|cm|dm|km|m|µm|um|nm|in|ft|yd|kg|mg|g|L|mL)\s*[\^_]\s*(?:\{[^{}\n]+\}|[0-9+\-]+)/i,
+      /^(?:e|π)\s*\^\s*(?:\{[^{}\n]+\}|\([^()\n]+\)|[A-Za-z0-9+\-]+)/i,
+      /^(?:determinant|det)\s*(?:\([^()\n]+\)|[A-Za-z][A-Za-z0-9]*)/i,
+      /^(?:sin|cos|tan|cot|sec|csc|sinh|cosh|tanh)\s*(?:\^\s*(?:\{[^{}\n]+\}|-?\d+))?\s*(?:\([^()\n]+\)|[A-Za-z][A-Za-z0-9]*)/i,
+      /^(?:sqrt|exp)\s*\([^()\n]+\)/i,
+      /^(?:-?\d+(?:\.\d+)?)\s*\/\s*(?:-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/i
+    ];
+    for (const pattern of patterns) {
+      const match = remainder.match(pattern);
+      if (match) return { end: start + match[0].length };
+    }
+    return null;
+  };
   const findRawMathToken = (source, start) => {
+    const plainToken = findPlainMathToken(source, start);
+    if (plainToken) return plainToken;
     if (source[start] !== "\\") return null;
     const commandMatch = source.slice(start + 1).match(/^[A-Za-z]+/);
     if (!commandMatch) return null;
@@ -451,7 +579,7 @@
     return null;
   };
   const renderTextWithMath = (value) => {
-    const source = normalizeBareMatrixCommands(normalizeCombinatoricsNotation(normalizeLatex(value)));
+    const source = normalizeBareMatrixCommands(normalizeExtendedMathNotation(value));
     let output = "";
     let cursor = 0;
     let textStart = 0;
@@ -464,7 +592,7 @@
       textStart = cursor;
     }
     output += formatMarkdownText(source.slice(textStart));
-    return output.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return output;
   };
   const inlineMarkdown = (value) => {
     const mathPattern = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
@@ -554,7 +682,10 @@
     const flushNumbered = () => { if (!numbered.length) return; output.push(`<ol>${numbered.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ol>`); numbered = []; };
     while (index < lines.length) {
       const line = lines[index];
-      const trimmed = line.trim();
+      // Flatten accidental blockquote syntax into normal prose. Do this at
+      // line level so fenced code keeps its original `>` characters.
+      const displayLine = line.replace(/^[ \t]*>[ \t]+(?=[^<>])/g, "");
+      const trimmed = displayLine.trim();
       if (!trimmed) { flushBullets(); flushNumbered(); index += 1; continue; }
       const fence = trimmed.match(/^```\s*([\w+#.-]*)\s*$/);
       if (fence) {
@@ -599,7 +730,8 @@
         continue;
       }
       const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
-      const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\b)/.test(trimmed);
+      const normalizedMathLine = normalizeExtendedMathNotation(trimmed);
+      const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b)/.test(normalizedMathLine);
       const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|!|≤|≥|∈|(?<![A-Za-z])(?:\\d+|[A-Za-z])\\s*[CPcp]\\s*(?:\\d+|[A-Za-z])|(?<![A-Za-z])[CPcp]\s*\([^)]*,[^)]*\))).{2,900}$/.test(trimmed);
       if ((hasMatrix || hasScalarMath) && (hasMatrix || (!mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)))) {
         output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
@@ -636,16 +768,18 @@
       scrollChatToBottom();
     };
     const renderPartial = (value) => {
-      body.replaceChildren();
       try {
+        body.replaceChildren();
         renderMarkdown(body, value);
+        const targets = [...body.querySelectorAll("p, li, h3, td, th, .math-block, .code-block, pre, code")];
+        const target = targets[targets.length - 1] || body;
+        target.append(cursor);
       } catch {
         // An incomplete Markdown/math token must never stop the animation.
+        body.replaceChildren();
         body.textContent = value;
+        body.append(cursor);
       }
-      const targets = [...body.querySelectorAll("p, li, h3, td, th, .math-block, .code-block, pre, code")];
-      const target = targets[targets.length - 1] || body;
-      target.append(cursor);
       scrollToEnd();
     };
     const finish = () => {
@@ -658,7 +792,7 @@
       } catch {
         body.textContent = text;
       }
-      cursor.remove();
+      if (cursor.isConnected) cursor.remove();
       scrollToEnd();
     };
     const tick = () => {
@@ -845,7 +979,16 @@
     scrollChatToBottom({ force: true });
     activeRequestController = new AbortController();
     const reasoningStartedAt = performance.now();
-const timeout = window.setTimeout(() => activeRequestController?.abort(), thinkMode ? 150000 : 30000);
+    // Keep the client alive for long answers. Manual stopping remains
+    // immediate, but generation is never mislabeled as user-cancelled just
+    // because a fixed 30-second timer fired.
+    activeRequestStopReason = "";
+    const timeout = window.setTimeout(() => {
+      if (activeRequestController) {
+        activeRequestStopReason = "timeout";
+        activeRequestController.abort();
+      }
+    }, thinkMode ? 300000 : 180000);
     setSendingState(true);
     try {
       const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });
@@ -855,7 +998,10 @@ const timeout = window.setTimeout(() => activeRequestController?.abort(), thinkM
       addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "", reasoningSummary: response.ok && thinkMode ? data.reasoningSummary : "", reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
     } catch (error) {
       thinking.remove();
-      if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
+      if (error.name === "AbortError") {
+        const message = activeRequestStopReason === "timeout" ? "The response took too long to finish. Please try again with a shorter request." : "The response was stopped by you.";
+        addMessage(message, "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
+      }
       else {
         const localFileHint = window.location.protocol === "file:" ? " Open the deployed site (or a local server) instead of opening the HTML file directly." : " Check that the deployed /api/xmanius-chat endpoint is available.";
         const networkMessage = error?.message && error.message !== "Failed to fetch" ? error.message : `The AI service could not be reached.${localFileHint} Your API key stays server-side and was not exposed.`;
@@ -864,6 +1010,7 @@ const timeout = window.setTimeout(() => activeRequestController?.abort(), thinkM
     } finally {
       window.clearTimeout(timeout);
       activeRequestController = null;
+      activeRequestStopReason = "";
       setSendingState(false);
     }
   };
@@ -974,7 +1121,7 @@ const timeout = window.setTimeout(() => activeRequestController?.abort(), thinkM
   document.addEventListener("keydown", (event) => { if (!event.ctrlKey || event.altKey || event.metaKey) return; const key = event.key.toLowerCase(); if (key === "k") { event.preventDefault(); fileInput?.click(); } if (key === "t") { event.preventDefault(); void openCamera(); } });
   document.addEventListener("paste", (event) => { const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean); if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); } });
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
-  sendButton?.addEventListener("click", (event) => { if (!activeRequestController) return; event.preventDefault(); activeRequestController.abort(); });
+  sendButton?.addEventListener("click", (event) => { if (!activeRequestController) return; event.preventDefault(); activeRequestStopReason = "user"; activeRequestController.abort(); });
   document.querySelector("[data-chat-mic]")?.addEventListener("click", startVoice);
   dictationSend?.setAttribute("aria-label", "Review dictated message");
   dictationSend?.setAttribute("title", "Review dictated message");
