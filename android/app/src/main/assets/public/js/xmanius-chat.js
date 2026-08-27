@@ -43,7 +43,8 @@
   let selectedModel = "xmanius-1";
   let pendingAttachments = [];
   const maxAttachments = 4;
-  const maxAttachmentBytes = 4_000_000;
+  const maxImageBytes = 10_000_000;
+  const maxFileBytes = 200_000_000;
   const usageKey = "xmanius-usage-v1";
   const usageLimit = 35;
   const usageWindow = 5 * 60 * 60 * 1000;
@@ -56,9 +57,77 @@
   let currentChatId = crypto.randomUUID?.() || String(Date.now());
   const readChats = () => { try { return JSON.parse(localStorage.getItem(chatsKey) || "[]"); } catch { return []; } };
   const saveChats = (chats) => localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
-  const saveCurrentChat = () => { const messages = [...list.querySelectorAll(".message")].map((item) => ({ type: item.classList.contains("user") ? "user" : "assistant", text: item.dataset.rawText || item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim() })).filter((item) => item.text); if (!messages.length) return; const chats = readChats(); const existing = chats.find((chat) => chat.id === currentChatId); const chat = { id: currentChatId, title: messages.find((item) => item.type === "user")?.text.slice(0, 42) || "New chat", messages, updatedAt: Date.now() }; if (existing) Object.assign(existing, chat); else chats.unshift(chat); saveChats(chats); renderRecents(); };
+  const attachmentDb = (() => {
+    let databasePromise;
+    const open = () => {
+      if (!window.indexedDB) return Promise.resolve(null);
+      if (!databasePromise) databasePromise = new Promise((resolve) => {
+        const request = indexedDB.open("xmanius-private-files-v1", 1);
+        request.onupgradeneeded = () => request.result.createObjectStore("attachments", { keyPath: "id" });
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+      });
+      return databasePromise;
+    };
+    const put = async (payload) => {
+      const database = await open();
+      if (!database) return;
+      await new Promise((resolve) => { const transaction = database.transaction("attachments", "readwrite"); transaction.objectStore("attachments").put(payload); transaction.oncomplete = resolve; transaction.onerror = resolve; });
+    };
+    const get = async (id) => {
+      const database = await open();
+      if (!database) return null;
+      return new Promise((resolve) => { const request = database.transaction("attachments", "readonly").objectStore("attachments").get(id); request.onsuccess = () => resolve(request.result || null); request.onerror = () => resolve(null); });
+    };
+    const removeMany = async (ids) => { const database = await open(); if (!database || !ids.length) return; await new Promise((resolve) => { const transaction = database.transaction("attachments", "readwrite"); const store = transaction.objectStore("attachments"); ids.forEach((id) => store.delete(id)); transaction.oncomplete = resolve; transaction.onerror = resolve; }); };
+    return { put, get, removeMany };
+  })();
+  const attachmentReference = (attachment) => ({ id: attachment.id, name: attachment.name, mimeType: attachment.mimeType, text: attachment.text || "" });
+  const persistAttachmentPayloads = async (items) => { await Promise.all(items.map(async (attachment) => { attachment.id ||= "xmanius-file-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9); await attachmentDb.put({ id: attachment.id, name: attachment.name, mimeType: attachment.mimeType, data: attachment.data || "", text: attachment.text || "", savedAt: Date.now() }); })); };
+  const defaultSettings = { appearance: "system", contrast: "system", language: "auto", baseTone: "default", warm: "default", enthusiastic: "default", headers: "default", emoji: "default", fastAnswers: true, memoryEnabled: true, customInstructions: "" };
+  let appSettings = (() => { try { return { ...defaultSettings, ...JSON.parse(localStorage.getItem("xmanius-settings-v1") || "{}") }; } catch { return { ...defaultSettings }; } })();
+  const saveSettings = () => localStorage.setItem("xmanius-settings-v1", JSON.stringify(appSettings));
+  const applySettings = () => {
+    document.body.classList.remove("xmanius-theme-light", "xmanius-theme-dark", "xmanius-contrast-medium", "xmanius-contrast-increased");
+    const isLight = appSettings.appearance === "light" || (appSettings.appearance === "system" && window.matchMedia("(prefers-color-scheme: light)").matches);
+    document.body.classList.add(isLight ? "xmanius-theme-light" : "xmanius-theme-dark");
+    if (appSettings.contrast === "medium") document.body.classList.add("xmanius-contrast-medium");
+    if (appSettings.contrast === "increased") document.body.classList.add("xmanius-contrast-increased");
+    document.documentElement.lang = appSettings.language === "auto" ? (navigator.language || "en") : appSettings.language;
+  };
+  const saveCurrentChat = () => {
+    const messages = [...list.querySelectorAll(".message")].map((item) => {
+      let attachmentsForMessage = [];
+      try { attachmentsForMessage = JSON.parse(item.dataset.attachmentRefs || "[]"); } catch {}
+      return { type: item.classList.contains("user") ? "user" : "assistant", text: item.dataset.rawText || item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim(), reasoningSummary: item.dataset.reasoningSummary || "", reasoningSeconds: Number(item.dataset.reasoningSeconds || 0), attachments: attachmentsForMessage };
+    }).filter((item) => item.text);
+    if (!messages.length) return;
+    const chats = readChats();
+    const existing = chats.find((chat) => chat.id === currentChatId);
+    const chat = { id: currentChatId, title: messages.find((item) => item.type === "user")?.text.slice(0, 42) || "New chat", messages, updatedAt: Date.now() };
+    if (existing) Object.assign(existing, chat); else chats.unshift(chat);
+    saveChats(chats);
+    renderRecents();
+  };
   const renderRecents = () => { if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => { const row = document.createElement("div"); row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`; row.dataset.chatId = chat.id; const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; const more = document.createElement("button"); more.className = "conversation-more"; more.type = "button"; more.dataset.chatMenu = chat.id; more.setAttribute("aria-label", `Options for ${chat.title}`); more.title = "Chat options"; more.textContent = "•••"; const menu = document.createElement("div"); menu.className = "conversation-menu"; menu.innerHTML = `<button type="button" data-chat-action="pin">${chat.pinned ? "Unpin" : "Pin"} chat</button><button type="button" data-chat-action="share">Share</button><button type="button" data-chat-action="delete">Delete</button>`; row.append(button, more, menu); recent.append(row); }); };
-  const loadChat = (chatId) => { const chat = readChats().find((item) => item.id === chatId); if (!chat) return; list.replaceChildren(); empty.hidden = true; currentChatId = chat.id; chat.messages.forEach((message) => addMessage(message.text, message.type, { animate: false, persist: false })); };
+  const loadChat = async (chatId) => {
+    const chat = readChats().find((item) => item.id === chatId);
+    if (!chat) return;
+    list.replaceChildren();
+    empty.hidden = true;
+    currentChatId = chat.id;
+    for (const message of chat.messages) {
+      const refs = Array.isArray(message.attachments) ? message.attachments : [];
+      addMessage(message.text, message.type, { animate: false, persist: false, attachmentNames: refs.map((attachment) => attachment.name), reasoningSummary: message.reasoningSummary || "", reasoningSeconds: message.reasoningSeconds || 0 });
+      const item = list.lastElementChild;
+      if (!item || !refs.length) continue;
+      item.dataset.attachmentRefs = JSON.stringify(refs);
+      const restored = [];
+      for (const reference of refs) { const saved = await attachmentDb.get(reference.id); if (saved) restored.push(saved); }
+      if (restored.length) renderMessageAttachmentPreviews(item, restored);
+    }
+    document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
+  };
   const localAnswer = (question) => {
     const q = question.toLowerCase();
     if (/^(hi|hello|hey)\b/.test(q)) return "Hello. I am Xmanius, ready to help.";
@@ -68,12 +137,15 @@
     if (math) { const a = Number(math[1]), b = Number(math[3]); return `The answer is ${math[2] === "+" ? a + b : math[2] === "-" ? a - b : math[2] === "*" ? a * b : b ? a / b : "undefined"}.`; }
     return null;
   };
-  const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = navigator.language || "en-US"; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
+  const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
+  const stripAnswerSummaryTags = (value) => { let summary = ""; const text = normalizeResponseText(value).replace(/\[\[ANSWER_SUMMARY\]\]([\s\S]*?)\[\[\/ANSWER_SUMMARY\]\]/gi, (_, content) => { if (!summary) summary = content.trim(); return ""; }).replace(/\[\[\/?ANSWER_SUMMARY\]\]/gi, ""); return { text: text.trim(), summary }; };
   const normalizeResponseText = (value) => String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
-  const cleanMath = (value) => normalizeResponseText(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\\cdot|\\times/g, "×").replace(/\\pm/g, "±").replace(/\\,|\\;/g, " ").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1").replace(/\$/g, "");
+  const normalizeLatex = (value) => normalizeResponseText(value).replace(/\\ext\b/g, "\\text").replace(/\\longrightarrow|\\rightarrow|\\to\b/g, "→").replace(/\\longleftrightarrow|\\leftrightarrow/g, "↔").replace(/\\Delta\b/g, "Δ").replace(/\\alpha\b/g, "α").replace(/\\beta\b/g, "β").replace(/\\theta\b/g, "θ").replace(/\\pi\b/g, "π").replace(/\\infty\b/g, "∞").replace(/\\partial\b/g, "∂").replace(/\\nabla\b/g, "∇").replace(/\\sum\b/g, "Σ").replace(/\\prod\b/g, "Π").replace(/\\approx\b/g, "≈").replace(/\\cong\b/g, "≅").replace(/\\circ\b/g, "°").replace(/\\exp\b/g, "exp").replace(/\\ln\b/g, "ln").replace(/\\log\b/g, "log").replace(/\\leq\b|\\le\b/g, "≤").replace(/\\geq\b|\\ge\b/g, "≥").replace(/\\neq\b/g, "≠").replace(/\\pm\b/g, "±").replace(/\\times\b|\\cdot\b/g, "×").replace(/\\,|\\;|\\!/g, " ").replace(/\\%/g, "%");
+  const unwrapLatexGroups = (value) => { let result = normalizeLatex(value); for (let pass = 0; pass < 6; pass += 1) result = result.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\s*\{([^{}]*)\}/g, "$1"); return result.replace(/\\binom\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, "C($1, $2)"); };
+  const cleanMath = (value) => unwrapLatexGroups(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1").replace(/\$/g, "");
   const renderMathMarkup = (value) => {
-    let markup = escapeHtml(normalizeResponseText(value).replace(/^\$\$|^\$|\$\$$|\$$/g, "").replace(/^\\\[|\\\]$/g, "").replace(/^\\\(|\\\)$/g, "").replace(/\\left|\\right/g, ""));
+    let markup = escapeHtml(unwrapLatexGroups(value).replace(/^\$\$|^\$|\$\$$|\$$/g, "").replace(/^\\\[|\\\]$/g, "").replace(/^\\\(|\\\)$/g, "").replace(/\\left|\\right/g, ""));
     for (let pass = 0; pass < 3; pass += 1) markup = markup.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="math-fraction"><span>$1</span><span>$2</span></span>').replace(/\\sqrt\{([^{}]+)\}/g, '<span class="math-sqrt">√<span>$1</span></span>').replace(/\\boxed\{([^{}]+)\}/g, '<span class="math-answer-box">$1</span>').replace(/\\text\{([^{}]+)\}/g, "$1");
     return markup.replace(/\\leq?|&lt;=/g, "≤").replace(/\\geq?|&gt;=/g, "≥").replace(/\\neq/g, "≠").replace(/\\in\b/g, "∈").replace(/\\notin\b/g, "∉").replace(/\\times|\\cdot/g, "×").replace(/\\pm/g, "±").replace(/\\dots?|\\ldots/g, "…").replace(/\\to/g, "→").replace(/\\pi/g, "π").replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\theta/g, "θ").replace(/\\([{}])/g, "$1").replace(/\^\{([^{}]+)\}/g, "<sup>$1</sup>").replace(/\^([A-Za-z0-9]+)/g, "<sup>$1</sup>").replace(/_\{([^{}]+)\}/g, "<sub>$1</sub>").replace(/_([A-Za-z0-9]+)/g, "<sub>$1</sub>");
   };
@@ -93,11 +165,15 @@
   const youtubeSourcesFromText = (value) => [...value.matchAll(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)[A-Za-z0-9_-]{6,}|youtu\.be\/[A-Za-z0-9_-]{6,})[^\s)<>]*/gi)].map((match) => ({ title: "YouTube video", url: match[0].replace(/[.,]$/, ""), snippet: "Open or watch this video preview", displayLink: "youtube.com" }));
   const readAsDataUrl = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || "")); reader.onerror = () => reject(new Error("The selected file could not be read.")); reader.readAsDataURL(file); });
   const imageAsUpload = (file) => new Promise(async (resolve, reject) => { try { const source = await readAsDataUrl(file); const image = new Image(); image.onload = () => { const maxDimension = 1600; const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height)); const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale)); canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale)); const context = canvas.getContext("2d", { alpha: false }); context.fillStyle = "#fff"; context.fillRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); resolve({ mimeType: "image/jpeg", data: canvas.toDataURL("image/jpeg", .82).replace(/^data:[^,]+,/, "") }); }; image.onerror = () => reject(new Error(`Could not decode ${file.name}.`)); image.src = source; } catch (error) { reject(error); } });
-  const prepareAttachment = async (file) => { if (!file || file.size > maxAttachmentBytes) throw new Error(`${file?.name || "That file"} is too large. Keep each file under 4 MB.`); const mimeType = file.type || "application/octet-stream"; if (mimeType.startsWith("image/")) { const image = await imageAsUpload(file); return { name: file.name, mimeType: image.mimeType, data: image.data }; } if (mimeType === "application/pdf" || mimeType === "text/plain" || mimeType === "text/markdown" || mimeType === "text/csv" || mimeType === "application/json" || /\.(?:txt|md|csv|json|js|html|css|py)$/i.test(file.name)) { if (/\.(?:js|html|css|py)$/i.test(file.name) && file.type === "application/octet-stream") return { name: file.name, mimeType: "text/plain", text: (await file.text()).slice(0, 20000) }; if (mimeType.startsWith("text/") || mimeType === "application/json") return { name: file.name, mimeType: "text/plain", text: (await file.text()).slice(0, 20000) }; return { name: file.name, mimeType, data: (await readAsDataUrl(file)).replace(/^data:[^,]+,/, "") }; } throw new Error(`${file.name} is not a supported image, PDF, or text file.`); };
+  const prepareAttachment = async (file) => { const mimeType = file?.type || "application/octet-stream"; const limit = mimeType.startsWith("image/") ? maxImageBytes : maxFileBytes; if (!file || file.size > limit) throw new Error(`${file?.name || "That file"} is too large. Images can be up to 10 MB and other files up to 200 MB.`); if (mimeType.startsWith("image/")) { const image = await imageAsUpload(file); return { name: file.name, mimeType: image.mimeType, data: image.data }; } if (mimeType === "application/pdf" || mimeType === "text/plain" || mimeType === "text/markdown" || mimeType === "text/csv" || mimeType === "application/json" || /\.(?:txt|md|csv|json|js|html|css|py)$/i.test(file.name)) { if (/\.(?:js|html|css|py)$/i.test(file.name) && file.type === "application/octet-stream") return { name: file.name, mimeType: "text/plain", text: (await file.text()).slice(0, 20000) }; if (mimeType.startsWith("text/") || mimeType === "application/json") return { name: file.name, mimeType: "text/plain", text: (await file.text()).slice(0, 20000) }; return { name: file.name, mimeType, data: (await readAsDataUrl(file)).replace(/^data:[^,]+,/, "") }; } throw new Error(`${file.name} is not a supported image, PDF, or text file.`); };
   const attachmentToRequest = (attachment) => ({ name: attachment.name, mimeType: attachment.mimeType, data: attachment.data, text: attachment.text });
   const renderPendingAttachments = () => { if (!attachments) return; attachments.replaceChildren(); attachments.classList.toggle("is-visible", pendingAttachments.length > 0); pendingAttachments.forEach((attachment, index) => { const chip = document.createElement("span"); chip.className = "attachment-chip"; const label = document.createElement("span"); label.textContent = attachment.name; const remove = document.createElement("button"); remove.type = "button"; remove.dataset.removeAttachment = String(index); remove.setAttribute("aria-label", `Remove ${attachment.name}`); remove.title = "Remove file"; remove.textContent = "×"; chip.append(label, remove); attachments.append(chip); }); };
   const addSelectedFiles = async (selected) => { if (!selected.length) return; if (pendingAttachments.length + selected.length > maxAttachments) { showAttachmentNotice(`You can attach up to ${maxAttachments} files per message.`); return; } for (const file of selected) { try { pendingAttachments.push(await prepareAttachment(file)); } catch (error) { showAttachmentNotice(error.message || "That file could not be added."); } } renderPendingAttachments(); input?.focus(); };
   const handleAttachmentSelection = async (event) => { const selected = [...(event.target.files || [])]; event.target.value = ""; await addSelectedFiles(selected); };
+  let previewSignature = "";
+  const enhanceImagePreview = () => { if (!attachments) return; const images = pendingAttachments.filter((attachment) => attachment?.data && /^image\//i.test(attachment.mimeType || "")); const signature = images.map((attachment) => attachment.id || (attachment.name + ":" + attachment.data.length)).join("|"); const current = attachments.querySelector("[data-image-preview-strip]"); if (current && signature === previewSignature) return; current?.remove(); previewSignature = signature; if (!images.length) return; const strip = document.createElement("div"); strip.className = "attachment-preview-strip"; strip.dataset.imagePreviewStrip = "true"; images.forEach((attachment) => { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = document.createElement("figure"); card.className = "attachment-preview-card"; const image = document.createElement("img"); image.src = "data:" + attachment.mimeType + ";base64," + attachment.data; image.alt = "Preview of " + attachment.name; const caption = document.createElement("figcaption"); const name = document.createElement("strong"); name.textContent = attachment.name; const meta = document.createElement("small"); meta.textContent = (attachment.name.split(".").pop() || "image").toUpperCase() + " • " + attachment.id; caption.append(name, meta); card.append(image, caption); strip.append(card); }); attachments.append(strip); };
+  if (attachments) new MutationObserver(enhanceImagePreview).observe(attachments, { childList: true });
+  const renderMessageAttachmentPreviews = (message, items) => { const container = message?.querySelector(".message-attachments"); if (!container || !items?.length) return; container.replaceChildren(); items.forEach((attachment) => { if (attachment?.data && /^image\//i.test(attachment.mimeType || "")) { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = document.createElement("figure"); card.className = "attachment-preview-card message-image-preview"; const image = document.createElement("img"); image.src = "data:" + attachment.mimeType + ";base64," + attachment.data; image.alt = "Preview of " + attachment.name; const caption = document.createElement("figcaption"); const name = document.createElement("strong"); name.textContent = attachment.name; const meta = document.createElement("small"); meta.textContent = (attachment.name.split(".").pop() || "image").toUpperCase() + " • " + attachment.id; caption.append(name, meta); card.append(image, caption); container.append(card); } else { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = "📎 " + (attachment?.name || "attachment"); container.append(chip); } }); };
   let cameraStream = null;
   let cameraDialog = null;
   const stopCamera = () => { cameraStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} }); cameraStream = null; if (cameraDialog) { const video = cameraDialog.querySelector("video"); if (video) video.srcObject = null; cameraDialog.classList.remove("is-open"); cameraDialog.setAttribute("aria-hidden", "true"); } };
@@ -162,7 +238,7 @@
         continue;
       }
       const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
-      if (/^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\^|≤|≥|∈)).{2,90}$/.test(trimmed) && !mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)) {
+      if (/^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|≤|≥|∈)).{2,180}$/.test(trimmed) && !mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)) {
         output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
         highlightNextMath = false;
         index += 1;
@@ -177,20 +253,8 @@
   };
   const animateAssistantText = (body, text, cursor) => {
     if (!body || !cursor || !text) return;
-    if (/```/.test(text)) {
-      body.replaceChildren();
-      renderMarkdown(body, text);
-      cursor.remove();
-      return;
-    }
-    if (text.length > 6000) {
-      body.replaceChildren();
-      renderMarkdown(body, text);
-      cursor.remove();
-      return;
-    }
     const total = text.length;
-    const duration = Math.min(20000, Math.max(1800, total * 22));
+    const duration = Math.min(50000, Math.max(1800, total * 16));
     const interval = 18;
     const chunk = Math.max(1, Math.ceil(total / (duration / interval)));
     let position = 0;
@@ -211,20 +275,23 @@
       target.append(cursor);
       document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
       if (position < total) window.setTimeout(tick, 18);
-      else window.setTimeout(finish, 0);
+      else finish();
     };
     body.replaceChildren();
     body.append(cursor);
     tick();
-    window.setTimeout(finish, duration + 1000);
   };
-  const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "", attachmentNames = [] } = {}) => {
-    text = normalizeResponseText(text);
+  const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false } = {}) => {
+    const answerEnvelope = stripAnswerSummaryTags(text);
+    text = answerEnvelope.text;
+    reasoningSummary = reasoningSummary || answerEnvelope.summary;
     empty.hidden = true;
     const displaySources = [...new Map([...sources, ...youtubeSourcesFromText(text)].filter((source) => source?.url).map((source) => [source.url, source])).values()];
     const item = document.createElement("article");
     item.className = `message ${type}${type === "assistant" && text.length >= 650 ? " long-response" : ""}`;
     item.dataset.rawText = text;
+    if (reasoningSummary) item.dataset.reasoningSummary = reasoningSummary;
+    if (reasoningSeconds) item.dataset.reasoningSeconds = String(reasoningSeconds);
     const body = document.createElement("div");
     body.className = "message-body";
     if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
@@ -236,6 +303,16 @@
       attached.className = "message-attachments";
       attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = `📎 ${name}`; attached.append(chip); });
       item.append(attached);
+    }
+    if (type === "assistant" && (thinkMode || reasoningSeconds)) {
+      const summary = document.createElement("details");
+      summary.className = "thinking-summary";
+      const summaryLabel = document.createElement("summary");
+      summaryLabel.innerHTML = `<span class="thought-glyph" aria-hidden="true">✦</span><span>Thought for ${Math.max(1, reasoningSeconds || 1)} seconds</span><span class="thought-chevron" aria-hidden="true">⌄</span>`;
+      const summaryText = document.createElement("p");
+      summaryText.textContent = reasoningSummary || "I identified the main request and checked the relevant context, assumptions, and constraints. I then selected a suitable method and verified the result before presenting the answer.";
+      summary.append(summaryLabel, summaryText);
+      item.prepend(summary);
     }
     if (type === "assistant") {
       body.querySelectorAll("[data-code-block]").forEach((block) => {
@@ -312,12 +389,17 @@
     const history = conversationHistory();
     const rethink = needsCodeRethink(q);
     addMessage(q || "Please analyze the attached file(s).", "user", { attachmentNames: requestAttachments.map((attachment) => attachment.name) });
+    renderMessageAttachmentPreviews(list.lastElementChild, requestAttachments);
+    await persistAttachmentPayloads(requestAttachments);
+    const sentMessage = list.lastElementChild;
+    if (sentMessage && requestAttachments.length) sentMessage.dataset.attachmentRefs = JSON.stringify(requestAttachments.map(attachmentReference));
+    saveCurrentChat();
     input.value = "";
     pendingAttachments = [];
     renderPendingAttachments();
     updateUsage(true);
     const local = requestAttachments.length ? null : localAnswer(q);
-    if (local && !thinkMode && !webSearch && selectedModel === "xmanius-1") { addMessage(local, "assistant", { animate: true }); return; }
+    if (local && appSettings.fastAnswers && !thinkMode && !webSearch && selectedModel === "xmanius-1") { addMessage(local, "assistant", { animate: true }); return; }
     const thinking = document.createElement("article");
     thinking.className = "message assistant thinking ai-message--thinking";
     thinking.setAttribute("role", "status");
@@ -325,17 +407,19 @@
     list.append(thinking);
     document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
     activeRequestController = new AbortController();
+    const reasoningStartedAt = performance.now();
     const timeout = window.setTimeout(() => activeRequestController?.abort(), 180000);
     setSendingState(true);
     try {
-      const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest) }), signal: activeRequestController.signal });
+      const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });
       const data = await response.json().catch(() => ({}));
       thinking.remove();
-      addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "" });
+    // Failover is intentionally silent: the public model label remains Xmanius 1.
+      addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "", reasoningSummary: response.ok && thinkMode ? data.reasoningSummary : "", reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
     } catch (error) {
       thinking.remove();
-      if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true });
-      else addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true });
+      if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
+      else addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
     } finally {
       window.clearTimeout(timeout);
       activeRequestController = null;
@@ -369,10 +453,10 @@
     setDictation(true);
     input.placeholder = "Listening…";
     document.querySelector("[data-chat-mic]")?.classList.add("active");
-    instance.lang = navigator.language || "en-US";
+    instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
     instance.interimResults = true;
     instance.continuous = true;
-    instance.maxAlternatives = 1;
+    instance.maxAlternatives = 3;
     const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
     const restart = () => {
       voiceRestartTimer = 0;
@@ -404,11 +488,12 @@
       if (!isCurrentSession()) return;
       let interimText = "";
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const transcript = event.results[index][0]?.transcript || "";
-        if (event.results[index].isFinal) finalText += transcript;
+        const alternatives = [...event.results[index]].filter((alternative) => alternative?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+        const transcript = alternatives[0]?.transcript || "";
+        if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
         else interimText += transcript;
       }
-      input.value = `${finalText}${interimText}`.trim();
+      input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
     };
     instance.onerror = (event) => {
       if (!isCurrentSession()) return;
@@ -460,7 +545,8 @@
   const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); modelToggle?.setAttribute("aria-expanded", String(open)); headerModelToggle?.setAttribute("aria-expanded", String(open)); };
   modelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
   headerModelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
-  modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } const option = event.target.closest("[data-model]"); if (option) { selectedModel = option.dataset.model || "xmanius-1"; modelPicker.querySelectorAll("[data-model]").forEach((item) => { const active = item === option; item.classList.toggle("is-selected", active); item.setAttribute("aria-pressed", String(active)); item.querySelector("b").textContent = active ? "✓" : ""; }); if (modelName) modelName.innerHTML = `${selectedModel === "xmanius-3" ? "Xmanius 3" : selectedModel === "xmanius-2" ? "Xmanius 2" : "Xmanius 1"} <span>⌄</span>`; setModelPicker(false); } });
+  const setSelectedModel = (model) => { selectedModel = ["xmanius-1", "xmanius-2", "xmanius-3"].includes(model) ? model : "xmanius-1"; modelPicker?.querySelectorAll("[data-model]").forEach((item) => { const active = item.dataset.model === selectedModel; item.classList.toggle("is-selected", active); item.setAttribute("aria-pressed", String(active)); const check = item.querySelector("b"); if (check) check.textContent = active ? "✓" : ""; }); if (modelName) modelName.innerHTML = `${selectedModel === "xmanius-3" ? "Xmanius 3" : selectedModel === "xmanius-2" ? "Xmanius 2" : "Xmanius 1"} <span>⌄</span>`; };
+  modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
   document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) setModelPicker(false); });
   const reset = () => { saveCurrentChat(); currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; input.value = ""; input.focus(); };
   document.querySelectorAll("[data-new-chat]").forEach((button) => button.addEventListener("click", reset));
@@ -471,7 +557,117 @@
   thinkToggle?.addEventListener("click", () => { thinkMode = !thinkMode; thinkToggle.classList.toggle("active", thinkMode); thinkToggle.setAttribute("aria-pressed", String(thinkMode)); });
   webSearchToggle?.addEventListener("click", () => { webSearch = !webSearch; webSearchToggle.classList.toggle("active", webSearch); webSearchToggle.setAttribute("aria-pressed", String(webSearch)); });
   usageIndicator?.addEventListener("click", () => { const usage = readUsage(); const resetText = formatResetTime(usage.startedAt + usageWindow); updateUsage(); if (usageNotice && usage.count < usageLimit) { usageNotice.textContent = `${Math.max(0, usageLimit - usage.count)} requests left. Your limit resets at ${resetText}.`; usageNotice.classList.add("is-visible"); } else usageNotice?.classList.toggle("is-visible"); });
-  accountButton?.addEventListener("click", () => { const connected = localStorage.getItem("xmanius-google-connected") === "true"; if (!connected) { const proceed = window.confirm("Google account connection needs OAuth setup for this deployment. Use this browser as a local account for now?"); if (proceed) { localStorage.setItem("xmanius-google-connected", "true"); accountName.textContent = "Local user"; accountStatus.textContent = "Browser account"; } } else { accountName.textContent = "Local user"; accountStatus.textContent = "Browser account"; } });
+  const settingsKey = "xmanius-settings-v1";
+  const settingLabels = {
+    appearance: { system: "System", dark: "Dark", light: "Light" },
+    contrast: { system: "System", medium: "Medium", increased: "Increased" },
+    language: { auto: "Auto-detect", "en-US": "English (US)", hi: "हिन्दी", es: "español", de: "Deutsch", fr: "français", ar: "العربية", bn: "বাংলা" },
+    baseTone: { default: "Default", professional: "Professional", friendly: "Friendly", candid: "Candid", quirky: "Quirky", efficient: "Efficient", cynical: "Cynical" },
+    warm: { less: "Less", default: "Default", more: "More" },
+    enthusiastic: { less: "Less", default: "Default", more: "More" },
+    headers: { more: "More", default: "Default", less: "Less" },
+    emoji: { more: "More", default: "Default", less: "Less" }
+  };
+  const settingChoices = {
+    appearance: [["system", "System"], ["dark", "Dark"], ["light", "Light"]],
+    contrast: [["system", "System"], ["medium", "Medium"], ["increased", "Increased"]],
+    language: [["auto", "Auto-detect"], ["en-US", "English (US)"], ["hi", "हिन्दी"], ["es", "español"], ["de", "Deutsch"], ["fr", "français"], ["ar", "العربية"], ["bn", "বাংলা"]],
+    baseTone: [["default", "Default"], ["professional", "Professional"], ["friendly", "Friendly"], ["candid", "Candid"], ["quirky", "Quirky"], ["efficient", "Efficient"], ["cynical", "Cynical"]],
+    warm: [["less", "Less"], ["default", "Default"], ["more", "More"]],
+    enthusiastic: [["less", "Less"], ["default", "Default"], ["more", "More"]],
+    headers: [["more", "More"], ["default", "Default"], ["less", "Less"]],
+    emoji: [["more", "More"], ["default", "Default"], ["less", "Less"]]
+  };
+  let profileMenu = null;
+  let settingsBackdrop = null;
+  let settingsSection = "general";
+  const buildMemorySummary = () => {
+    const chats = readChats();
+    const titles = chats.slice(0, 5).map((chat) => chat.title).filter(Boolean);
+    if (!chats.length) return "No local chat memory has been created yet.";
+    return "I keep this overview only in this browser. You have " + chats.length + " saved chat" + (chats.length === 1 ? "" : "s") + ". Recent topics include: " + (titles.join(", ") || "your recent conversations") + ".";
+  };
+  const closeProfileMenu = () => { profileMenu?.remove(); profileMenu = null; };
+  const closeSettings = () => { settingsBackdrop?.remove(); settingsBackdrop = null; };
+  const settingValue = (key) => settingLabels[key]?.[appSettings[key]] || appSettings[key] || "Default";
+  const createSettingRow = (key, label, description = "") => '<div class="settings-row"><div><strong>' + label + '</strong>' + (description ? '<small>' + description + '</small>' : '') + '</div><button type="button" class="settings-value" data-setting-choice="' + key + '">' + settingValue(key) + '<span aria-hidden="true">⌄</span></button></div>';
+  const renderSettingsSection = () => {
+    if (!settingsBackdrop) return;
+    const content = settingsBackdrop.querySelector("[data-settings-content]");
+    const title = settingsBackdrop.querySelector("[data-settings-title]");
+    if (!content || !title) return;
+    title.textContent = settingsSection === "general" ? "General" : settingsSection === "personalization" ? "Personalization" : "Memory";
+    if (settingsSection === "general") {
+      content.innerHTML = '<div class="settings-intro"><strong>Make Xmanius work the way you prefer.</strong><small>These preferences are saved locally on this device.</small></div>' +
+        createSettingRow("appearance", "Appearance", "Choose the interface theme.") +
+        createSettingRow("contrast", "Contrast", "Adjust the contrast of the interface.") +
+        createSettingRow("language", "Language", "Used for the interface and voice recognition.") +
+        '<div class="settings-row settings-toggle-row"><div><strong>Higher intelligence</strong><small>Use Think mode for questions that need deeper analysis.</small></div><button type="button" class="settings-switch ' + (thinkMode ? "is-on" : "") + '" data-settings-think aria-pressed="' + String(thinkMode) + '"><span></span></button></div>' +
+        '<div class="settings-row settings-toggle-row"><div><strong>Enable dictation</strong><small>Allow microphone input in the chat composer.</small></div><button type="button" class="settings-switch is-on" aria-label="Dictation is available"><span></span></button></div>';
+    } else if (settingsSection === "personalization") {
+      content.innerHTML = '<div class="settings-intro"><strong>Choose how Xmanius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
+        createSettingRow("baseTone", "Base style and tone", "The overall style of the answer.") +
+        createSettingRow("warm", "Warm", "Friendlier and more personable.") +
+        createSettingRow("enthusiastic", "Enthusiastic", "How energetic the response sounds.") +
+        createSettingRow("headers", "Headers & Lists", "How strongly answers use readable structure.") +
+        createSettingRow("emoji", "Emoji", "How often emojis may be used.") +
+        '<div class="settings-row settings-toggle-row"><div><strong>Fast answers</strong><small>Use quick local answers when the question is simple.</small></div><button type="button" class="settings-switch ' + (appSettings.fastAnswers ? "is-on" : "") + '" data-settings-fast aria-pressed="' + String(appSettings.fastAnswers) + '"><span></span></button></div>' +
+        '<label class="settings-custom"><strong>Custom instructions</strong><textarea data-custom-instructions maxlength="500" placeholder="Additional behavior, style, and tone preferences">' + String(appSettings.customInstructions || "").replace(/</g, "&lt;") + '</textarea></label>';
+    } else {
+      content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Keep a local overview of your saved chats to make this device easier to use.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
+        '<div class="settings-memory-card"><div><strong>Memory summary</strong><small data-memory-summary>' + buildMemorySummary().replace(/</g, "&lt;") + '</small></div><button type="button" class="settings-secondary" data-clear-memory>Clear</button></div>' +
+        '<p class="settings-note">Memory is local to this browser. It is not sent to Gemini as a separate profile or uploaded as an account database.</p>';
+    }
+  };
+  const openSettings = (section = "general") => {
+    closeProfileMenu();
+    settingsSection = section;
+    if (!settingsBackdrop) {
+      settingsBackdrop = document.createElement("div");
+      settingsBackdrop.className = "settings-backdrop";
+      settingsBackdrop.innerHTML = '<section class="settings-shell" role="dialog" aria-modal="true" aria-label="Xmanius settings"><aside class="settings-nav"><button type="button" class="settings-close" data-settings-close aria-label="Close settings">×</button><input class="settings-search" type="search" placeholder="Search settings" aria-label="Search settings"><button type="button" class="settings-nav-item is-active" data-settings-section="general">⚙ <span>General</span></button><button type="button" class="settings-nav-item" data-settings-section="personalization">◉ <span>Personalization</span></button><button type="button" class="settings-nav-item" data-settings-section="memory">◌ <span>Memory</span></button><div class="settings-nav-spacer"></div><button type="button" class="settings-nav-item" data-profile-action="connect">◌ <span>Connect Google</span></button></aside><section class="settings-main"><header><h2 data-settings-title>General</h2></header><div data-settings-content></div></section></section>';
+      document.body.append(settingsBackdrop);
+      settingsBackdrop.addEventListener("click", (event) => {
+        if (event.target === settingsBackdrop || event.target.closest("[data-settings-close]")) { closeSettings(); return; }
+        const section = event.target.closest("[data-settings-section]");
+        if (section) { settingsSection = section.dataset.settingsSection; settingsBackdrop.querySelectorAll("[data-settings-section]").forEach((item) => item.classList.toggle("is-active", item === section)); renderSettingsSection(); return; }
+        const choiceButton = event.target.closest("[data-setting-choice]");
+        if (choiceButton) {
+          settingsBackdrop.querySelector(".settings-choice-menu")?.remove();
+          const menu = document.createElement("div");
+          menu.className = "settings-choice-menu";
+          settingChoices[choiceButton.dataset.settingChoice].forEach(([value, label]) => { const option = document.createElement("button"); option.type = "button"; option.dataset.settingOption = value; option.dataset.settingKey = choiceButton.dataset.settingChoice; option.innerHTML = '<span>' + label + '</span>' + (appSettings[choiceButton.dataset.settingChoice] === value ? '<b>✓</b>' : ''); menu.append(option); });
+          choiceButton.parentElement.append(menu);
+          return;
+        }
+        const option = event.target.closest("[data-setting-option]");
+        if (option) { appSettings[option.dataset.settingKey] = option.dataset.settingOption; saveSettings(); applySettings(); renderSettingsSection(); return; }
+        const fast = event.target.closest("[data-settings-fast]");
+        if (fast) { appSettings.fastAnswers = !appSettings.fastAnswers; saveSettings(); renderSettingsSection(); return; }
+        const memory = event.target.closest("[data-settings-memory]");
+        if (memory) { appSettings.memoryEnabled = !appSettings.memoryEnabled; saveSettings(); renderSettingsSection(); return; }
+        const think = event.target.closest("[data-settings-think]");
+        if (think) { thinkMode = !thinkMode; thinkToggle?.classList.toggle("active", thinkMode); thinkToggle?.setAttribute("aria-pressed", String(thinkMode)); renderSettingsSection(); return; }
+        const clear = event.target.closest("[data-clear-memory]");
+        if (clear) { localStorage.removeItem("xmanius-memory-v1"); renderSettingsSection(); return; }
+      });
+      settingsBackdrop.addEventListener("input", (event) => { if (event.target.matches("[data-custom-instructions]")) { appSettings.customInstructions = event.target.value.slice(0, 500); saveSettings(); } });
+    }
+    settingsBackdrop.classList.add("is-open");
+    renderSettingsSection();
+  };
+  const createProfileMenu = () => {
+    const menu = document.createElement("div");
+    menu.className = "profile-menu";
+    menu.innerHTML = '<strong>Guest user</strong><small>Local browser account</small><button type="button" data-profile-action="settings">⚙ <span>Settings</span></button><button type="button" data-profile-action="memory">◌ <span>Memory</span></button><button type="button" data-profile-action="connect">◉ <span>Connect Google</span></button>';
+    menu.addEventListener("click", (event) => { const action = event.target.closest("[data-profile-action]")?.dataset.profileAction; if (!action) return; if (action === "settings") openSettings("general"); if (action === "memory") openSettings("memory"); if (action === "connect") window.alert("Google sign-in is not configured for this deployment yet. Your chats and files remain local to this browser."); });
+    return menu;
+  };
+  accountButton?.addEventListener("click", (event) => { event.stopPropagation(); if (profileMenu) { closeProfileMenu(); return; } profileMenu = createProfileMenu(); accountButton.parentElement.append(profileMenu); });
+  document.addEventListener("click", (event) => { if (profileMenu && !event.target.closest("[data-account-button], .profile-menu")) closeProfileMenu(); });
+  applySettings();
+  const colorScheme = window.matchMedia("(prefers-color-scheme: light)");
+  colorScheme.addEventListener?.("change", () => { if (appSettings.appearance === "system") applySettings(); });
   updateUsage();
   renderRecents();
 
