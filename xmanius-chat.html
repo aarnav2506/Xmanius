@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>Xmanius Chat</title>
+  <link rel="icon" type="image/png" href="assets/xmanius-icon.png?v=20260826-logo2">
+  <link rel="apple-touch-icon" href="assets/xmanius-icon.png?v=20260826-logo2">
+  <link rel="stylesheet" href="css/xmanius-chat.css?v=20260827-mic1">
+  <link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260827-matrix1">
+</head>
+<body>
+  <div class="chat-app">
+    <aside class="chat-sidebar" id="sidebar">
+      <div class="sidebar-top"><a class="chat-logo" href="xmanius-ai.html" aria-label="Xmanius home"><img class="chat-logo-full" src="assets/xmanius-wordmark.png?v=20260826-brand2" alt="Xmanius"><span class="chat-logo-icon" role="img" aria-label="Xmanius icon"><img src="assets/xmanius-icon.png?v=20260826-brand2" alt=""></span></a><button class="icon-button sidebar-panel-button" type="button" data-close-sidebar aria-label="Collapse sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button></div>
+      <button class="new-chat" type="button" data-new-chat><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h7"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L11 15l-4 1 1-4 8.5-8.5Z"></path></svg> New chat</button>
+      <div class="sidebar-recents"><p class="sidebar-label">Recents</p><div class="recent-list" data-recent-list></div></div>
+      <button class="sidebar-account" type="button" data-account-button><span class="avatar">G</span><span><b data-account-name>Guest user</b><small data-account-status>Connect Google</small></span><span class="account-more">•••</span></button>
+    </aside>
+    <div class="chat-main">
+      <header class="chat-header"><button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button><button class="model-name" type="button" data-model-menu aria-expanded="false" aria-haspopup="listbox">Xmanius 1 <span class="dropdown-chevron" aria-hidden="true"></span></button><div class="header-tools"><button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit"><span class="usage-ring"><span></span></span><span class="usage-details"><span data-usage-label>0%</span><small data-usage-reset>Reset time loading…</small></span></button><button class="icon-button" type="button" aria-label="New conversation" data-new-chat>＋</button></div></header>
+      <main class="chat-content" id="chat-content"><section class="empty-state" data-empty-state><h1>Where should we begin?</h1><p>Ask Xmanius anything.</p></section><section class="message-list" data-message-list aria-live="polite"></section></main>
+      <form class="chat-composer" data-chat-form>
+        <button class="composer-icon composer-plus" type="button" data-model-toggle aria-expanded="false" aria-label="Choose model">+</button>
+        <div class="composer-attachments" data-attachments aria-live="polite"></div>
+        <input class="chat-input" data-chat-input type="text" maxlength="1000" autocomplete="off" placeholder="Ask anything" aria-label="Ask Xmanius anything">
+        <input class="file-input" data-file-input type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.js,.html,.css,.py" multiple>
+        <input class="file-input" data-camera-input type="file" accept="image/*" capture="environment">
+        <button class="composer-tool think-composer" type="button" data-think-toggle aria-pressed="false" aria-label="Toggle Think mode" title="Think"><img class="think-icon" src="assets/xmanius-think.png?v=20260826-brand" alt=""><span>Think</span></button>
+        <button class="composer-tool search-composer" type="button" data-web-search aria-pressed="false" aria-label="Toggle web search" title="Search the web"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.8 2.7 2.8 14.3 0 17M12 3.5c-2.8 2.7-2.8 14.3 0 17"></path></svg></button>
+        <button class="composer-icon composer-mic" type="button" data-chat-mic aria-label="Use voice input">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
+        </button>
+        <button class="send-button" type="submit" aria-label="Send message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+        <div class="dictation-bar" data-dictation-bar aria-hidden="true"><button type="button" class="dictation-cancel" data-dictation-cancel aria-label="Cancel voice input">×</button><span class="dictation-waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button type="button" class="dictation-stop" data-dictation-stop aria-label="Stop recording"><span></span></button><button type="button" class="dictation-send" data-dictation-send aria-label="Send dictated message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button></div>
+        <div class="model-picker" data-model-picker aria-label="Model selection">
+          <span class="model-picker-label">MODEL</span>
+          <button type="button" class="model-option is-selected" data-model="xmanius-1" aria-pressed="true"><strong>Xmanius 1</strong><b aria-hidden="true">✓</b></button>
+          <button type="button" class="model-option model-option-voice" data-voice-chat><strong>Voice chat</strong><span aria-hidden="true">↗</span></button>
+          <div class="model-picker-divider" aria-hidden="true"></div>
+          <button type="button" class="model-option model-option-attachment" data-attach-files><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 13.5 7a3.5 3.5 0 0 1 5 5l-7.5 7.5a5 5 0 0 1-7-7L11.5 5"></path></svg><span class="attachment-option-copy"><strong>Add photos &amp; files</strong><small>Upload from computer</small></span><b class="shortcut-label">Ctrl + K</b></button>
+          <button type="button" class="model-option model-option-attachment" data-attach-camera><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.4-2h7.2l1.4 2h3v10H4z"></path><circle cx="12" cy="13.5" r="3"></circle></svg><span class="attachment-option-copy"><strong>Use camera</strong><small>Capture from device</small></span><b class="shortcut-label">Ctrl + T</b></button>
+        </div>
+        <div class="usage-notice" data-usage-notice role="status" aria-live="polite"></div>
+      </form>
+      <p class="chat-disclaimer">Xmanius can make mistakes. Check important information.</p>
+    </div>
+  </div>
+  <script src="js/xmanius-stream-client.js?v=20260825-2" defer></script>
+  <script src="js/xmanius-chat.js?v=20260827-matrix1" defer></script>
+  <script src="js/xmanius-enhancements.js?v=20260827-settings2" defer></script>
+</body>
+</html>
