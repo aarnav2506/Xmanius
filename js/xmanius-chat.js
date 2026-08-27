@@ -734,7 +734,7 @@
     scrollChatToBottom({ force: true });
     activeRequestController = new AbortController();
     const reasoningStartedAt = performance.now();
-    const timeout = window.setTimeout(() => activeRequestController?.abort(), 180000);
+const timeout = window.setTimeout(() => activeRequestController?.abort(), thinkMode ? 150000 : 30000);
     setSendingState(true);
     try {
       const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });

@@ -73,7 +73,7 @@ The Web button uses Google’s server-side Custom Search JSON API when both opti
 
 YouTube requests use the YouTube Data API search endpoint so the app receives real video IDs and thumbnails for embedded previews. Set `XMANIUS_YOUTUBE_API_KEY` to a Google Cloud API key with YouTube Data API v3 enabled, or reuse the Google search key if that API is enabled on the same project.
 
-The chat displays only Xmanius 1. The server privately keeps a failover pool of up to nine Gemini keys: XMANIUS_GEMINI_API_KEY and _2 through _9. When the active key is rate-limited or temporarily unavailable, the next configured key is tried automatically. The extra model labels and key values are never sent to the browser.
+The chat displays only Xmanius 1. The server privately keeps a failover pool of up to nine Gemini keys: XMANIUS_GEMINI_API_KEY and _2 through _9. When the active key is rate-limited or temporarily unavailable, the next configured key is tried automatically. Key health is cached briefly in warm serverless instances, so known-bad or exhausted keys are skipped instead of delaying every request. Normal replies use a short provider timeout and budget; Think replies receive a separate, longer budget. The extra model labels and key values are never sent to the browser.
 
 ## GitHub Pages
 
