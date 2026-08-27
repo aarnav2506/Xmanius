@@ -61,9 +61,19 @@ const sanitizeAssistantBranding = (value) => {
 
 export default async function handler(request, response) {
   const requestId = requestIdFor();
+  const applyCorsHeaders = () => {
+    const origin = String(request.headers?.origin || "");
+    const allowed = !origin || origin === "null" || ["http://localhost", "https://localhost", "capacitor://localhost"].includes(origin) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+    if (allowed) response.setHeader("Access-Control-Allow-Origin", origin || "*");
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    response.setHeader("Vary", "Origin");
+  };
   const applyPrivacyHeaders = () => { response.setHeader("Cache-Control", "no-store, private, max-age=0"); response.setHeader("Pragma", "no-cache"); response.setHeader("Expires", "0"); response.setHeader("X-Content-Type-Options", "nosniff"); response.setHeader("Referrer-Policy", "no-referrer"); };
+  applyCorsHeaders();
   applyPrivacyHeaders();
-  const fail = (status, userMessage, kind = "request", extra = {}) => { applyPrivacyHeaders(); return response.status(status).json({ error: userMessage, userMessage, kind, canRetry: status >= 500 || status === 429, retryAfterMs: status === 429 ? 15000 : 0, requestId, ...extra }); };
+  const fail = (status, userMessage, kind = "request", extra = {}) => { applyCorsHeaders(); applyPrivacyHeaders(); return response.status(status).json({ error: userMessage, userMessage, kind, canRetry: status >= 500 || status === 429, retryAfterMs: status === 429 ? 15000 : 0, requestId, ...extra }); };
+  if (request.method === "OPTIONS") return response.status(204).end();
   if (request.method !== "POST") return fail(405, "Only POST requests are supported.");
   let body = request.body || {};
   if (typeof body === "string") {

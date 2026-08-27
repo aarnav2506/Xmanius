@@ -290,7 +290,8 @@
     const thinkEnabled = document.querySelector("[data-think-toggle]")?.classList.contains("active") === true;
 
     try {
-      const response = await fetch("/api/xmanius-chat", {
+      const apiEndpoint = typeof window.XmaniusApiEndpoint === "function" ? window.XmaniusApiEndpoint() : "/api/xmanius-chat";
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
         body: JSON.stringify({

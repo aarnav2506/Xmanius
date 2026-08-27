@@ -30,6 +30,19 @@
   const cameraInput = document.querySelector("[data-camera-input]");
   const attachFilesButton = document.querySelector("[data-attach-files]");
   const attachCameraButton = document.querySelector("[data-attach-camera]");
+  const readApiBase = () => {
+    try {
+      return String(window.XMANIUS_API_BASE_URL || localStorage.getItem("xmanius-api-base-url") || "").trim().replace(/\/+$/, "");
+    } catch {
+      return String(window.XMANIUS_API_BASE_URL || "").trim().replace(/\/+$/, "");
+    }
+  };
+  const getApiEndpoint = () => {
+    const base = readApiBase();
+    return base ? `${base}/api/xmanius-chat` : "/api/xmanius-chat";
+  };
+  const isNativeApp = () => window.location.protocol === "file:" || Boolean(window.Capacitor?.isNativePlatform?.());
+  window.XmaniusApiEndpoint = getApiEndpoint;
   let recognition = null;
   let listening = false;
   let audioContext = null;
@@ -991,7 +1004,7 @@
     }, thinkMode ? 300000 : 180000);
     setSendingState(true);
     try {
-      const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });
+      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });
       const data = await response.json().catch(() => ({}));
       thinking.remove();
     // Failover is intentionally silent: the public model label remains Xmanius 1.
@@ -1003,7 +1016,7 @@
         addMessage(message, "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
       }
       else {
-        const localFileHint = window.location.protocol === "file:" ? " Open the deployed site (or a local server) instead of opening the HTML file directly." : " Check that the deployed /api/xmanius-chat endpoint is available.";
+        const localFileHint = isNativeApp() && !readApiBase() ? " This APK needs the HTTPS URL of your deployed Xmanius API in xmanius-runtime-config.js." : window.location.protocol === "file:" ? " Open the deployed site (or a local server) instead of opening the HTML file directly." : " Check that the deployed /api/xmanius-chat endpoint is available.";
         const networkMessage = error?.message && error.message !== "Failed to fetch" ? error.message : `The AI service could not be reached.${localFileHint} Your API key stays server-side and was not exposed.`;
         addMessage(networkMessage, "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
       }
@@ -1388,7 +1401,7 @@
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { panel.querySelector(".ai-guide__voice-greeting").textContent = "Voice input needs Chrome or Edge over HTTPS or localhost."; return; }
     const recognitionInstance = new Recognition(); recognitionInstance.lang = navigator.language || "en-US"; recognitionInstance.interimResults = false; recognitionInstance.continuous = false;
-    const mic = panel.querySelector("[data-general-mic]"); recognitionInstance.onstart = () => { panel.dataset.voiceState = "listening"; mic.classList.add("is-active"); panel.querySelector(".ai-guide__voice-greeting").textContent = "Listening…"; }; recognitionInstance.onresult = async (event) => { const question = event.results[0][0].transcript.trim(); panel.dataset.voiceState = "thinking"; panel.querySelector(".ai-guide__voice-greeting").textContent = "Thinking…"; const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: question }) }); const data = await response.json(); const answer = data.reply || data.error || "I could not answer that right now."; panel.querySelector(".ai-guide__voice-greeting").textContent = answer; if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(answer)); panel.dataset.voiceState = "speaking"; }; recognitionInstance.onend = () => { mic.classList.remove("is-active"); }; recognitionInstance.start();
+    const mic = panel.querySelector("[data-general-mic]"); recognitionInstance.onstart = () => { panel.dataset.voiceState = "listening"; mic.classList.add("is-active"); panel.querySelector(".ai-guide__voice-greeting").textContent = "Listening…"; }; recognitionInstance.onresult = async (event) => { const question = event.results[0][0].transcript.trim(); panel.dataset.voiceState = "thinking"; panel.querySelector(".ai-guide__voice-greeting").textContent = "Thinking…"; const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: question }) }); const data = await response.json(); const answer = data.reply || data.error || "I could not answer that right now."; panel.querySelector(".ai-guide__voice-greeting").textContent = answer; if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(answer)); panel.dataset.voiceState = "speaking"; }; recognitionInstance.onend = () => { mic.classList.remove("is-active"); }; recognitionInstance.start();
   };
   window.__openXmaniusVoice = openGeneralVoice;
   document.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) openGeneralVoice(); });
