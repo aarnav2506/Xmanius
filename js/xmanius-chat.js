@@ -240,6 +240,53 @@
     if (cursor >= source.length) return null;
     return { value: source[cursor], next: cursor + 1 };
   };
+  const matrixCommandNames = new Set(["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix"]);
+  const normalizeBareMatrixCommands = (value) => {
+    const source = String(value || "");
+    // Recover the common provider output `pmatrix ... pmatrix` without
+    // changing already escaped commands or ordinary prose that mentions
+    // the word "matrix" only once.
+    const tokenPattern = /(^|[^\\A-Za-z{])((?:p|b|B|v|V)?matrix)\b/g;
+    const counts = {};
+    let match;
+    while ((match = tokenPattern.exec(source))) counts[match[2]] = (counts[match[2]] || 0) + 1;
+    if (!Object.values(counts).some((count) => count > 1)) return source;
+    return source.replace(tokenPattern, (full, prefix, kind) => counts[kind] > 1 ? `${prefix}\\${kind}` : full);
+  };
+  const matrixBracketClass = (kind) => ({ matrix: "round", pmatrix: "round", bmatrix: "square", Bmatrix: "curly", vmatrix: "single", Vmatrix: "double" }[kind] || "round");
+  const readBareMatrixBody = (source, start, kind) => {
+    const close = source.slice(start).match(new RegExp(`\\\\?${kind}\\b`));
+    if (!close || typeof close.index !== "number") return null;
+    const closeStart = start + close.index;
+    return { value: source.slice(start, closeStart), next: closeStart + close[0].length };
+  };
+  const readMatrixEnvironment = (source, start, kind) => {
+    const rest = source.slice(start);
+    const escapedKind = kind.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const end = rest.match(new RegExp(`\\\\end\\s*\\{${escapedKind}\\}`));
+    if (!end || typeof end.index !== "number") return null;
+    return { value: rest.slice(0, end.index), next: start + end.index + end[0].length };
+  };
+  const renderMatrixMarkup = (body, kind = "pmatrix") => {
+    const rows = normalizeResponseText(body)
+      .replace(/\r\n/g, "\n")
+      // Valid TeX row breaks are `\\`; malformed output often uses a single
+      // slash followed by whitespace, which is also safe to recover.
+      .replace(/\\\\/g, "\n")
+      .replace(/(?:^|\s)\\(?=\s|$)/g, "\n")
+      .split(/\n+/)
+      .map((row) => row.trim())
+      .filter(Boolean)
+      .map((row) => row.split(/\s*&\s*/).map((cell) => cell.trim()));
+    if (!rows.length) return "";
+    const columns = Math.max(1, ...rows.map((row) => row.length));
+    const bracket = matrixBracketClass(kind);
+    const cells = rows.map((row) => {
+      const padded = [...row, ...Array(Math.max(0, columns - row.length)).fill("")];
+      return `<span class="math-matrix-row">${padded.map((cell) => `<span class="math-matrix-cell">${renderMathExpression(cell)}</span>`).join("")}</span>`;
+    }).join("");
+    return `<span class="math-matrix math-matrix-${bracket}" role="group" aria-label="Matrix"><span class="math-matrix-grid" style="--matrix-cols:${columns}">${cells}</span></span>`;
+  };
   const stripMathDelimiters = (value) => {
     let result = normalizeLatex(value).trim();
     if ((result.startsWith("$$") && result.endsWith("$$")) || (result.startsWith("$") && result.endsWith("$"))) result = result.slice(result.startsWith("$$") ? 2 : 1, result.endsWith("$$") ? -2 : -1);
@@ -250,7 +297,7 @@
     return result.replace(/\*\*|__/g, "");
   };
   const renderMathExpression = (value) => {
-    const source = stripMathDelimiters(value);
+    const source = normalizeBareMatrixCommands(stripMathDelimiters(value));
     let output = "";
     let cursor = 0;
     while (cursor < source.length) {
@@ -269,6 +316,18 @@
         if (!commandMatch) { output += escapeHtml(source[cursor + 1] || ""); cursor += Math.min(2, source.length - cursor); continue; }
         const command = commandMatch[0];
         cursor += command.length + 1;
+        if (command === "begin") {
+          const environment = readBalancedMathGroup(source, cursor);
+          const kind = environment?.value.trim();
+          if (environment && matrixCommandNames.has(kind)) {
+            const matrix = readMatrixEnvironment(source, environment.next, kind);
+            if (matrix) { output += renderMatrixMarkup(matrix.value, kind); cursor = matrix.next; continue; }
+          }
+        }
+        if (matrixCommandNames.has(command)) {
+          const matrix = readBareMatrixBody(source, cursor, command);
+          if (matrix) { output += renderMatrixMarkup(matrix.value, command); cursor = matrix.next; continue; }
+        }
         if (command === "left" || command === "right" || command === "big" || command === "Big" || command === "bigg" || command === "Bigg") continue;
         if (command === "frac" || command === "dfrac" || command === "tfrac") {
           const numerator = readMathArgument(source, cursor);
@@ -326,6 +385,18 @@
     if (!commandMatch) return null;
     const command = commandMatch[0];
     let cursor = start + 1 + command.length;
+    if (command === "begin") {
+      const environment = readBalancedMathGroup(source, cursor);
+      const kind = environment?.value.trim();
+      if (environment && matrixCommandNames.has(kind)) {
+        const matrix = readMatrixEnvironment(source, environment.next, kind);
+        if (matrix) return { end: matrix.next };
+      }
+    }
+    if (matrixCommandNames.has(command)) {
+      const matrix = readBareMatrixBody(source, cursor, command);
+      if (matrix) return { end: matrix.next };
+    }
     if (mathArgumentCommands.has(command)) {
       const count = command === "frac" || command === "dfrac" || command === "tfrac" || command === "binom" ? 2 : 1;
       for (let index = 0; index < count; index += 1) { const argument = readMathArgument(source, cursor); if (!argument) return null; cursor = argument.next; }
@@ -342,7 +413,7 @@
     return null;
   };
   const renderTextWithMath = (value) => {
-    const source = normalizeLatex(value);
+    const source = normalizeBareMatrixCommands(normalizeLatex(value));
     let output = "";
     let cursor = 0;
     let textStart = 0;
@@ -490,7 +561,9 @@
         continue;
       }
       const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
-      if (/^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|≤|≥|∈)).{2,180}$/.test(trimmed) && !mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)) {
+      const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\b)/.test(trimmed);
+      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|≤|≥|∈)).{2,900}$/.test(trimmed);
+      if ((hasMatrix || hasScalarMath) && (hasMatrix || (!mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)))) {
         output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
         highlightNextMath = false;
         index += 1;
