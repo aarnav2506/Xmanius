@@ -47,6 +47,16 @@ XMANIUS_GEMINI_API_KEY=your_separate_gemini_key
 XMANIUS_GEMINI_MODEL=gemini-3.6-flash
 XMANIUS_GEMINI_API_KEY_2=your_second_gemini_key
 XMANIUS_GEMINI_MODEL_2=gemini-3.6-flash
+XMANIUS_GEMINI_API_KEY_3=your_third_gemini_key
+XMANIUS_GEMINI_MODEL_3=gemini-3.6-flash
+XMANIUS_GEMINI_API_KEY_4=your_fourth_gemini_key
+XMANIUS_GEMINI_MODEL_4=gemini-3.6-flash
+XMANIUS_GEMINI_API_KEY_5=your_fifth_gemini_key
+XMANIUS_GEMINI_MODEL_5=gemini-3.6-flash
+XMANIUS_GEMINI_API_KEY_6=your_sixth_gemini_key
+XMANIUS_GEMINI_MODEL_6=gemini-3.6-flash
+XMANIUS_GEMINI_API_KEY_7=your_seventh_gemini_key
+XMANIUS_GEMINI_MODEL_7=gemini-3.6-flash
 # Optional, required only for the Web button:
 XMANIUS_GOOGLE_SEARCH_API_KEY=your_google_search_key
 XMANIUS_GOOGLE_SEARCH_CX=your_programmable_search_engine_id
@@ -59,7 +69,7 @@ The Web button uses Google’s server-side Custom Search JSON API when both opti
 
 YouTube requests use the YouTube Data API search endpoint so the app receives real video IDs and thumbnails for embedded previews. Set `XMANIUS_YOUTUBE_API_KEY` to a Google Cloud API key with YouTube Data API v3 enabled, or reuse the Google search key if that API is enabled on the same project.
 
-Xmanius 1 and Xmanius 2 both use Gemini, but each uses a separate API key. Add both Gemini keys to Vercel; the selected model determines which server-side key is used.
+The chat displays only Xmanius 1. The server privately keeps a failover pool of up to seven Gemini keys: XMANIUS_GEMINI_API_KEY and _2 through _7. When the active key is rate-limited or temporarily unavailable, the next configured key is tried automatically. The extra model labels and key values are never sent to the browser.
 
 ## GitHub Pages
 
