@@ -57,10 +57,6 @@ XMANIUS_GEMINI_API_KEY_6=your_sixth_gemini_key
 XMANIUS_GEMINI_MODEL_6=gemini-3.6-flash
 XMANIUS_GEMINI_API_KEY_7=your_seventh_gemini_key
 XMANIUS_GEMINI_MODEL_7=gemini-3.6-flash
-XMANIUS_GEMINI_API_KEY_8=your_eighth_gemini_key
-XMANIUS_GEMINI_MODEL_8=gemini-3.6-flash
-XMANIUS_GEMINI_API_KEY_9=your_ninth_gemini_key
-XMANIUS_GEMINI_MODEL_9=gemini-3.6-flash
 # Optional, required only for the Web button:
 XMANIUS_GOOGLE_SEARCH_API_KEY=your_google_search_key
 XMANIUS_GOOGLE_SEARCH_CX=your_programmable_search_engine_id
@@ -73,7 +69,7 @@ The Web button uses Google’s server-side Custom Search JSON API when both opti
 
 YouTube requests use the YouTube Data API search endpoint so the app receives real video IDs and thumbnails for embedded previews. Set `XMANIUS_YOUTUBE_API_KEY` to a Google Cloud API key with YouTube Data API v3 enabled, or reuse the Google search key if that API is enabled on the same project.
 
-The chat displays only Xmanius 1. The server privately keeps a failover pool of up to nine Gemini keys: XMANIUS_GEMINI_API_KEY and _2 through _9. When the active key is rate-limited or temporarily unavailable, the next configured key is tried automatically. The extra model labels and key values are never sent to the browser.
+The chat displays only Xmanius 1. The server privately keeps a failover pool of up to seven Gemini keys: XMANIUS_GEMINI_API_KEY and _2 through _7. When the active key is rate-limited or temporarily unavailable, the next configured key is tried automatically. The extra model labels and key values are never sent to the browser.
 
 ## GitHub Pages
 

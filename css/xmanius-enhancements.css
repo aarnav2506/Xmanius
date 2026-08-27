@@ -241,3 +241,449 @@
     transition: none;
   }
 }
+
+/* Final reference pass: every dropdown uses the same geometric chevron. The
+   portal menus intentionally sit above their parent surfaces so the sidebar,
+   settings modal, and chat content cannot crop them. */
+.model-name .dropdown-chevron,
+.settings-value .dropdown-chevron,
+.thinking-summary .thought-chevron.dropdown-chevron {
+  display: inline-block !important;
+  width: 7px !important;
+  height: 7px !important;
+  min-width: 7px !important;
+  flex: 0 0 7px !important;
+  margin: 0 1px 3px 3px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-right: 1.5px solid currentColor !important;
+  border-bottom: 1.5px solid currentColor !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #c6c8ce !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  transform: rotate(45deg) !important;
+  transform-origin: center;
+}
+
+.thinking-summary[open] .thought-chevron.dropdown-chevron {
+  transform: rotate(225deg) !important;
+}
+
+.settings-choice-menu-portal,
+.conversation-menu.conversation-menu-portal {
+  position: fixed !important;
+  z-index: 9999 !important;
+  right: auto !important;
+  pointer-events: auto;
+  isolation: isolate;
+}
+
+.settings-choice-menu-portal {
+  top: 0;
+  left: 0;
+  max-width: min(320px, calc(100vw - 20px));
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.conversation-menu.conversation-menu-portal {
+  top: 0;
+  left: 0;
+}
+
+.settings-backdrop,
+.settings-shell {
+  overflow: visible !important;
+}
+
+.settings-main {
+  min-width: 0;
+  overflow-x: visible;
+}
+
+/* Math is laid out as math, not as a code block. These rules also neutralise
+   the older blue xmanius-math-box rules that otherwise create giant sliders. */
+.message-body .math-block,
+.message-body .math-block.math-highlight {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: fit-content !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  margin: .75rem auto !important;
+  padding: .1rem 0 !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  font-family: "Cambria Math", "STIX Two Math", "Segoe UI Symbol", ui-sans-serif, sans-serif !important;
+  font-size: clamp(.9rem, 1.85vw, 1.06rem) !important;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.message-body .math-block.math-highlight {
+  margin-inline: auto !important;
+  padding: .28rem .55rem !important;
+  border: 1px solid #4b4d52 !important;
+  border-radius: 4px !important;
+}
+
+.message-body .math-inline {
+  display: inline-flex;
+  align-items: baseline;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: inherit;
+  font-family: "Cambria Math", "STIX Two Math", "Segoe UI Symbol", ui-sans-serif, sans-serif;
+  vertical-align: baseline;
+}
+
+.message-body .math-fraction,
+.message-body .math-binomial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 1.05;
+}
+
+.message-body .math-fraction > span:first-child {
+  border-bottom: 1px solid currentColor;
+}
+
+.message-body .math-answer-box {
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 .12em;
+  padding: .08em .34em;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  vertical-align: middle;
+}
+
+.message-body .math-function-argument {
+  display: inline;
+}
+
+.message-body .math-block sup,
+.message-body .math-inline sup {
+  font-size: .68em;
+  line-height: 0;
+}
+
+.message-body .math-block sub,
+.message-body .math-inline sub {
+  font-size: .68em;
+  line-height: 0;
+}
+
+body.xmanius-theme-light .model-name .dropdown-chevron,
+body.xmanius-theme-light .settings-value .dropdown-chevron,
+body.xmanius-theme-light .thinking-summary .thought-chevron.dropdown-chevron {
+  color: #565961 !important;
+}
+
+body.xmanius-theme-light .message-body .math-block,
+body.xmanius-theme-light .message-body .math-inline {
+  color: #202123 !important;
+}
+
+body.xmanius-theme-light .message-body .math-block.math-highlight {
+  border-color: #aeb2ba !important;
+}
+
+/* Final response cursor, image preview, and light-theme contrast pass. */
+.xmanius-typing-cursor {
+  display: inline-block;
+  width: .72em;
+  height: .72em;
+  min-width: 8px;
+  min-height: 8px;
+  margin: 0 0 .02em .35em;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #6de5ff;
+  box-shadow: 0 0 10px rgba(109, 229, 255, .62);
+  animation: xmanius-cursor-blink .8s steps(2, start) infinite;
+}
+
+.attachment-preview-card img {
+  object-fit: contain;
+}
+
+.message-attachments .attachment-preview-card figcaption {
+  opacity: 0;
+}
+
+.message-attachments .attachment-preview-card:hover figcaption,
+.message-attachments .attachment-preview-card:focus-within figcaption {
+  opacity: 1;
+}
+
+body.xmanius-theme-light {
+  --xmanius-text-primary: #202123;
+  --xmanius-text-secondary: #5f6368;
+  --xmanius-text-muted: #6b7078;
+  --xmanius-text-heading: #111827;
+  --xmanius-user-text: #1f3d5e;
+  --xmanius-input-text: #202123;
+  --xmanius-placeholder: #6d7078;
+}
+
+body.xmanius-theme-light .message-body p,
+body.xmanius-theme-light .message-body li,
+body.xmanius-theme-light .message.user .message-body,
+body.xmanius-theme-light .chat-input {
+  color: #202123 !important;
+}
+
+body.xmanius-theme-light .message-body strong,
+body.xmanius-theme-light .message-body h3 {
+  color: #111827 !important;
+}
+
+body.xmanius-theme-light .usage-indicator {
+  color: #4b5563;
+}
+
+body.xmanius-theme-light .usage-indicator:hover {
+  background: #eef2f7;
+  color: #111827;
+}
+
+body.xmanius-theme-light .usage-details [data-usage-label] {
+  color: #30343b;
+}
+
+body.xmanius-theme-light .usage-details [data-usage-reset] {
+  color: #6b7280;
+}
+
+body.xmanius-theme-light .usage-ring span {
+  background: #fff;
+}
+
+body.xmanius-theme-light .message-actions {
+  color: #5f6368 !important;
+}
+
+body.xmanius-theme-light .message-actions button:hover {
+  color: #202123 !important;
+}
+
+body.xmanius-theme-light .message.ai-message--thinking {
+  color: #5f6368;
+}
+
+/* Keep the light user message as one clean, readable bubble.  The base
+   stylesheet colors the outer message while this enhancement stylesheet
+   moves the visible surface onto .message-body. */
+body.xmanius-theme-light .message.user {
+  background: transparent !important;
+  color: #1f3d5e !important;
+}
+
+body.xmanius-theme-light .message.user .message-body {
+  background: #e7f2ff !important;
+  border: 1px solid #d2e6fb;
+  box-shadow: none;
+  color: #1f3d5e !important;
+}
+
+body.xmanius-theme-light .message.user .message-body * {
+  color: inherit !important;
+}
+
+body.xmanius-theme-light .message.user .xmanius-user-actions {
+  color: #5f6b78 !important;
+}
+
+body.xmanius-theme-light .message.user .xmanius-user-actions button:hover {
+  color: #1f3d5e !important;
+}
+
+/* Fill uploaded-image previews edge to edge.  The preview frame deliberately
+   crops the outer edges of a mismatched aspect ratio so no unused black
+   boundary or letterboxing remains. Metadata remains available on hover/focus. */
+.attachment-preview-card {
+  width: 188px !important;
+  height: 158px !important;
+  border-radius: 14px;
+  overflow: hidden !important;
+}
+
+.attachment-preview-card img {
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  object-fit: cover !important;
+  object-position: center;
+  background: transparent !important;
+}
+
+.message-attachments .attachment-preview-card {
+  width: 220px !important;
+  height: 160px !important;
+}
+
+@media (max-width: 720px) {
+  .attachment-preview-card {
+    width: min(188px, 42vw) !important;
+    height: min(158px, 35vw) !important;
+  }
+
+  .message-attachments .attachment-preview-card {
+    width: min(220px, 78vw) !important;
+    height: min(160px, 56vw) !important;
+  }
+}
+
+/* Final light-theme control contrast.  The tool buttons must remain readable
+   against the light composer and their SVG strokes must not inherit a faint
+   legacy color. */
+body.xmanius-theme-light .composer-icon,
+body.xmanius-theme-light .composer-tool,
+body.xmanius-theme-light .composer-icon svg,
+body.xmanius-theme-light .composer-tool svg,
+body.xmanius-theme-light .composer-tool .think-icon {
+  color: #273444 !important;
+  opacity: 1 !important;
+}
+
+body.xmanius-theme-light .composer-icon svg,
+body.xmanius-theme-light .composer-tool svg {
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+body.xmanius-theme-light .composer-tool:hover,
+body.xmanius-theme-light .composer-icon:hover {
+  color: #111827 !important;
+}
+
+body.xmanius-theme-light .composer-tool.active,
+body.xmanius-theme-light .think-composer.active {
+  color: #1457a6 !important;
+  background: #e4efff !important;
+}
+
+body.xmanius-theme-light .think-composer.active .think-icon {
+  filter: none !important;
+}
+
+body.xmanius-theme-light .model-option-attachment {
+  border-color: #9bbff0 !important;
+  background: #eef5ff !important;
+  color: #1d4f85 !important;
+}
+
+body.xmanius-theme-light .model-option-attachment > svg {
+  color: #1d4f85 !important;
+  stroke: #1d4f85 !important;
+  opacity: 1 !important;
+}
+
+body.xmanius-theme-light .model-option-attachment .attachment-option-copy strong,
+body.xmanius-theme-light .model-option-attachment .shortcut-label {
+  color: #1d4f85 !important;
+}
+
+body.xmanius-theme-light .model-option-attachment .attachment-option-copy small {
+  color: #36526f !important;
+}
+
+body.xmanius-theme-light .model-option-attachment:hover {
+  background: #e0edff !important;
+}
+
+/* Keep the profile surface and settings dialog visually consistent in every
+   theme. Settings content scrolls inside the shell, never outside its rounded
+   boundary. */
+.profile-menu {
+  border-radius: 18px !important;
+  padding: 10px !important;
+  overflow: hidden !important;
+}
+
+.profile-menu button {
+  border-radius: 10px !important;
+}
+
+.settings-shell {
+  width: min(960px, calc(100vw - 48px)) !important;
+  height: min(720px, calc(100vh - 48px)) !important;
+  min-height: min(600px, calc(100vh - 48px)) !important;
+  grid-template-columns: 230px minmax(0, 1fr) !important;
+  overflow: hidden !important;
+  border-radius: 22px !important;
+}
+
+.settings-nav {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+.settings-main {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+.settings-choice-menu-portal {
+  z-index: 300 !important;
+  border-radius: 14px !important;
+}
+
+body.xmanius-theme-light .profile-menu {
+  border-color: #c8ccd3 !important;
+  background: #ffffff !important;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .22) !important;
+}
+
+body.xmanius-theme-light .profile-menu strong,
+body.xmanius-theme-light .profile-menu button {
+  color: #172033 !important;
+}
+
+body.xmanius-theme-light .profile-menu small {
+  color: #526070 !important;
+}
+
+body.xmanius-theme-light .settings-shell {
+  border-color: #c8ccd3 !important;
+  background: #ffffff !important;
+  color: #172033 !important;
+}
+
+body.xmanius-theme-light .settings-nav {
+  background: #fafbfc !important;
+  border-color: #d8dce2 !important;
+}
+
+body.xmanius-theme-light .settings-main header,
+body.xmanius-theme-light .settings-row,
+body.xmanius-theme-light .settings-memory-card {
+  border-color: #d8dce2 !important;
+}
+
+@media (max-width: 720px) {
+  .settings-shell {
+    width: calc(100vw - 16px) !important;
+    height: calc(100vh - 16px) !important;
+    min-height: 0 !important;
+    grid-template-columns: 1fr !important;
+    border-radius: 18px !important;
+  }
+}

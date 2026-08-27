@@ -144,9 +144,124 @@ body.xmanius-theme-light .attachment-chip,body.xmanius-theme-light .message-atta
 body.xmanius-theme-light .attachment-preview-card { border-color:#d4d5da; background:#f1f2f4; }
 body.xmanius-theme-light .attachment-preview-card strong { color:#202123; }
 body.xmanius-theme-light .attachment-preview-card small { color:#6d7078; }
+body.xmanius-theme-light .dictation-bar { background:#ffffff; border:1px solid #d6d9df; box-shadow:0 8px 24px rgba(31,41,55,.16); }
+body.xmanius-theme-light .dictation-cancel,
+body.xmanius-theme-light .dictation-stop { background:#eef1f5; border:1px solid #d1d6de; color:#273444; }
+body.xmanius-theme-light .dictation-cancel:hover,
+body.xmanius-theme-light .dictation-stop:hover { background:#e2e7ee; color:#111827; }
+body.xmanius-theme-light .dictation-stop span { background:#263241; }
+body.xmanius-theme-light .dictation-waveform i { background:#536273; box-shadow:0 0 0 1px rgba(83,98,115,.08); }
+body.xmanius-theme-light .dictation-send { background:#f4f6f8; border:1px solid #c8ced7; color:#1f2937; }
+body.xmanius-theme-light .dictation-send:hover { background:#e9edf2; color:#111827; }
+
+/* Keep the composer a compact settings-style rectangle.  The legacy pill
+   radius made the upload state look like a large arc, especially in light
+   theme; attachment previews still expand the height naturally. */
+.chat-composer {
+  box-sizing:border-box;
+  border-radius:18px !important;
+  overflow:visible;
+}
+body.xmanius-theme-light .chat-composer {
+  border-radius:18px !important;
+}
+body.xmanius-theme-light .composer-mic.active { color:#2563eb !important; filter:drop-shadow(0 0 7px rgba(37,99,235,.34)); }
+
+/* Final alignment and overlay rules. Dropdown indicators are drawn as one
+   centered chevron so every picker shares the same visual baseline. */
+.model-name .dropdown-chevron,
+.settings-value .dropdown-chevron {
+  display:inline-block !important;
+  width:7px !important;
+  height:7px !important;
+  flex:0 0 7px;
+  margin:0 1px 3px 3px !important;
+  border-right:1.5px solid currentColor;
+  border-bottom:1.5px solid currentColor;
+  color:#c6c8ce;
+  font-size:0 !important;
+  line-height:0;
+  transform:rotate(45deg);
+  transform-origin:center;
+}
+.model-name,
+.settings-value { align-items:center; }
+
+/* Menus are portalled to the document body by the controller. They therefore
+   overlay the settings surface and can never be clipped by a scrolling pane. */
+.settings-choice-menu-portal {
+  position:fixed !important;
+  top:0;
+  right:auto !important;
+  left:0;
+  z-index:1100 !important;
+  min-width:210px;
+  max-width:min(320px,calc(100vw - 20px));
+  max-height:calc(100vh - 20px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  transform:none !important;
+}
+.settings-choice-menu-portal button { min-height:34px; }
+.settings-choice-menu-portal[data-setting-key="language"] { min-width:230px; }
+
+/* Keep the account surface inside the full expanded sidebar width. */
+.profile-menu {
+  left:10px;
+  right:10px;
+  width:auto;
+  min-width:0;
+  max-width:calc(100% - 20px);
+}
+.profile-menu button { min-height:40px; }
+
+/* A large, stable settings dialog keeps its proportions while its inner
+   content scrolls independently. */
+.settings-backdrop { overflow:visible; }
+.settings-shell {
+  width:min(920px,calc(100vw - 48px));
+  grid-template-columns:220px minmax(0,1fr);
+  max-height:min(760px,calc(100vh - 48px));
+  overflow:visible;
+}
+.settings-main { min-width:0; }
+
+/* Math output is allowed to wrap at safe boundaries instead of creating a
+   horizontal slider or clipping the final expression. */
+.math-block,
+.math-block.math-highlight {
+  width:fit-content;
+  max-width:100%;
+  overflow:visible;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.math-block { margin-inline:auto; }
+.math-block.math-highlight { display:flex; }
+.math-inline { max-width:100%; overflow-wrap:anywhere; }
+.math-binomial { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; margin:0 .12em; vertical-align:middle; line-height:1; }
+.math-binomial > span:first-child { padding:0 .14em .08em; border-bottom:1px solid currentColor; }
+.math-binomial > span:last-child { padding:.08em .14em 0; }
+.math-root-index { margin-right:-.06em; }
+.math-overline { border-top:1px solid currentColor; }
+.math-underline { border-bottom:1px solid currentColor; }
+.math-text { font-family:inherit; }
+.math-block sup,.math-inline sup { line-height:0; }
+.math-block sub,.math-inline sub { line-height:0; }
+
+body.xmanius-theme-light .model-name .dropdown-chevron,
+body.xmanius-theme-light .settings-value .dropdown-chevron { color:#565961; }
+@media (max-width:720px) {
+  .settings-backdrop { padding:10px; }
+  .settings-shell { width:calc(100vw - 20px); max-height:calc(100vh - 20px); grid-template-columns:1fr; overflow:auto; }
+  .settings-nav { min-height:auto; border-right:0; border-bottom:1px solid #3b3b3e; }
+  .settings-nav-spacer { display:none; }
+  .settings-main { overflow:visible; padding:18px; }
+  .settings-choice-menu-portal { max-width:calc(100vw - 20px); }
+}
 .chat-sidebar { position:relative; min-height:0; }
 .sidebar-recents { display:flex; min-height:0; flex:1; flex-direction:column; overflow:hidden; }
-.recent-list { min-height:0; overflow-y:auto; padding-right:3px; }
+.recent-list { min-width:0; min-height:0; flex:1; overflow-y:auto; padding-right:3px; }
 .recent-list { scrollbar-width:none; }
 .recent-list::-webkit-scrollbar { width:0; height:0; }
 .profile-menu { max-height:min(420px,calc(100% - 90px)); overflow:auto; }
@@ -203,6 +318,25 @@ body.xmanius-theme-light .attachment-preview-card small { color:#6d7078; }
 .source-open-link { display:inline-block; margin-top:5px; color:#8eb5ff; font-size:11px; text-decoration:none; }
 .source-open-link:hover { text-decoration:underline; }
 .search-error { margin:12px 0 0; padding:8px 10px; border-left:2px solid #d39b58; color:#d6b98f; font-size:12px; }
+.image-results-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; max-width:780px; }
+.source-image-card { position:relative; min-width:0; aspect-ratio:1.24; padding:0; overflow:hidden; border:1px solid #34363b; border-radius:12px; background:#17181b; cursor:pointer; }
+.source-image-card img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .18s ease,filter .18s ease; }
+.source-image-card:hover img { transform:scale(1.035); filter:brightness(1.08); }
+.source-image-card:focus-visible { outline:2px solid #78a8ff; outline-offset:2px; }
+.image-count-badge { position:absolute; right:8px; bottom:8px; display:inline-flex; align-items:center; gap:4px; min-height:23px; padding:3px 8px; border-radius:999px; background:rgba(28,28,31,.9); color:#fff; font-size:12px; font-weight:700; }
+.image-gallery-overlay { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:rgba(0,0,0,.95); animation:gallery-in .18s ease-out both; }
+@keyframes gallery-in { from { opacity:0; } to { opacity:1; } }
+.gallery-close,.gallery-nav { position:absolute; z-index:2; display:grid; place-items:center; width:40px; height:40px; border:1px solid #45464c; border-radius:999px; background:rgba(38,39,43,.82); color:#f2f3f5; font-size:28px; line-height:1; cursor:pointer; }
+.gallery-close { top:18px; left:18px; border:0; background:transparent; font-size:30px; }
+.gallery-counter { position:absolute; top:20px; left:50%; transform:translateX(-50%); color:#c7c9cf; font-size:14px; }
+.gallery-stage { display:grid; place-items:center; width:100%; height:100%; margin:0; padding:58px 76px 68px; }
+.gallery-image { display:block; max-width:calc(100vw - 180px); max-height:calc(100vh - 130px); object-fit:contain; user-select:none; }
+.gallery-nav { top:50%; transform:translateY(-50%); font-size:36px; }
+.gallery-prev { left:18px; }.gallery-next { right:18px; }
+.gallery-nav:disabled { opacity:.35; cursor:default; }
+.gallery-attribution { position:absolute; left:24px; bottom:18px; display:flex; flex-direction:column; gap:3px; max-width:min(70vw,620px); color:#c7c9cf; font-size:12px; }
+.gallery-attribution a { color:#f2f3f5; text-decoration:none; font-weight:700; }.gallery-attribution a:hover { text-decoration:underline; }
+@media (max-width:720px) { .image-results-grid { gap:4px; } .gallery-stage { padding-inline:44px; } .gallery-image { max-width:calc(100vw - 88px); max-height:calc(100vh - 150px); } .gallery-nav { width:34px; height:34px; } .gallery-prev { left:6px; }.gallery-next { right:6px; } .gallery-attribution { left:14px; bottom:12px; } }
 .code-block { margin:18px 0; overflow:hidden; border:1px solid #35373d; border-radius:12px; background:#17181b; }
 .code-block > header { display:flex; align-items:center; justify-content:space-between; min-height:40px; padding:0 10px 0 13px; border-bottom:1px solid #35373d; background:#25262a; color:#b8c9ec; font:600 11px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace; text-transform:lowercase; }
 .code-block > header div { display:flex; align-items:center; gap:4px; }
@@ -365,3 +499,27 @@ html,body { font-size:16px; font-weight:400; line-height:1.5; color:var(--xmaniu
 .camera-dialog-actions button { min-height:36px; padding:0 13px; border-radius:9px; background:#35363a; color:#f0f1f3; }
 .camera-dialog-actions button:last-child { background:#2d9d61; }
 .camera-dialog-actions button:hover { filter:brightness(1.12); }
+
+/* Final attachment-card overrides: these follow the legacy thumbnail rules
+   so the composer and posted-message previews use the same compact surface. */
+.chat-composer { flex-wrap:wrap; align-content:center; row-gap:7px; }
+.composer-attachments { position:static; inset:auto; order:-1; flex:1 0 100%; min-width:0; margin:0; padding:0; pointer-events:auto; }
+.composer-attachments.is-visible { display:block; }
+.attachment-preview-strip { display:flex; flex-wrap:wrap; gap:8px; padding:0; }
+.attachment-preview-card { position:relative; display:grid; width:142px; height:142px; margin:0; overflow:hidden; border:1px solid #45474d; border-radius:14px; background:#202124; }
+.attachment-preview-card img { display:block; width:100%; height:100%; object-fit:cover; background:#111; }
+.attachment-file-preview { display:grid; min-height:0; place-items:center; background:linear-gradient(145deg,#252a34,#15171b); color:#9ec8ff; font-size:18px; font-weight:750; letter-spacing:.08em; }
+.attachment-preview-card figcaption { position:absolute; right:0; bottom:0; left:0; min-width:0; padding:20px 8px 7px; background:linear-gradient(transparent,rgba(0,0,0,.82)); opacity:0; transition:opacity .15s ease; }
+.attachment-preview-card:hover figcaption,.attachment-preview-card:focus-within figcaption { opacity:1; }
+.attachment-preview-card figcaption strong,.attachment-preview-card figcaption small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.attachment-preview-card figcaption strong { color:#fff; font-size:11px; font-weight:650; }
+.attachment-preview-card figcaption small { margin-top:2px; color:#c4c8d1; font-size:9px; }
+.attachment-remove { position:absolute; top:7px; right:7px; z-index:2; display:grid; width:22px; height:22px; place-items:center; padding:0; border:1px solid rgba(0,0,0,.3); border-radius:50%; background:rgba(245,246,248,.95); color:#25262a; font-size:17px; line-height:1; cursor:pointer; box-shadow:0 2px 7px rgba(0,0,0,.35); }
+.attachment-remove:hover { background:#fff; color:#c83643; transform:scale(1.06); }
+.message-attachments { align-items:flex-start; }
+.message-attachments .attachment-preview-card { width:180px; height:132px; }
+.message-attachments .attachment-preview-card figcaption { opacity:1; }
+.message-attachment { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+body.xmanius-theme-light .attachment-file-preview { background:linear-gradient(145deg,#e8effa,#f5f6f8); color:#2c69bf; }
+body.xmanius-theme-light .attachment-preview-card figcaption { background:linear-gradient(transparent,rgba(24,27,34,.78)); }
+body.xmanius-theme-light .attachment-remove { background:rgba(255,255,255,.96); color:#34363b; }

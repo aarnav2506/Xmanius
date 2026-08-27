@@ -1,7 +1,7 @@
 const MAX_BODY_BYTES = 220000000;
 const MAX_HISTORY_ITEMS = 12;
 const MAX_HISTORY_TEXT = 3000;
-const MAX_ATTACHMENTS = 4;
+const MAX_ATTACHMENTS = 10;
 const MAX_ATTACHMENT_DATA = 210000000;
 const MAX_ATTACHMENT_TEXT = 20000;
 const UPSTREAM_TIMEOUT_MS = 60000;
@@ -56,8 +56,11 @@ export default async function handler(request, response) {
   // The UI exposes one public model name. The remaining model slots are a
   // private server-side failover pool, so users never need to switch keys.
   const selectedModel = "xmanius-1";
-  const modelOrder = ["xmanius-1", "xmanius-2", "xmanius-3", "xmanius-4", "xmanius-5", "xmanius-6", "xmanius-7"];
-  const apiKeyForModel = (model) => model === "xmanius-1" ? process.env.XMANIUS_GEMINI_API_KEY : process.env["XMANIUS_GEMINI_API_KEY_" + model.slice("xmanius-".length)];
+  const modelOrder = Array.from({ length: 9 }, (_, index) => `xmanius-${index + 1}`);
+  const apiKeyForModel = (model) => {
+    const slot = Number(model.slice("xmanius-".length));
+    return process.env[slot === 1 ? "XMANIUS_GEMINI_API_KEY" : `XMANIUS_GEMINI_API_KEY_${slot}`];
+  };
   const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_ITEMS).filter((item) => item && (item.role === "user" || item.role === "model") && typeof item.text === "string").map((item) => ({ role: item.role, parts: [{ text: item.text.slice(0, MAX_HISTORY_TEXT) }] })) : [];
   if (!modelOrder.some((model) => apiKeyForModel(model))) return fail(503, "No Xmanius model is configured yet. Add at least one server-side AI environment variable in Vercel.", "auth_config");
   try {
@@ -67,6 +70,7 @@ export default async function handler(request, response) {
     let searchError = "";
     const activity = [];
     const wantsYouTube = /youtube|video|watch|lecture|class\s*\d+/i.test(message);
+    const wantsImages = /\b(show|find|search|give|display|see)\b[\s\S]{0,50}\b(images?|photos?|pictures?|photographs?|wallpapers?)\b|\b(images?|photos?|pictures?|photographs?|wallpapers?)\b[\s\S]{0,50}\b(of|for)\b/i.test(message);
     const youtubeKey = process.env.XMANIUS_YOUTUBE_API_KEY || process.env.XMANIUS_GOOGLE_SEARCH_API_KEY;
     if (webSearch && wantsYouTube && youtubeKey) {
       activity.push({ type: "search", label: "Searching YouTube", status: "running" });
@@ -84,13 +88,14 @@ export default async function handler(request, response) {
       searchError = "Web search is not configured. Add both XMANIUS_GOOGLE_SEARCH_API_KEY and XMANIUS_GOOGLE_SEARCH_CX in Vercel.";
       activity.push({ type: "search", label: "Web search unavailable", status: "failed" });
     } else if (webSearch) {
-      activity.push({ type: "search", label: "Searching the web", status: "running" });
+      activity.push({ type: "search", label: wantsImages ? "Searching images online" : "Searching the web", status: "running" });
       const searchUrl = new URL("https://www.googleapis.com/customsearch/v1");
-      searchUrl.searchParams.set("key", process.env.XMANIUS_GOOGLE_SEARCH_API_KEY); searchUrl.searchParams.set("cx", process.env.XMANIUS_GOOGLE_SEARCH_CX); searchUrl.searchParams.set("q", message); searchUrl.searchParams.set("num", "5");
+      searchUrl.searchParams.set("key", process.env.XMANIUS_GOOGLE_SEARCH_API_KEY); searchUrl.searchParams.set("cx", process.env.XMANIUS_GOOGLE_SEARCH_CX); searchUrl.searchParams.set("q", message); searchUrl.searchParams.set("num", "8");
+      if (wantsImages) searchUrl.searchParams.set("searchType", "image");
       const searchResponse = await fetchWithTimeout(searchUrl);
       if (searchResponse.ok) {
         const searchData = await searchResponse.json();
-        searchResults = (searchData.items || []).slice(0, 8).map((item) => ({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", displayLink: item.displayLink || "", thumbnail: item.pagemap?.cse_thumbnail?.[0]?.src || item.pagemap?.cse_image?.[0]?.src || "" }));
+        searchResults = (searchData.items || []).slice(0, 8).map((item) => ({ title: item.title || item.link, url: wantsImages ? (item.image?.contextLink || item.link) : item.link, imageUrl: wantsImages ? (item.link || "") : "", kind: wantsImages ? "image" : "web", snippet: item.snippet || item.image?.snippet || "", displayLink: item.displayLink || item.image?.displayLink || "", thumbnail: wantsImages ? (item.image?.thumbnailLink || item.link || "") : (item.pagemap?.cse_thumbnail?.[0]?.src || item.pagemap?.cse_image?.[0]?.src || "") }));
         searchContext = searchResults.map((item, index) => `[${index + 1}] ${item.title}\n${item.snippet}\nURL: ${item.url}`).join("\n\n");
         if (!searchResults.length) searchError = "Google returned no matching sources for this search.";
       } else { const status = searchResponse.status; searchError = status === 401 || status === 403 ? "Google web-search credentials were rejected. Check the API key, Custom Search engine ID, and enabled API." : status === 429 ? "Google web search is temporarily rate-limited." : `Google search failed (${status}).`; }
@@ -107,7 +112,6 @@ export default async function handler(request, response) {
     attachments.forEach((attachment) => { if (attachment.text) userParts.push({ text: `Attached text file (${attachment.name}):\n${attachment.text}` }); else userParts.push({ inlineData: { mimeType: attachment.mimeType, data: attachment.data } }); });
     const contents = [...history, { role: "user", parts: userParts }];
     let upstream;
-    let usedModel = selectedModel;
     for (const candidateModel of modelOrder) {
       const apiKey = apiKeyForModel(candidateModel);
       if (!apiKey) continue;
@@ -119,7 +123,7 @@ export default async function handler(request, response) {
         if (/^gemini-2\.5/i.test(candidate)) generationConfig.thinkingConfig = { thinkingBudget: thinkMode ? 1024 : 0 };
         else if (/^gemini-3/i.test(candidate)) generationConfig.thinkingConfig = { thinkingLevel: thinkMode ? "medium" : "minimal" };
         upstream = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig }) });
-        if (upstream.ok) { usedModel = candidateModel; break; }
+        if (upstream.ok) break;
         if (!retryableModelStatus(upstream.status)) break;
       }
       if (upstream?.ok) break;
@@ -133,7 +137,7 @@ export default async function handler(request, response) {
     const answerText = summaryMatch ? reply.slice(summaryMatch[0].length).trim() : reply;
     const finalReply = searchError && webSearch ? `${answerText || "I could not produce an answer for that."}\n\n> Web search status: ${searchError}` : (answerText || "I could not produce an answer for that.");
     activity.push({ type: "answer", label: rethink ? "Rechecked and formatted the answer" : "Prepared and formatted the answer", status: "completed" });
-    return response.status(200).json({ reply: finalReply, reasoningSummary, sources: searchResults, searchError, requestId, usedModel, autoSwitched: usedModel !== selectedModel });
+    return response.status(200).json({ reply: finalReply, reasoningSummary, sources: searchResults, searchError, requestId });
   } catch (error) {
     const timedOut = error?.name === "AbortError";
     return fail(504, timedOut ? "The AI service took too long to respond. Please try again or switch models." : "The AI service is temporarily unavailable. Please try again.", timedOut ? "provider_timeout" : "provider_unavailable");

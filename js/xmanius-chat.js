@@ -4,6 +4,7 @@
   const form = document.querySelector("[data-chat-form]");
   const input = document.querySelector("[data-chat-input]");
   const list = document.querySelector("[data-message-list]");
+  const chatContent = document.querySelector(".chat-content");
   const empty = document.querySelector("[data-empty-state]");
   const recent = document.querySelector("[data-recent-list]");
   const accountButton = document.querySelector("[data-account-button]");
@@ -41,8 +42,18 @@
   let thinkMode = false;
   let webSearch = false;
   let selectedModel = "xmanius-1";
+  let followChatBottom = true;
+  const isChatNearBottom = (threshold = 120) => !chatContent || chatContent.scrollHeight - chatContent.scrollTop - chatContent.clientHeight <= threshold;
+  const scrollChatToBottom = ({ force = false, behavior = "auto" } = {}) => {
+    if (!chatContent || (!force && !followChatBottom)) return;
+    followChatBottom = true;
+    if (typeof chatContent.scrollTo === "function") chatContent.scrollTo({ top: chatContent.scrollHeight, behavior });
+    else chatContent.scrollTop = chatContent.scrollHeight;
+  };
+  chatContent?.addEventListener("scroll", () => { followChatBottom = isChatNearBottom(); }, { passive: true });
+  window.XmaniusScrollController = Object.freeze({ scrollToBottom: scrollChatToBottom, isFollowing: () => followChatBottom });
   let pendingAttachments = [];
-  const maxAttachments = 4;
+  const maxAttachments = 10;
   const maxImageBytes = 10_000_000;
   const maxFileBytes = 200_000_000;
   const usageKey = "xmanius-usage-v1";
@@ -99,7 +110,9 @@
     const messages = [...list.querySelectorAll(".message")].map((item) => {
       let attachmentsForMessage = [];
       try { attachmentsForMessage = JSON.parse(item.dataset.attachmentRefs || "[]"); } catch {}
-      return { type: item.classList.contains("user") ? "user" : "assistant", text: item.dataset.rawText || item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim(), reasoningSummary: item.dataset.reasoningSummary || "", reasoningSeconds: Number(item.dataset.reasoningSeconds || 0), attachments: attachmentsForMessage };
+      let sourcesForMessage = [];
+      try { sourcesForMessage = JSON.parse(item.dataset.sources || "[]"); } catch {}
+      return { type: item.classList.contains("user") ? "user" : "assistant", text: item.dataset.rawText || item.querySelector(".message-body")?.textContent || item.textContent.replace(/CopyRead aloud/g, "").trim(), reasoningSummary: item.dataset.reasoningSummary || "", reasoningSeconds: Number(item.dataset.reasoningSeconds || 0), sources: sourcesForMessage, attachments: attachmentsForMessage };
     }).filter((item) => item.text);
     if (!messages.length) return;
     const chats = readChats();
@@ -109,7 +122,51 @@
     saveChats(chats);
     renderRecents();
   };
-  const renderRecents = () => { if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => { const row = document.createElement("div"); row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`; row.dataset.chatId = chat.id; const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; const more = document.createElement("button"); more.className = "conversation-more"; more.type = "button"; more.dataset.chatMenu = chat.id; more.setAttribute("aria-label", `Options for ${chat.title}`); more.title = "Chat options"; more.textContent = "•••"; const menu = document.createElement("div"); menu.className = "conversation-menu"; menu.innerHTML = `<button type="button" data-chat-action="pin">${chat.pinned ? "Unpin" : "Pin"} chat</button><button type="button" data-chat-action="share">Share</button><button type="button" data-chat-action="delete">Delete</button>`; row.append(button, more, menu); recent.append(row); }); };
+  let openChatMenu = null;
+  let openChatMenuRow = null;
+  const closeChatMenu = () => {
+    const menu = openChatMenu;
+    const row = openChatMenuRow;
+    if (menu && row && menu.classList.contains("conversation-menu-portal")) {
+      row.append(menu);
+      menu.classList.remove("conversation-menu-portal", "is-visible");
+      menu.removeAttribute("style");
+      delete menu.dataset.portalChatMenu;
+    } else {
+      menu?.classList.remove("is-visible");
+    }
+    row?.classList.remove("is-menu-open");
+    openChatMenu = null;
+    openChatMenuRow = null;
+  };
+  const positionChatMenu = (menu, button) => {
+    if (!menu || !button) return;
+    const rect = button.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 138;
+    const menuHeight = menu.offsetHeight || 150;
+    const gap = 6;
+    const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
+    const below = rect.bottom + gap;
+    const top = below + menuHeight <= window.innerHeight - 8
+      ? below
+      : Math.max(8, rect.top - menuHeight - gap);
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  };
+  const openChatMenuFor = (row, button) => {
+    closeChatMenu();
+    const menu = row?.querySelector(".conversation-menu");
+    if (!menu) return;
+    openChatMenu = menu;
+    openChatMenuRow = row;
+    row.classList.add("is-menu-open");
+    menu.dataset.portalChatMenu = "true";
+    menu.classList.add("conversation-menu-portal");
+    document.body.append(menu);
+    positionChatMenu(menu, button);
+    menu.classList.add("is-visible");
+  };
+  const renderRecents = () => { closeChatMenu(); if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => { const row = document.createElement("div"); row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`; row.dataset.chatId = chat.id; const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; const more = document.createElement("button"); more.className = "conversation-more"; more.type = "button"; more.dataset.chatMenu = chat.id; more.setAttribute("aria-label", `Options for ${chat.title}`); more.title = "Chat options"; more.textContent = "•••"; const menu = document.createElement("div"); menu.className = "conversation-menu"; menu.innerHTML = `<button type="button" data-chat-action="pin">${chat.pinned ? "Unpin" : "Pin"} chat</button><button type="button" data-chat-action="share">Share</button><button type="button" data-chat-action="delete">Delete</button>`; row.append(button, more, menu); recent.append(row); }); };
   const loadChat = async (chatId) => {
     const chat = readChats().find((item) => item.id === chatId);
     if (!chat) return;
@@ -118,7 +175,7 @@
     currentChatId = chat.id;
     for (const message of chat.messages) {
       const refs = Array.isArray(message.attachments) ? message.attachments : [];
-      addMessage(message.text, message.type, { animate: false, persist: false, attachmentNames: refs.map((attachment) => attachment.name), reasoningSummary: message.reasoningSummary || "", reasoningSeconds: message.reasoningSeconds || 0 });
+      addMessage(message.text, message.type, { animate: false, persist: false, attachmentNames: refs.map((attachment) => attachment.name), reasoningSummary: message.reasoningSummary || "", reasoningSeconds: message.reasoningSeconds || 0, sources: Array.isArray(message.sources) ? message.sources : [] });
       const item = list.lastElementChild;
       if (!item || !refs.length) continue;
       item.dataset.attachmentRefs = JSON.stringify(refs);
@@ -126,7 +183,7 @@
       for (const reference of refs) { const saved = await attachmentDb.get(reference.id); if (saved) restored.push(saved); }
       if (restored.length) renderMessageAttachmentPreviews(item, restored);
     }
-    document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
+    scrollChatToBottom({ force: true });
   };
   const localAnswer = (question) => {
     const q = question.toLowerCase();
@@ -141,25 +198,176 @@
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
   const stripAnswerSummaryTags = (value) => { let summary = ""; const text = normalizeResponseText(value).replace(/\[\[ANSWER_SUMMARY\]\]([\s\S]*?)\[\[\/ANSWER_SUMMARY\]\]/gi, (_, content) => { if (!summary) summary = content.trim(); return ""; }).replace(/\[\[\/?ANSWER_SUMMARY\]\]/gi, ""); return { text: text.trim(), summary }; };
   const normalizeResponseText = (value) => String(value || "").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
-  const normalizeLatex = (value) => normalizeResponseText(value).replace(/\\ext\b/g, "\\text").replace(/\\longrightarrow|\\rightarrow|\\to\b/g, "→").replace(/\\longleftrightarrow|\\leftrightarrow/g, "↔").replace(/\\Delta\b/g, "Δ").replace(/\\alpha\b/g, "α").replace(/\\beta\b/g, "β").replace(/\\theta\b/g, "θ").replace(/\\pi\b/g, "π").replace(/\\infty\b/g, "∞").replace(/\\partial\b/g, "∂").replace(/\\nabla\b/g, "∇").replace(/\\sum\b/g, "Σ").replace(/\\prod\b/g, "Π").replace(/\\approx\b/g, "≈").replace(/\\cong\b/g, "≅").replace(/\\circ\b/g, "°").replace(/\\exp\b/g, "exp").replace(/\\ln\b/g, "ln").replace(/\\log\b/g, "log").replace(/\\leq\b|\\le\b/g, "≤").replace(/\\geq\b|\\ge\b/g, "≥").replace(/\\neq\b/g, "≠").replace(/\\pm\b/g, "±").replace(/\\times\b|\\cdot\b/g, "×").replace(/\\,|\\;|\\!/g, " ").replace(/\\%/g, "%");
-  const unwrapLatexGroups = (value) => { let result = normalizeLatex(value); for (let pass = 0; pass < 6; pass += 1) result = result.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\s*\{([^{}]*)\}/g, "$1"); return result.replace(/\\binom\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, "C($1, $2)"); };
-  const cleanMath = (value) => unwrapLatexGroups(value).replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\left|\\right/g, "").replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/\\([a-zA-Z]+)/g, "$1").replace(/\$/g, "");
-  const renderMathMarkup = (value) => {
-    let markup = escapeHtml(unwrapLatexGroups(value).replace(/^\$\$|^\$|\$\$$|\$$/g, "").replace(/^\\\[|\\\]$/g, "").replace(/^\\\(|\\\)$/g, "").replace(/\\left|\\right/g, ""));
-    for (let pass = 0; pass < 3; pass += 1) markup = markup.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="math-fraction"><span>$1</span><span>$2</span></span>').replace(/\\sqrt\{([^{}]+)\}/g, '<span class="math-sqrt">√<span>$1</span></span>').replace(/\\boxed\{([^{}]+)\}/g, '<span class="math-answer-box">$1</span>').replace(/\\text\{([^{}]+)\}/g, "$1");
-    return markup.replace(/\\leq?|&lt;=/g, "≤").replace(/\\geq?|&gt;=/g, "≥").replace(/\\neq/g, "≠").replace(/\\in\b/g, "∈").replace(/\\notin\b/g, "∉").replace(/\\times|\\cdot/g, "×").replace(/\\pm/g, "±").replace(/\\dots?|\\ldots/g, "…").replace(/\\to/g, "→").replace(/\\pi/g, "π").replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\theta/g, "θ").replace(/\\([{}])/g, "$1").replace(/\^\{([^{}]+)\}/g, "<sup>$1</sup>").replace(/\^([A-Za-z0-9]+)/g, "<sup>$1</sup>").replace(/_\{([^{}]+)\}/g, "<sub>$1</sub>").replace(/_([A-Za-z0-9]+)/g, "<sub>$1</sub>");
+  const normalizeLatex = (value) => normalizeResponseText(value)
+    .replace(/\\ext\b/g, "\\text")
+    // Some model responses lose the backslash in \text{...}; restore it
+    // before tokenising so chemical labels and units render as math text.
+    .replace(/(^|[^\\\w])ext(?=\s*\{)/g, "$1\\text");
+  const mathCommandMap = Object.freeze({
+    longrightarrow: "→", rightarrow: "→", to: "→", longleftrightarrow: "↔", leftrightarrow: "↔",
+    Delta: "Δ", delta: "δ", alpha: "α", beta: "β", gamma: "γ", theta: "θ", lambda: "λ", mu: "μ", sigma: "σ", omega: "ω", phi: "φ", psi: "ψ",
+    pi: "π", infty: "∞", partial: "∂", nabla: "∇", sum: "Σ", prod: "Π", int: "∫", approx: "≈", cong: "≅", circ: "°",
+    exp: "exp", ln: "ln", log: "log", leq: "≤", le: "≤", geq: "≥", ge: "≥", neq: "≠", pm: "±", times: "×", cdot: "×",
+    div: "÷", in: "∈", notin: "∉", subset: "⊂", subseteq: "⊆", supset: "⊃", supseteq: "⊇", cup: "∪", cap: "∩", emptyset: "∅", degree: "°",
+    dots: "…", ldots: "…", cdots: "⋯"
+  });
+  const mathWrapperCommands = new Set(["text", "textbf", "textrm", "mathrm", "mathbf", "mathit", "mathbb", "mathsf", "operatorname", "boldsymbol", "overline", "underline", "vec"]);
+  const mathArgumentCommands = new Set(["frac", "dfrac", "tfrac", "binom", "sqrt", "boxed", "fbox", ...mathWrapperCommands]);
+  const skipMathWhitespace = (source, start) => { let cursor = start; while (cursor < source.length && /\s/.test(source[cursor])) cursor += 1; return cursor; };
+  const readBalancedMathGroup = (source, start, opener = "{", closer = "}") => {
+    const cursor = skipMathWhitespace(source, start);
+    if (source[cursor] !== opener) return null;
+    let depth = 1;
+    let position = cursor + 1;
+    while (position < source.length) {
+      if (source[position] === "\\") { position += 2; continue; }
+      if (source[position] === opener) depth += 1;
+      if (source[position] === closer) { depth -= 1; if (!depth) return { value: source.slice(cursor + 1, position), next: position + 1 }; }
+      position += 1;
+    }
+    return null;
+  };
+  const readMathArgument = (source, start) => {
+    const cursor = skipMathWhitespace(source, start);
+    const grouped = readBalancedMathGroup(source, cursor);
+    if (grouped) return grouped;
+    const optional = readBalancedMathGroup(source, cursor, "[", "]");
+    if (optional) return optional;
+    if (source[cursor] === "\\") {
+      const command = source.slice(cursor + 1).match(/^[A-Za-z]+/);
+      if (command) return { value: source.slice(cursor, cursor + 1 + command[0].length), next: cursor + 1 + command[0].length };
+    }
+    if (cursor >= source.length) return null;
+    return { value: source[cursor], next: cursor + 1 };
+  };
+  const stripMathDelimiters = (value) => {
+    let result = normalizeLatex(value).trim();
+    if ((result.startsWith("$$") && result.endsWith("$$")) || (result.startsWith("$") && result.endsWith("$"))) result = result.slice(result.startsWith("$$") ? 2 : 1, result.endsWith("$$") ? -2 : -1);
+    if (result.startsWith("\\[") && result.endsWith("\\]")) result = result.slice(2, -2);
+    if (result.startsWith("\\(") && result.endsWith("\\)")) result = result.slice(2, -2);
+    // Markdown emphasis occasionally leaks into a math line. Remove only
+    // paired emphasis markers; a single * remains available as multiplication.
+    return result.replace(/\*\*|__/g, "");
+  };
+  const renderMathExpression = (value) => {
+    const source = stripMathDelimiters(value);
+    let output = "";
+    let cursor = 0;
+    while (cursor < source.length) {
+      const character = source[cursor];
+      if (character === "\n") { output += "<br>"; cursor += 1; continue; }
+      if (character === "^" || character === "_") {
+        const argument = readMathArgument(source, cursor + 1);
+        if (argument) { output += `<${character === "^" ? "sup" : "sub"}>${renderMathExpression(argument.value)}</${character === "^" ? "sup" : "sub"}>`; cursor = argument.next; continue; }
+      }
+      if (character === "{") {
+        const group = readBalancedMathGroup(source, cursor);
+        if (group) { output += renderMathExpression(group.value); cursor = group.next; continue; }
+      }
+      if (character === "\\") {
+        const commandMatch = source.slice(cursor + 1).match(/^[A-Za-z]+/);
+        if (!commandMatch) { output += escapeHtml(source[cursor + 1] || ""); cursor += Math.min(2, source.length - cursor); continue; }
+        const command = commandMatch[0];
+        cursor += command.length + 1;
+        if (command === "left" || command === "right" || command === "big" || command === "Big" || command === "bigg" || command === "Bigg") continue;
+        if (command === "frac" || command === "dfrac" || command === "tfrac") {
+          const numerator = readMathArgument(source, cursor);
+          const denominator = numerator && readMathArgument(source, numerator.next);
+          if (numerator && denominator) { output += `<span class="math-fraction"><span>${renderMathExpression(numerator.value)}</span><span>${renderMathExpression(denominator.value)}</span></span>`; cursor = denominator.next; continue; }
+        }
+        if (command === "binom") {
+          const upper = readMathArgument(source, cursor);
+          const lower = upper && readMathArgument(source, upper.next);
+          if (upper && lower) { output += `<span class="math-binomial"><span>${renderMathExpression(upper.value)}</span><span>${renderMathExpression(lower.value)}</span></span>`; cursor = lower.next; continue; }
+        }
+        if (command === "sqrt") {
+          let degree = null;
+          const optional = readBalancedMathGroup(source, cursor, "[", "]");
+          if (optional) { degree = optional.value; cursor = optional.next; }
+          const radicand = readMathArgument(source, cursor);
+          if (radicand) { output += `<span class="math-sqrt">${degree ? `<sup class="math-root-index">${renderMathExpression(degree)}</sup>` : ""}√<span>${renderMathExpression(radicand.value)}</span></span>`; cursor = radicand.next; continue; }
+        }
+        if (command === "exp") {
+          const argument = readMathArgument(source, cursor);
+          if (argument) { output += `<span class="math-function">exp<span class="math-function-argument">(${renderMathExpression(argument.value)})</span></span>`; cursor = argument.next; continue; }
+        }
+        if (command === "boxed" || command === "fbox") {
+          const argument = readMathArgument(source, cursor);
+          if (argument) { output += `<span class="math-answer-box">${renderMathExpression(argument.value)}</span>`; cursor = argument.next; continue; }
+        }
+        if (mathWrapperCommands.has(command)) {
+          const argument = readMathArgument(source, cursor);
+          if (argument) { const wrapperClass = command === "overline" ? " math-overline" : command === "underline" ? " math-underline" : ""; output += `<span class="${wrapperClass.trim() || "math-text"}">${renderMathExpression(argument.value)}</span>`; cursor = argument.next; continue; }
+        }
+        const symbol = mathCommandMap[command] || mathCommandMap[command.toLowerCase()];
+        if (symbol) { output += escapeHtml(symbol); continue; }
+        const fallback = readMathArgument(source, cursor);
+        if (fallback && fallback.next > cursor) { output += renderMathExpression(fallback.value); cursor = fallback.next; } else output += escapeHtml(command);
+        continue;
+      }
+      if (character === "$") { cursor += 1; continue; }
+      output += escapeHtml(character);
+      cursor += 1;
+    }
+    return output;
+  };
+  const renderMathMarkup = (value) => renderMathExpression(value);
+  const formatMarkdownText = (value) => escapeHtml(normalizeResponseText(value)
+    .replace(/\$\$?/g, "")
+    .replace(/(^|\n)\s*#{1,6}\s+/g, "$1")
+    .replace(/\\([{}])/g, "$1"))
+    .replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>")
+    .replace(/__(.+?)__/gs, "<strong>$1</strong>")
+    .replace(/~~(.+?)~~/gs, "<del>$1</del>")
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  const findRawMathToken = (source, start) => {
+    if (source[start] !== "\\") return null;
+    const commandMatch = source.slice(start + 1).match(/^[A-Za-z]+/);
+    if (!commandMatch) return null;
+    const command = commandMatch[0];
+    let cursor = start + 1 + command.length;
+    if (mathArgumentCommands.has(command)) {
+      const count = command === "frac" || command === "dfrac" || command === "tfrac" || command === "binom" ? 2 : 1;
+      for (let index = 0; index < count; index += 1) { const argument = readMathArgument(source, cursor); if (!argument) return null; cursor = argument.next; }
+      return { end: cursor };
+    }
+    if (command === "exp") {
+      const argument = readMathArgument(source, cursor);
+      if (argument) return { end: argument.next };
+    }
+    if (mathCommandMap[command] || mathCommandMap[command.toLowerCase()]) {
+      if (source[cursor] === "^" || source[cursor] === "_") { const argument = readMathArgument(source, cursor + 1); if (argument) cursor = argument.next; }
+      return { end: cursor };
+    }
+    return null;
+  };
+  const renderTextWithMath = (value) => {
+    const source = normalizeLatex(value);
+    let output = "";
+    let cursor = 0;
+    let textStart = 0;
+    while (cursor < source.length) {
+      const token = findRawMathToken(source, cursor);
+      if (!token) { cursor += 1; continue; }
+      output += formatMarkdownText(source.slice(textStart, cursor));
+      output += `<span class="math-inline">${renderMathMarkup(source.slice(cursor, token.end))}</span>`;
+      cursor = token.end;
+      textStart = cursor;
+    }
+    output += formatMarkdownText(source.slice(textStart));
+    return output.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   };
   const inlineMarkdown = (value) => {
-    const mathPattern = /(\$\$[^$]+\$\$|\$[^$]+\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
+    const mathPattern = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
     let output = "";
     let cursor = 0;
     for (const match of String(value).matchAll(mathPattern)) {
-      output += escapeHtml(cleanMath(value.slice(cursor, match.index))).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*\*/g, "").replace(/`(.+?)`/g, "<code>$1</code>");
+      output += renderTextWithMath(value.slice(cursor, match.index));
       output += `<span class="math-inline">${renderMathMarkup(match[0])}</span>`;
       cursor = match.index + match[0].length;
     }
-    output += escapeHtml(cleanMath(String(value).slice(cursor))).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*\*/g, "").replace(/`(.+?)`/g, "<code>$1</code>");
-    return output.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    output += renderTextWithMath(String(value).slice(cursor));
+    return output;
   };
   const highlightCode = (value) => escapeHtml(value).replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="syntax-comment">$1</span>').replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span class="syntax-string">$1</span>').replace(/\b(const|let|var|function|return|if|else|for|while|new|class|async|await|import|from|true|false|null|undefined)\b/g, '<span class="syntax-keyword">$1</span>').replace(/(&lt;\/?)([A-Za-z][\w-]*)/g, '$1<span class="syntax-tag">$2</span>');
   const youtubeSourcesFromText = (value) => [...value.matchAll(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)[A-Za-z0-9_-]{6,}|youtu\.be\/[A-Za-z0-9_-]{6,})[^\s)<>]*/gi)].map((match) => ({ title: "YouTube video", url: match[0].replace(/[.,]$/, ""), snippet: "Open or watch this video preview", displayLink: "youtube.com" }));
@@ -167,17 +375,61 @@
   const imageAsUpload = (file) => new Promise(async (resolve, reject) => { try { const source = await readAsDataUrl(file); const image = new Image(); image.onload = () => { const maxDimension = 1600; const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height)); const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale)); canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale)); const context = canvas.getContext("2d", { alpha: false }); context.fillStyle = "#fff"; context.fillRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); resolve({ mimeType: "image/jpeg", data: canvas.toDataURL("image/jpeg", .82).replace(/^data:[^,]+,/, "") }); }; image.onerror = () => reject(new Error(`Could not decode ${file.name}.`)); image.src = source; } catch (error) { reject(error); } });
   const prepareAttachment = async (file) => { const mimeType = file?.type || "application/octet-stream"; const limit = mimeType.startsWith("image/") ? maxImageBytes : maxFileBytes; if (!file || file.size > limit) throw new Error(`${file?.name || "That file"} is too large. Images can be up to 10 MB and other files up to 200 MB.`); if (mimeType.startsWith("image/")) { const image = await imageAsUpload(file); return { name: file.name, mimeType: image.mimeType, data: image.data }; } if (mimeType === "application/pdf" || mimeType === "text/plain" || mimeType === "text/markdown" || mimeType === "text/csv" || mimeType === "application/json" || /\.(?:txt|md|csv|json|js|html|css|py)$/i.test(file.name)) { if (/\.(?:js|html|css|py)$/i.test(file.name) && file.type === "application/octet-stream") return { name: file.name, mimeType: "text/plain", text: (await file.text()).slice(0, 20000) }; if (mimeType.startsWith("text/") || mimeType === "application/json") return { name: file.name, mimeType: "text/plain", text: (await file.text()).slice(0, 20000) }; return { name: file.name, mimeType, data: (await readAsDataUrl(file)).replace(/^data:[^,]+,/, "") }; } throw new Error(`${file.name} is not a supported image, PDF, or text file.`); };
   const attachmentToRequest = (attachment) => ({ name: attachment.name, mimeType: attachment.mimeType, data: attachment.data, text: attachment.text });
-  const renderPendingAttachments = () => { if (!attachments) return; attachments.replaceChildren(); attachments.classList.toggle("is-visible", pendingAttachments.length > 0); pendingAttachments.forEach((attachment, index) => { const chip = document.createElement("span"); chip.className = "attachment-chip"; const label = document.createElement("span"); label.textContent = attachment.name; const remove = document.createElement("button"); remove.type = "button"; remove.dataset.removeAttachment = String(index); remove.setAttribute("aria-label", `Remove ${attachment.name}`); remove.title = "Remove file"; remove.textContent = "×"; chip.append(label, remove); attachments.append(chip); }); };
+  const createAttachmentCard = (attachment, { removable = false, index = 0 } = {}) => {
+    const card = document.createElement("figure");
+    card.className = "attachment-preview-card";
+    card.dataset.attachmentName = attachment?.name || "Attachment";
+    card.title = attachment?.name || "Attachment";
+    if (removable) card.classList.add("is-pending");
+    if (attachment?.data && /^image\//i.test(attachment.mimeType || "")) {
+      const image = document.createElement("img");
+      image.src = "data:" + attachment.mimeType + ";base64," + attachment.data;
+      image.alt = "Preview of " + attachment.name;
+      card.append(image);
+    } else {
+      const filePreview = document.createElement("div");
+      filePreview.className = "attachment-file-preview";
+      filePreview.textContent = (attachment?.name?.split(".").pop() || "FILE").slice(0, 6).toUpperCase();
+      card.append(filePreview);
+    }
+    const caption = document.createElement("figcaption");
+    const name = document.createElement("strong");
+    name.textContent = attachment?.name || "Attachment";
+    name.title = name.textContent;
+    const meta = document.createElement("small");
+    meta.textContent = `${(attachment?.name?.split(".").pop() || "file").toUpperCase()}${attachment?.id ? " • " + attachment.id : ""}`;
+    caption.append(name, meta);
+    card.append(caption);
+    if (removable) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "attachment-remove";
+      remove.dataset.removeAttachment = String(index);
+      remove.setAttribute("aria-label", `Remove ${attachment?.name || "file"}`);
+      remove.title = "Remove file";
+      remove.textContent = "×";
+      card.append(remove);
+    }
+    return card;
+  };
+  const renderPendingAttachments = () => {
+    if (!attachments) return;
+    attachments.replaceChildren();
+    attachments.classList.toggle("is-visible", pendingAttachments.length > 0);
+    if (!pendingAttachments.length) return;
+    const strip = document.createElement("div");
+    strip.className = "attachment-preview-strip";
+    strip.dataset.imagePreviewStrip = "true";
+    pendingAttachments.forEach((attachment, index) => strip.append(createAttachmentCard(attachment, { removable: true, index })));
+    attachments.append(strip);
+  };
   const addSelectedFiles = async (selected) => { if (!selected.length) return; if (pendingAttachments.length + selected.length > maxAttachments) { showAttachmentNotice(`You can attach up to ${maxAttachments} files per message.`); return; } for (const file of selected) { try { pendingAttachments.push(await prepareAttachment(file)); } catch (error) { showAttachmentNotice(error.message || "That file could not be added."); } } renderPendingAttachments(); input?.focus(); };
   const handleAttachmentSelection = async (event) => { const selected = [...(event.target.files || [])]; event.target.value = ""; await addSelectedFiles(selected); };
-  let previewSignature = "";
-  const enhanceImagePreview = () => { if (!attachments) return; const images = pendingAttachments.filter((attachment) => attachment?.data && /^image\//i.test(attachment.mimeType || "")); const signature = images.map((attachment) => attachment.id || (attachment.name + ":" + attachment.data.length)).join("|"); const current = attachments.querySelector("[data-image-preview-strip]"); if (current && signature === previewSignature) return; current?.remove(); previewSignature = signature; if (!images.length) return; const strip = document.createElement("div"); strip.className = "attachment-preview-strip"; strip.dataset.imagePreviewStrip = "true"; images.forEach((attachment) => { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = document.createElement("figure"); card.className = "attachment-preview-card"; const image = document.createElement("img"); image.src = "data:" + attachment.mimeType + ";base64," + attachment.data; image.alt = "Preview of " + attachment.name; const caption = document.createElement("figcaption"); const name = document.createElement("strong"); name.textContent = attachment.name; const meta = document.createElement("small"); meta.textContent = (attachment.name.split(".").pop() || "image").toUpperCase() + " • " + attachment.id; caption.append(name, meta); card.append(image, caption); strip.append(card); }); attachments.append(strip); };
-  if (attachments) new MutationObserver(enhanceImagePreview).observe(attachments, { childList: true });
-  const renderMessageAttachmentPreviews = (message, items) => { const container = message?.querySelector(".message-attachments"); if (!container || !items?.length) return; container.replaceChildren(); items.forEach((attachment) => { if (attachment?.data && /^image\//i.test(attachment.mimeType || "")) { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = document.createElement("figure"); card.className = "attachment-preview-card message-image-preview"; const image = document.createElement("img"); image.src = "data:" + attachment.mimeType + ";base64," + attachment.data; image.alt = "Preview of " + attachment.name; const caption = document.createElement("figcaption"); const name = document.createElement("strong"); name.textContent = attachment.name; const meta = document.createElement("small"); meta.textContent = (attachment.name.split(".").pop() || "image").toUpperCase() + " • " + attachment.id; caption.append(name, meta); card.append(image, caption); container.append(card); } else { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = "📎 " + (attachment?.name || "attachment"); container.append(chip); } }); };
+  const renderMessageAttachmentPreviews = (message, items) => { const container = message?.querySelector(".message-attachments"); if (!container || !items?.length) return; container.replaceChildren(); items.forEach((attachment) => { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = createAttachmentCard(attachment); card.classList.add("message-image-preview"); container.append(card); }); };
   let cameraStream = null;
   let cameraDialog = null;
   const stopCamera = () => { cameraStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} }); cameraStream = null; if (cameraDialog) { const video = cameraDialog.querySelector("video"); if (video) video.srcObject = null; cameraDialog.classList.remove("is-open"); cameraDialog.setAttribute("aria-hidden", "true"); } };
-  const openCamera = async () => { if (!navigator.mediaDevices?.getUserMedia) { showAttachmentNotice("Live camera capture is unavailable here. Use a camera-enabled browser or Android app."); return; } if (!cameraDialog) { cameraDialog = document.createElement("section"); cameraDialog.className = "camera-dialog"; cameraDialog.setAttribute("aria-hidden", "true"); cameraDialog.innerHTML = `<div class="camera-dialog-panel" role="dialog" aria-modal="true" aria-label="Capture a photo"><div class="camera-dialog-header"><strong>Use camera</strong><button type="button" data-camera-close aria-label="Close camera">×</button></div><video autoplay playsinline muted></video><p data-camera-status>Allow camera access to take a photo.</p><div class="camera-dialog-actions"><button type="button" data-camera-cancel>Cancel</button><button type="button" data-camera-capture>Capture photo</button></div></div>`; document.body.append(cameraDialog); cameraDialog.querySelectorAll("[data-camera-close],[data-camera-cancel]").forEach((button) => button.addEventListener("click", stopCamera)); cameraDialog.querySelector("[data-camera-capture]").addEventListener("click", async () => { const video = cameraDialog.querySelector("video"); if (!video?.videoWidth) return; const canvas = document.createElement("canvas"); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext("2d").drawImage(video, 0, 0); const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", .88)); if (!blob) return; try { pendingAttachments.push(await prepareAttachment(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }))); renderPendingAttachments(); stopCamera(); input?.focus(); } catch (error) { showAttachmentNotice(error.message || "The photo could not be added."); } }); } cameraDialog.classList.add("is-open"); cameraDialog.setAttribute("aria-hidden", "false"); const video = cameraDialog.querySelector("video"); try { cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }); video.srcObject = cameraStream; await video.play(); cameraDialog.querySelector("[data-camera-status]").textContent = "Ready. Position the image and capture it."; } catch { stopCamera(); showAttachmentNotice("Camera permission was denied or the camera is unavailable. Allow camera access and try again."); } };
+  const openCamera = async () => { if (!navigator.mediaDevices?.getUserMedia) { showAttachmentNotice("Live camera capture is unavailable here. Use a camera-enabled browser or Android app."); return; } if (!cameraDialog) { cameraDialog = document.createElement("section"); cameraDialog.className = "camera-dialog"; cameraDialog.setAttribute("aria-hidden", "true"); cameraDialog.innerHTML = `<div class="camera-dialog-panel" role="dialog" aria-modal="true" aria-label="Capture a photo"><div class="camera-dialog-header"><strong>Use camera</strong><button type="button" data-camera-close aria-label="Close camera">×</button></div><video autoplay playsinline muted></video><p data-camera-status>Allow camera access to take a photo.</p><div class="camera-dialog-actions"><button type="button" data-camera-cancel>Cancel</button><button type="button" data-camera-capture>Capture photo</button></div></div>`; document.body.append(cameraDialog); cameraDialog.querySelectorAll("[data-camera-close],[data-camera-cancel]").forEach((button) => button.addEventListener("click", stopCamera)); cameraDialog.querySelector("[data-camera-capture]").addEventListener("click", async () => { const video = cameraDialog.querySelector("video"); if (!video?.videoWidth) return; if (pendingAttachments.length >= maxAttachments) { showAttachmentNotice(`You can attach up to ${maxAttachments} files per message.`); return; } const canvas = document.createElement("canvas"); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext("2d").drawImage(video, 0, 0); const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", .88)); if (!blob) return; try { pendingAttachments.push(await prepareAttachment(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }))); renderPendingAttachments(); stopCamera(); input?.focus(); } catch (error) { showAttachmentNotice(error.message || "The photo could not be added."); } }); } cameraDialog.classList.add("is-open"); cameraDialog.setAttribute("aria-hidden", "false"); const video = cameraDialog.querySelector("video"); try { cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }); video.srcObject = cameraStream; await video.play(); cameraDialog.querySelector("[data-camera-status]").textContent = "Ready. Position the image and capture it."; } catch { stopCamera(); showAttachmentNotice("Camera permission was denied or the camera is unavailable. Allow camera access and try again."); } };
   const tableCells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
   const isTableDivider = (line) => /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line.trim());
   const renderTable = (header, rows) => `<div class="table-scroll"><table><thead><tr>${header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, index) => `<td>${inlineMarkdown(row[index] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
@@ -251,35 +503,96 @@
     flushBullets(); flushNumbered();
     element.innerHTML = output.join("");
   };
+  const renderMarkdownToHtml = (text) => {
+    const holder = document.createElement("div");
+    renderMarkdown(holder, text);
+    return holder.innerHTML;
+  };
+  // Publish the renderer as soon as it exists so the enhancement/edit path
+  // cannot fall back to the old raw-TeX renderer if a later optional feature
+  // fails to initialise.
+  window.XmaniusCoreRenderer = Object.freeze({ renderMarkdownToHtml });
   const animateAssistantText = (body, text, cursor) => {
     if (!body || !cursor || !text) return;
     const total = text.length;
     const duration = Math.min(50000, Math.max(1800, total * 16));
     const interval = 18;
-    const chunk = Math.max(1, Math.ceil(total / (duration / interval)));
+    const chunk = Math.max(1, Math.ceil(total / Math.max(1, Math.floor(duration / interval))));
     let position = 0;
     let finished = false;
+    let timer = 0;
+    const scrollToEnd = () => {
+      scrollChatToBottom();
+    };
+    const renderPartial = (value) => {
+      body.replaceChildren();
+      try {
+        renderMarkdown(body, value);
+      } catch {
+        // An incomplete Markdown/math token must never stop the animation.
+        body.textContent = value;
+      }
+      const targets = [...body.querySelectorAll("p, li, h3, td, th, .math-block, .code-block, pre, code")];
+      const target = targets[targets.length - 1] || body;
+      target.append(cursor);
+      scrollToEnd();
+    };
     const finish = () => {
       if (finished) return;
       finished = true;
+      if (timer) window.clearTimeout(timer);
       body.replaceChildren();
-      renderMarkdown(body, text);
+      try {
+        renderMarkdown(body, text);
+      } catch {
+        body.textContent = text;
+      }
       cursor.remove();
+      scrollToEnd();
     };
     const tick = () => {
       if (finished) return;
       position = Math.min(total, position + chunk);
-      body.replaceChildren();
-      renderMarkdown(body, text.slice(0, position));
-      const target = body.querySelector("p:last-of-type, li:last-of-type, h3:last-of-type, td:last-of-type, th:last-of-type") || body;
-      target.append(cursor);
-      document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
-      if (position < total) window.setTimeout(tick, 18);
+      renderPartial(text.slice(0, position));
+      if (position < total) timer = window.setTimeout(tick, interval);
       else finish();
     };
     body.replaceChildren();
     body.append(cursor);
     tick();
+  };
+  const openImageGallery = (items, initialIndex = 0) => {
+    const images = items.filter((item) => item?.imageUrl || item?.thumbnail);
+    if (!images.length) return;
+    let index = Math.max(0, Math.min(initialIndex, images.length - 1));
+    const overlay = document.createElement("section");
+    overlay.className = "image-gallery-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Image gallery");
+    const close = document.createElement("button");
+    close.type = "button"; close.className = "gallery-close"; close.setAttribute("aria-label", "Close gallery"); close.textContent = "×";
+    const counter = document.createElement("div"); counter.className = "gallery-counter";
+    const stage = document.createElement("figure"); stage.className = "gallery-stage";
+    const image = document.createElement("img"); image.className = "gallery-image"; image.decoding = "async";
+    const caption = document.createElement("figcaption"); caption.className = "gallery-attribution";
+    const previous = document.createElement("button"); previous.type = "button"; previous.className = "gallery-nav gallery-prev"; previous.setAttribute("aria-label", "Previous image"); previous.textContent = "‹";
+    const next = document.createElement("button"); next.type = "button"; next.className = "gallery-nav gallery-next"; next.setAttribute("aria-label", "Next image"); next.textContent = "›";
+    const update = () => {
+      const source = images[index];
+      image.src = source.imageUrl || source.thumbnail;
+      image.alt = source.title || "Searched image";
+      counter.textContent = `${index + 1} / ${images.length}`;
+      caption.replaceChildren();
+      const link = document.createElement("a"); link.href = source.url || source.imageUrl || source.thumbnail; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = source.displayLink || (() => { try { return new URL(source.url || source.imageUrl).hostname; } catch { return "Source"; } })();
+      const title = document.createElement("span"); title.textContent = source.title || "";
+      caption.append(link, title);
+      previous.disabled = images.length < 2; next.disabled = images.length < 2;
+    };
+    const dismiss = () => { overlay.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = (event) => { if (event.key === "Escape") dismiss(); if (event.key === "ArrowLeft") { index = (index - 1 + images.length) % images.length; update(); } if (event.key === "ArrowRight") { index = (index + 1) % images.length; update(); } };
+    close.addEventListener("click", dismiss); previous.addEventListener("click", () => { index = (index - 1 + images.length) % images.length; update(); }); next.addEventListener("click", () => { index = (index + 1) % images.length; update(); }); overlay.addEventListener("click", (event) => { if (event.target === overlay) dismiss(); }); document.addEventListener("keydown", onKey);
+    stage.append(image, caption); overlay.append(close, counter, previous, stage, next); document.body.append(overlay); update(); close.focus();
   };
   const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false } = {}) => {
     const answerEnvelope = stripAnswerSummaryTags(text);
@@ -290,6 +603,7 @@
     const item = document.createElement("article");
     item.className = `message ${type}${type === "assistant" && text.length >= 650 ? " long-response" : ""}`;
     item.dataset.rawText = text;
+    if (displaySources.length) item.dataset.sources = JSON.stringify(displaySources);
     if (reasoningSummary) item.dataset.reasoningSummary = reasoningSummary;
     if (reasoningSeconds) item.dataset.reasoningSeconds = String(reasoningSeconds);
     const body = document.createElement("div");
@@ -301,14 +615,14 @@
     if (type === "user" && attachmentNames.length) {
       const attached = document.createElement("div");
       attached.className = "message-attachments";
-      attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = `📎 ${name}`; attached.append(chip); });
+      attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = name; attached.append(chip); });
       item.append(attached);
     }
     if (type === "assistant" && (thinkMode || reasoningSeconds)) {
       const summary = document.createElement("details");
       summary.className = "thinking-summary";
       const summaryLabel = document.createElement("summary");
-      summaryLabel.innerHTML = `<span class="thought-glyph" aria-hidden="true">✦</span><span>Thought for ${Math.max(1, reasoningSeconds || 1)} seconds</span><span class="thought-chevron" aria-hidden="true">⌄</span>`;
+      summaryLabel.innerHTML = `<span class="thought-glyph" aria-hidden="true">✦</span><span>Thought for ${Math.max(1, reasoningSeconds || 1)} seconds</span><span class="thought-chevron dropdown-chevron" aria-hidden="true"></span>`;
       const summaryText = document.createElement("p");
       summaryText.textContent = reasoningSummary || "I identified the main request and checked the relevant context, assumptions, and constraints. I then selected a suitable method and verified the result before presenting the answer.";
       summary.append(summaryLabel, summaryText);
@@ -326,10 +640,22 @@
       if (displaySources.length) {
         const sourcePanel = document.createElement("section");
         sourcePanel.className = "source-panel";
-        sourcePanel.innerHTML = `<div class="source-heading"><span class="source-earth">◎</span><strong>Sources searched</strong><span>${displaySources.length}</span></div>`;
+        const imageSources = displaySources.filter((source) => source.kind === "image" || source.imageUrl);
+        const regularSources = displaySources.filter((source) => !imageSources.includes(source));
+        const heading = document.createElement("div"); heading.className = "source-heading"; heading.innerHTML = `<span class="source-earth">◎</span><strong>${imageSources.length ? "Images searched" : "Sources searched"}</strong><span>${imageSources.length || displaySources.length}</span>`; sourcePanel.append(heading);
+        if (imageSources.length) {
+          const imageGrid = document.createElement("div"); imageGrid.className = "image-results-grid";
+          imageSources.slice(0, 3).forEach((source, index) => {
+            const card = document.createElement("button"); card.type = "button"; card.className = "source-image-card"; card.setAttribute("aria-label", `Open image ${index + 1} of ${imageSources.length}`);
+            const image = document.createElement("img"); image.src = source.thumbnail || source.imageUrl; image.alt = source.title || "Searched image"; image.loading = "lazy"; image.referrerPolicy = "no-referrer"; card.append(image);
+            if (index === 2 && imageSources.length > 3) { const badge = document.createElement("span"); badge.className = "image-count-badge"; badge.textContent = `▧ ${imageSources.length}`; card.append(badge); }
+            card.addEventListener("click", () => openImageGallery(imageSources, index)); imageGrid.append(card);
+          });
+          sourcePanel.append(imageGrid);
+        }
         const sourceGrid = document.createElement("div");
         sourceGrid.className = "source-grid";
-        displaySources.slice(0, 8).forEach((source) => {
+        regularSources.slice(0, 8).forEach((source) => {
           if (!source?.url) return;
           const youtubeMatch = source.url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
           const card = document.createElement(youtubeMatch ? "article" : "a");
@@ -351,7 +677,7 @@
           if (youtubeMatch) { const link = document.createElement("a"); link.className = "source-open-link"; link.href = source.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = "Open on YouTube ↗"; card.append(link); }
           sourceGrid.append(card);
         });
-        sourcePanel.append(sourceGrid);
+        if (regularSources.length) sourcePanel.append(sourceGrid);
         item.append(sourcePanel);
       }
       const actions = document.createElement("div");
@@ -374,7 +700,7 @@
     list.append(item);
     if (persist) saveCurrentChat();
     if (animate && type === "assistant") animateAssistantText(body, text, responseCursor);
-    document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
+    scrollChatToBottom();
   };
   const setSendingState = (active) => { sendButton?.classList.toggle("is-stop", active); if (sendButton) { sendButton.setAttribute("aria-label", active ? "Stop response" : "Send message"); sendButton.title = active ? "Stop response" : "Send message"; sendButton.innerHTML = active ? '<span class="send-stop-icon" aria-hidden="true"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>'; } };
   const hasCodeInHistory = () => [...list.querySelectorAll(".message.assistant")].some((item) => item.querySelector("[data-code-block]") || /```|<\/?(?:html|script|style|div|button|function|const|let)\b/i.test(item.dataset.rawText || ""));
@@ -405,7 +731,7 @@
     thinking.setAttribute("role", "status");
     thinking.innerHTML = `<span>${requestAttachments.length ? "Reviewing the attachment" : thinkMode ? "Thinking carefully" : webSearch ? "Searching multiple sources" : rethink ? "Checking the previous code" : "Thinking"}</span><i></i><i></i><i></i>`;
     list.append(thinking);
-    document.querySelector(".chat-content").scrollTop = document.querySelector(".chat-content").scrollHeight;
+    scrollChatToBottom({ force: true });
     activeRequestController = new AbortController();
     const reasoningStartedAt = performance.now();
     const timeout = window.setTimeout(() => activeRequestController?.abort(), 180000);
@@ -419,7 +745,11 @@
     } catch (error) {
       thinking.remove();
       if (error.name === "AbortError") addMessage("The response was stopped by you.", "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
-      else addMessage(`The AI service could not be reached. ${error?.message || "Please check the deployment and API configuration."}`, "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
+      else {
+        const localFileHint = window.location.protocol === "file:" ? " Open the deployed site (or a local server) instead of opening the HTML file directly." : " Check that the deployed /api/xmanius-chat endpoint is available.";
+        const networkMessage = error?.message && error.message !== "Failed to fetch" ? error.message : `The AI service could not be reached.${localFileHint} Your API key stays server-side and was not exposed.`;
+        addMessage(networkMessage, "assistant", { animate: true, reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
+      }
     } finally {
       window.clearTimeout(timeout);
       activeRequestController = null;
@@ -545,13 +875,69 @@
   const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); modelToggle?.setAttribute("aria-expanded", String(open)); headerModelToggle?.setAttribute("aria-expanded", String(open)); };
   modelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
   headerModelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
-  const setSelectedModel = (model) => { selectedModel = ["xmanius-1", "xmanius-2", "xmanius-3"].includes(model) ? model : "xmanius-1"; modelPicker?.querySelectorAll("[data-model]").forEach((item) => { const active = item.dataset.model === selectedModel; item.classList.toggle("is-selected", active); item.setAttribute("aria-pressed", String(active)); const check = item.querySelector("b"); if (check) check.textContent = active ? "✓" : ""; }); if (modelName) modelName.innerHTML = `${selectedModel === "xmanius-3" ? "Xmanius 3" : selectedModel === "xmanius-2" ? "Xmanius 2" : "Xmanius 1"} <span>⌄</span>`; };
+  const setSelectedModel = (model) => { selectedModel = ["xmanius-1", "xmanius-2", "xmanius-3"].includes(model) ? model : "xmanius-1"; modelPicker?.querySelectorAll("[data-model]").forEach((item) => { const active = item.dataset.model === selectedModel; item.classList.toggle("is-selected", active); item.setAttribute("aria-pressed", String(active)); const check = item.querySelector("b"); if (check) check.textContent = active ? "✓" : ""; }); if (modelName) modelName.innerHTML = `${selectedModel === "xmanius-3" ? "Xmanius 3" : selectedModel === "xmanius-2" ? "Xmanius 2" : "Xmanius 1"} <span class="dropdown-chevron" aria-hidden="true"></span>`; };
   modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
   document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) setModelPicker(false); });
   const reset = () => { saveCurrentChat(); currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; input.value = ""; input.focus(); };
   document.querySelectorAll("[data-new-chat]").forEach((button) => button.addEventListener("click", reset));
-  recent?.addEventListener("click", async (event) => { const menuButton = event.target.closest("[data-chat-menu]"); if (menuButton) { recent.querySelectorAll(".conversation-row.is-menu-open").forEach((row) => row.classList.remove("is-menu-open")); menuButton.closest(".conversation-row").classList.toggle("is-menu-open"); return; } const action = event.target.closest("[data-chat-action]"); if (action) { const row = action.closest(".conversation-row"); const chats = readChats(); const chat = chats.find((item) => item.id === row.dataset.chatId); if (!chat) return; if (action.dataset.chatAction === "pin") chat.pinned = !chat.pinned; if (action.dataset.chatAction === "delete") { saveChats(chats.filter((item) => item.id !== chat.id)); if (chat.id === currentChatId) { currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; input.value = ""; } renderRecents(); return; } if (action.dataset.chatAction === "share") { const shareText = `${chat.title}\n\n${chat.messages.map((item) => `${item.type === "user" ? "You" : "Xmanius"}: ${item.text}`).join("\n\n")}`; if (navigator.share) await navigator.share({ title: chat.title, text: shareText }).catch(() => {}); else await navigator.clipboard?.writeText(shareText); } saveChats(chats); renderRecents(); return; } const button = event.target.closest("button[data-chat-id]"); if (button) { loadChat(button.dataset.chatId); recent.querySelectorAll(".is-menu-open").forEach((row) => row.classList.remove("is-menu-open")); } });
-  document.addEventListener("click", (event) => { if (!event.target.closest(".conversation-row")) recent?.querySelectorAll(".is-menu-open").forEach((row) => row.classList.remove("is-menu-open")); });
+  const handleChatAction = async (action, chatId) => {
+    const chats = readChats();
+    const chat = chats.find((item) => item.id === chatId);
+    if (!chat) { closeChatMenu(); return; }
+    if (action.dataset.chatAction === "pin") chat.pinned = !chat.pinned;
+    if (action.dataset.chatAction === "delete") {
+      saveChats(chats.filter((item) => item.id !== chat.id));
+      if (chat.id === currentChatId) {
+        currentChatId = crypto.randomUUID?.() || String(Date.now());
+        list.replaceChildren();
+        empty.hidden = false;
+        input.value = "";
+      }
+      closeChatMenu();
+      renderRecents();
+      return;
+    }
+    if (action.dataset.chatAction === "share") {
+      const shareText = `${chat.title}\n\n${chat.messages.map((item) => `${item.type === "user" ? "You" : "Xmanius"}: ${item.text}`).join("\n\n")}`;
+      if (navigator.share) await navigator.share({ title: chat.title, text: shareText }).catch(() => {});
+      else await navigator.clipboard?.writeText(shareText);
+    }
+    saveChats(chats);
+    closeChatMenu();
+    renderRecents();
+  };
+  recent?.addEventListener("click", (event) => {
+    const menuButton = event.target.closest("[data-chat-menu]");
+    if (menuButton) {
+      const row = menuButton.closest(".conversation-row");
+      if (openChatMenuRow === row) closeChatMenu();
+      else openChatMenuFor(row, menuButton);
+      return;
+    }
+    const action = event.target.closest("[data-chat-action]");
+    if (action) {
+      const row = action.closest(".conversation-row");
+      handleChatAction(action, row?.dataset.chatId || openChatMenuRow?.dataset.chatId);
+      return;
+    }
+    const button = event.target.closest("button[data-chat-id]");
+    if (button) {
+      closeChatMenu();
+      loadChat(button.dataset.chatId);
+    }
+  });
+  recent?.addEventListener("scroll", closeChatMenu, { passive: true });
+  window.addEventListener("resize", () => { if (openChatMenu && openChatMenuRow) positionChatMenu(openChatMenu, openChatMenuRow.querySelector("[data-chat-menu]")); });
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".conversation-menu-portal")) return;
+    if (!event.target.closest(".conversation-row")) closeChatMenu();
+  });
+  document.addEventListener("click", (event) => {
+    const action = event.target.closest(".conversation-menu-portal [data-chat-action]");
+    if (!action) return;
+    event.preventDefault();
+    handleChatAction(action, openChatMenuRow?.dataset.chatId);
+  });
   document.querySelector("[data-open-sidebar]")?.addEventListener("click", () => app.classList.add("sidebar-visible"));
   document.querySelector("[data-close-sidebar]")?.addEventListener("click", () => { if (window.matchMedia("(max-width: 720px)").matches) app.classList.remove("sidebar-visible"); else { const collapsed = app.classList.toggle("sidebar-collapsed"); const button = document.querySelector("[data-close-sidebar]"); button?.setAttribute("aria-label", collapsed ? "Open sidebar" : "Collapse sidebar"); button?.setAttribute("title", collapsed ? "Open sidebar" : "Collapse sidebar"); } });
   thinkToggle?.addEventListener("click", () => { thinkMode = !thinkMode; thinkToggle.classList.toggle("active", thinkMode); thinkToggle.setAttribute("aria-pressed", String(thinkMode)); });
@@ -581,6 +967,8 @@
   let profileMenu = null;
   let settingsBackdrop = null;
   let settingsSection = "general";
+  let settingsChoiceMenu = null;
+  let settingsChoiceButton = null;
   const memoryClearedKey = "xmanius-memory-cleared-at";
   const buildMemorySummary = () => {
     const clearedAt = Number(localStorage.getItem(memoryClearedKey) || 0);
@@ -590,11 +978,26 @@
     return "I keep this overview only in this browser. You have " + chats.length + " saved chat" + (chats.length === 1 ? "" : "s") + ". Recent topics include: " + (titles.join(", ") || "your recent conversations") + ".";
   };
   const closeProfileMenu = () => { profileMenu?.remove(); profileMenu = null; };
-  const closeSettings = () => { settingsBackdrop?.remove(); settingsBackdrop = null; };
+  const closeSettingsChoiceMenu = () => { settingsChoiceMenu?.remove(); settingsChoiceMenu = null; settingsChoiceButton = null; };
+  const positionSettingsChoiceMenu = () => {
+    if (!settingsChoiceMenu || !settingsChoiceButton?.isConnected) return;
+    const buttonRect = settingsChoiceButton.getBoundingClientRect();
+    const menuRect = settingsChoiceMenu.getBoundingClientRect();
+    const padding = 10;
+    let left = buttonRect.right - menuRect.width;
+    if (left < padding) left = buttonRect.left;
+    left = Math.max(padding, Math.min(left, window.innerWidth - menuRect.width - padding));
+    let top = buttonRect.bottom + 7;
+    if (top + menuRect.height > window.innerHeight - padding && buttonRect.top - menuRect.height - 7 >= padding) top = buttonRect.top - menuRect.height - 7;
+    settingsChoiceMenu.style.left = `${Math.round(left)}px`;
+    settingsChoiceMenu.style.top = `${Math.round(Math.max(padding, top))}px`;
+  };
+  const closeSettings = () => { closeSettingsChoiceMenu(); settingsBackdrop?.remove(); settingsBackdrop = null; };
   const settingValue = (key) => settingLabels[key]?.[appSettings[key]] || appSettings[key] || "Default";
-  const createSettingRow = (key, label, description = "") => '<div class="settings-row"><div><strong>' + label + '</strong>' + (description ? '<small>' + description + '</small>' : '') + '</div><button type="button" class="settings-value" data-setting-choice="' + key + '">' + settingValue(key) + '<span aria-hidden="true">⌄</span></button></div>';
+  const createSettingRow = (key, label, description = "") => '<div class="settings-row"><div><strong>' + label + '</strong>' + (description ? '<small>' + description + '</small>' : '') + '</div><button type="button" class="settings-value" data-setting-choice="' + key + '">' + settingValue(key) + '<span class="dropdown-chevron" aria-hidden="true"></span></button></div>';
   const renderSettingsSection = () => {
     if (!settingsBackdrop) return;
+    closeSettingsChoiceMenu();
     const content = settingsBackdrop.querySelector("[data-settings-content]");
     const title = settingsBackdrop.querySelector("[data-settings-title]");
     if (!content || !title) return;
@@ -635,14 +1038,24 @@
         if (section) { settingsSection = section.dataset.settingsSection; settingsBackdrop.querySelectorAll("[data-settings-section]").forEach((item) => item.classList.toggle("is-active", item === section)); renderSettingsSection(); return; }
         const choiceButton = event.target.closest("[data-setting-choice]");
         if (choiceButton) {
-          const existingChoice = settingsBackdrop.querySelector(".settings-choice-menu");
-          if (existingChoice?.dataset.settingKey === choiceButton.dataset.settingChoice) { existingChoice.remove(); return; }
-          existingChoice?.remove();
+          if (settingsChoiceMenu?.dataset.settingKey === choiceButton.dataset.settingChoice) { closeSettingsChoiceMenu(); return; }
+          closeSettingsChoiceMenu();
           const menu = document.createElement("div");
-          menu.className = "settings-choice-menu";
+          menu.className = "settings-choice-menu settings-choice-menu-portal";
           menu.dataset.settingKey = choiceButton.dataset.settingChoice;
           settingChoices[choiceButton.dataset.settingChoice].forEach(([value, label]) => { const option = document.createElement("button"); option.type = "button"; option.dataset.settingOption = value; option.dataset.settingKey = choiceButton.dataset.settingChoice; option.innerHTML = '<span>' + label + '</span>' + (appSettings[choiceButton.dataset.settingChoice] === value ? '<b>✓</b>' : ''); menu.append(option); });
-          choiceButton.parentElement.append(menu);
+          menu.addEventListener("click", (menuEvent) => {
+            const option = menuEvent.target.closest("[data-setting-option]");
+            if (!option) return;
+            appSettings[option.dataset.settingKey] = option.dataset.settingOption;
+            saveSettings();
+            applySettings();
+            renderSettingsSection();
+          });
+          settingsChoiceMenu = menu;
+          settingsChoiceButton = choiceButton;
+          document.body.append(menu);
+          positionSettingsChoiceMenu();
           return;
         }
         const option = event.target.closest("[data-setting-option]");
@@ -679,6 +1092,8 @@
   };
   accountButton?.addEventListener("click", (event) => { event.stopPropagation(); if (profileMenu) { closeProfileMenu(); return; } profileMenu = createProfileMenu(); accountButton.parentElement.append(profileMenu); });
   document.addEventListener("click", (event) => { if (profileMenu && !event.target.closest("[data-account-button], .profile-menu")) closeProfileMenu(); });
+  document.addEventListener("click", (event) => { if (settingsChoiceMenu && !event.target.closest("[data-setting-choice], .settings-choice-menu-portal")) closeSettingsChoiceMenu(); });
+  window.addEventListener("resize", positionSettingsChoiceMenu);
   applySettings();
   const colorScheme = window.matchMedia("(prefers-color-scheme: light)");
   colorScheme.addEventListener?.("change", () => { if (appSettings.appearance === "system") applySettings(); });
@@ -715,7 +1130,7 @@
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { panel.querySelector(".ai-guide__voice-greeting").textContent = "Voice input needs Chrome or Edge over HTTPS or localhost."; return; }
     const recognitionInstance = new Recognition(); recognitionInstance.lang = navigator.language || "en-US"; recognitionInstance.interimResults = false; recognitionInstance.continuous = false;
-    const mic = panel.querySelector("[data-general-mic]"); recognitionInstance.onstart = () => { panel.dataset.voiceState = "listening"; mic.classList.add("is-active"); panel.querySelector(".ai-guide__voice-greeting").textContent = "Listening…"; }; recognitionInstance.onresult = async (event) => { const question = event.results[0][0].transcript.trim(); panel.dataset.voiceState = "thinking"; panel.querySelector(".ai-guide__voice-greeting").textContent = "Thinking…"; const response = await fetch("api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: question }) }); const data = await response.json(); const answer = data.reply || data.error || "I could not answer that right now."; panel.querySelector(".ai-guide__voice-greeting").textContent = answer; if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(answer)); panel.dataset.voiceState = "speaking"; }; recognitionInstance.onend = () => { mic.classList.remove("is-active"); }; recognitionInstance.start();
+    const mic = panel.querySelector("[data-general-mic]"); recognitionInstance.onstart = () => { panel.dataset.voiceState = "listening"; mic.classList.add("is-active"); panel.querySelector(".ai-guide__voice-greeting").textContent = "Listening…"; }; recognitionInstance.onresult = async (event) => { const question = event.results[0][0].transcript.trim(); panel.dataset.voiceState = "thinking"; panel.querySelector(".ai-guide__voice-greeting").textContent = "Thinking…"; const response = await fetch("/api/xmanius-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: question }) }); const data = await response.json(); const answer = data.reply || data.error || "I could not answer that right now."; panel.querySelector(".ai-guide__voice-greeting").textContent = answer; if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(answer)); panel.dataset.voiceState = "speaking"; }; recognitionInstance.onend = () => { mic.classList.remove("is-active"); }; recognitionInstance.start();
   };
   window.__openXmaniusVoice = openGeneralVoice;
   document.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) openGeneralVoice(); });

@@ -7,8 +7,8 @@
   <title>Xmanius Chat</title>
   <link rel="icon" type="image/png" href="assets/xmanius-icon.png?v=20260826-logo2">
   <link rel="apple-touch-icon" href="assets/xmanius-icon.png?v=20260826-logo2">
-  <link rel="stylesheet" href="css/xmanius-chat.css?v=20260826-ocr1">
-  <link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260825-2">
+  <link rel="stylesheet" href="css/xmanius-chat.css?v=20260827-mic1">
+  <link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260827-composer1">
 </head>
 <body>
   <div class="chat-app">
@@ -19,7 +19,7 @@
       <button class="sidebar-account" type="button" data-account-button><span class="avatar">G</span><span><b data-account-name>Guest user</b><small data-account-status>Connect Google</small></span><span class="account-more">•••</span></button>
     </aside>
     <div class="chat-main">
-      <header class="chat-header"><button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button><button class="model-name" type="button" data-model-menu aria-expanded="false" aria-haspopup="listbox">Xmanius 1 <span class="model-chevron" aria-hidden="true">⌄</span></button><div class="header-tools"><button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit"><span class="usage-ring"><span></span></span><span class="usage-details"><span data-usage-label>0%</span><small data-usage-reset>Reset time loading…</small></span></button><button class="icon-button" type="button" aria-label="New conversation" data-new-chat>＋</button></div></header>
+      <header class="chat-header"><button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button><button class="model-name" type="button" data-model-menu aria-expanded="false" aria-haspopup="listbox">Xmanius 1 <span class="dropdown-chevron" aria-hidden="true"></span></button><div class="header-tools"><button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit"><span class="usage-ring"><span></span></span><span class="usage-details"><span data-usage-label>0%</span><small data-usage-reset>Reset time loading…</small></span></button><button class="icon-button" type="button" aria-label="New conversation" data-new-chat>＋</button></div></header>
       <main class="chat-content" id="chat-content"><section class="empty-state" data-empty-state><h1>Where should we begin?</h1><p>Ask Xmanius anything.</p></section><section class="message-list" data-message-list aria-live="polite"></section></main>
       <form class="chat-composer" data-chat-form>
         <button class="composer-icon composer-plus" type="button" data-model-toggle aria-expanded="false" aria-label="Choose model">+</button>
@@ -37,8 +37,6 @@
         <div class="model-picker" data-model-picker aria-label="Model selection">
           <span class="model-picker-label">MODEL</span>
           <button type="button" class="model-option is-selected" data-model="xmanius-1" aria-pressed="true"><strong>Xmanius 1</strong><b aria-hidden="true">✓</b></button>
-          <button type="button" class="model-option" data-model="xmanius-2" aria-pressed="false"><strong>Xmanius 2</strong><b aria-hidden="true"></b></button>
-          <button type="button" class="model-option" data-model="xmanius-3" aria-pressed="false"><strong>Xmanius 3</strong><b aria-hidden="true"></b></button>
           <button type="button" class="model-option model-option-voice" data-voice-chat><strong>Voice chat</strong><span aria-hidden="true">↗</span></button>
           <div class="model-picker-divider" aria-hidden="true"></div>
           <button type="button" class="model-option model-option-attachment" data-attach-files><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 13.5 7a3.5 3.5 0 0 1 5 5l-7.5 7.5a5 5 0 0 1-7-7L11.5 5"></path></svg><span class="attachment-option-copy"><strong>Add photos &amp; files</strong><small>Upload from computer</small></span><b class="shortcut-label">Ctrl + K</b></button>
@@ -50,7 +48,7 @@
     </div>
   </div>
   <script src="js/xmanius-stream-client.js?v=20260825-2" defer></script>
-  <script src="js/xmanius-chat.js?v=20260826-render5" defer></script>
-  <script src="js/xmanius-enhancements.js?v=20260826-render5" defer></script>
+  <script src="js/xmanius-chat.js?v=20260827-mic1" defer></script>
+  <script src="js/xmanius-enhancements.js?v=20260827-settings2" defer></script>
 </body>
 </html>
