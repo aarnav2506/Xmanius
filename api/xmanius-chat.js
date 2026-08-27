@@ -5,6 +5,15 @@ const MAX_ATTACHMENTS = 10;
 const MAX_ATTACHMENT_DATA = 210000000;
 const MAX_ATTACHMENT_TEXT = 20000;
 const UPSTREAM_TIMEOUT_MS = 60000;
+const NORMAL_UPSTREAM_TIMEOUT_MS = 8000;
+const THINK_UPSTREAM_TIMEOUT_MS = 45000;
+const NORMAL_PROVIDER_BUDGET_MS = 12000;
+const THINK_PROVIDER_BUDGET_MS = 90000;
+
+// Keep provider health in the warm serverless instance. A bad or exhausted
+// key is skipped for a short period instead of delaying every new message.
+const keyHealth = new Map();
+let knownGoodGeminiModel = "";
 
 const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -17,6 +26,10 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = UPSTREAM_TIMEOUT_
 
 const errorKind = (status) => status === 429 ? "provider_quota" : status === 401 || status === 403 ? "auth_config" : status === 400 ? "invalid_request" : status >= 500 ? "provider_outage" : "provider_error";
 const retryableModelStatus = (status) => [401, 403, 404, 429, 500, 502, 503, 504].includes(status);
+const keyCooldownMs = (status) => status === 429 ? 60000 : status === 401 || status === 403 || status === 404 ? 10 * 60 * 1000 : 15000;
+const keyIsCoolingDown = (keyName) => (keyHealth.get(keyName)?.cooldownUntil || 0) > Date.now();
+const markKeyFailure = (keyName, status) => { keyHealth.set(keyName, { cooldownUntil: Date.now() + keyCooldownMs(status), status }); };
+const markKeySuccess = (keyName) => { keyHealth.set(keyName, { cooldownUntil: 0, status: 200, lastSuccessAt: Date.now() }); };
 const supportedAttachment = (mimeType, name) => /^(image\/(?:png|jpeg|jpg|webp|gif)|application\/pdf|text\/plain|text\/markdown|text\/csv|application\/json)$/i.test(mimeType) || /\.(?:png|jpe?g|webp|gif|pdf|txt|md|csv|json|js|html|css|py)$/i.test(name);
 const normalizeAttachment = (item) => {
   if (!item || typeof item !== "object") return null;
@@ -112,22 +125,59 @@ export default async function handler(request, response) {
     attachments.forEach((attachment) => { if (attachment.text) userParts.push({ text: `Attached text file (${attachment.name}):\n${attachment.text}` }); else userParts.push({ inlineData: { mimeType: attachment.mimeType, data: attachment.data } }); });
     const contents = [...history, { role: "user", parts: userParts }];
     let upstream;
-    for (const candidateModel of modelOrder) {
+    let lastProviderError = null;
+    const providerStartedAt = Date.now();
+    const providerBudgetMs = thinkMode ? THINK_PROVIDER_BUDGET_MS : NORMAL_PROVIDER_BUDGET_MS;
+    const perAttemptTimeoutMs = thinkMode ? THINK_UPSTREAM_TIMEOUT_MS : NORMAL_UPSTREAM_TIMEOUT_MS;
+    const configuredModels = modelOrder.filter((candidateModel) => apiKeyForModel(candidateModel));
+    const healthyModels = configuredModels.filter((candidateModel) => !keyIsCoolingDown(candidateModel));
+    // Keep key 1 as the normal primary, but use the next available key when
+    // a previous request proved that the primary is unavailable.
+    const orderedModels = (healthyModels.length ? healthyModels : configuredModels).sort((left, right) => {
+      const leftRank = left === selectedModel ? 0 : 1;
+      const rightRank = right === selectedModel ? 0 : 1;
+      if (leftRank !== rightRank) return leftRank - rightRank;
+      return (keyHealth.get(left)?.lastSuccessAt || 0) > (keyHealth.get(right)?.lastSuccessAt || 0) ? -1 : 1;
+    });
+    for (const candidateModel of orderedModels) {
+      const remainingBudgetMs = providerBudgetMs - (Date.now() - providerStartedAt);
+      if (remainingBudgetMs <= 0) break;
       const apiKey = apiKeyForModel(candidateModel);
       if (!apiKey) continue;
       const candidateSuffix = candidateModel === "xmanius-1" ? "" : "_" + candidateModel.slice("xmanius-".length);
       const candidateBaseModel = process.env["XMANIUS_GEMINI_MODEL" + candidateSuffix] || model;
-      const modelCandidates = [...new Set([candidateBaseModel, process.env.XMANIUS_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash"])];
+      const fallbackModel = process.env.XMANIUS_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
+      const modelCandidates = [...new Set([knownGoodGeminiModel, candidateBaseModel, fallbackModel].filter(Boolean))];
       for (const candidate of modelCandidates) {
+        const remainingAttemptMs = providerBudgetMs - (Date.now() - providerStartedAt);
+        if (remainingAttemptMs <= 0) break;
         const generationConfig = { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 8192 : 6144 };
         if (/^gemini-2\.5/i.test(candidate)) generationConfig.thinkingConfig = { thinkingBudget: thinkMode ? 1024 : 0 };
         else if (/^gemini-3/i.test(candidate)) generationConfig.thinkingConfig = { thinkingLevel: thinkMode ? "medium" : "minimal" };
-        upstream = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig }) });
-        if (upstream.ok) break;
-        if (!retryableModelStatus(upstream.status)) break;
+        try {
+          upstream = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] }, contents, generationConfig }) }, Math.min(perAttemptTimeoutMs, remainingAttemptMs));
+        } catch (error) {
+          upstream = undefined;
+          lastProviderError = error;
+          markKeyFailure(candidateModel, error?.name === "AbortError" ? 504 : 503);
+          // A network timeout is the only slow failure path. Give the next
+          // healthy key a chance, but stop when the request budget is spent.
+          continue;
+        }
+        if (upstream.ok) { markKeySuccess(candidateModel); knownGoodGeminiModel = candidate; break; }
+        lastProviderError = new Error(`Gemini request failed (${upstream.status})`);
+        markKeyFailure(candidateModel, upstream.status);
+        // A fallback model is useful for a missing model (404). Quota,
+        // authentication, and provider failures belong to this key, so move
+        // to the next key immediately instead of making another slow request.
+        if (upstream.status !== 404) break;
       }
       if (upstream?.ok) break;
       if (upstream && !retryableModelStatus(upstream.status)) break;
+    }
+    if (!upstream) {
+      const timedOut = lastProviderError?.name === "AbortError";
+      return fail(timedOut ? 504 : 503, timedOut ? "The AI service took too long to respond. Please try again." : "The AI service is temporarily unavailable. Please try again.", timedOut ? "provider_timeout" : "provider_unavailable");
     }
     const data = await upstream.json().catch(() => ({}));
     if (!upstream.ok) { const kind = errorKind(upstream.status); const providerMessage = kind === "provider_quota" ? "This model is temporarily rate-limited. Please wait or switch models." : kind === "auth_config" ? "The selected model credentials were rejected. Check its Vercel environment variable and model name." : kind === "invalid_request" ? "The AI provider rejected this request. Please try a shorter or clearer message." : "The AI service is temporarily unavailable. Please try again."; return fail(upstream.status >= 500 ? 502 : upstream.status, providerMessage, kind, { providerStatus: upstream.status }); }
