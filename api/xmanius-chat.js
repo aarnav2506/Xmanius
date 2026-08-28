@@ -13,9 +13,9 @@ const THINK_UPSTREAM_TIMEOUT_MS = 45000;
 const SEARCH_UPSTREAM_TIMEOUT_MS = 12000;
 const NORMAL_PROVIDER_BUDGET_MS = 20000;
 const THINK_PROVIDER_BUDGET_MS = 120000;
-// A stale or mistyped deployment model must not make every selected slot fail.
-// This fallback still uses only the API key for the selected Xmanius slot.
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+// All Xmanius slots use Gemini 3.6 Flash unless a slot deliberately has its
+// own server-side model variable. Keep this aligned with the deployed keys.
+const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 
 const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -114,9 +114,8 @@ export default async function handler(request, response) {
   const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_ITEMS).filter((item) => item && (item.role === "user" || item.role === "model") && typeof item.text === "string").map((item) => ({ role: item.role, parts: [{ text: item.text.slice(0, MAX_HISTORY_TEXT) }] })) : [];
   if (!apiKeyForModel(selectedModel)) return fail(503, `Xmanius ${selectedModel.replace("xmanius-", "")} is not configured. Add its server-side AI environment variable in Vercel.`, "auth_config");
   try {
-    // Use a fast model with thinking disabled for the normal path. A stale or
-    // unavailable default model can otherwise cause a needless 404 then a
-    // second upstream request before a simple greeting is answered.
+    // Gemini 3.6 Flash is the working shared default. Individual Xmanius
+    // slots can still override it through XMANIUS_GEMINI_MODEL_2 through _9.
     const model = environmentValue("XMANIUS_GEMINI_MODEL") || DEFAULT_GEMINI_MODEL;
     let searchContext = "";
     let searchResults = [];
@@ -191,8 +190,10 @@ export default async function handler(request, response) {
         `XMANIUS_GEMINI_MODEL_${slot}`,
       ) || model;
       const fallbackModel = environmentValue("XMANIUS_GEMINI_FALLBACK_MODEL") || DEFAULT_GEMINI_MODEL;
-      // Always retain a known-safe final fallback after a provider 404.
-      const modelCandidates = [...new Set([candidateBaseModel, fallbackModel, DEFAULT_GEMINI_MODEL].filter(Boolean))];
+      // Prefer the slot's configured model first. This means all nine slots
+      // use Gemini 3.6 Flash when configured that way, without a detour to a
+      // different model that can produce an avoidable 404.
+      const modelCandidates = [...new Set([candidateBaseModel, fallbackModel].filter(Boolean))];
       for (const candidate of modelCandidates) {
         const remainingAttemptMs = providerBudgetMs - (Date.now() - providerStartedAt);
         if (remainingAttemptMs <= 0) break;

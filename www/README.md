@@ -26,6 +26,8 @@ Build a debug APK from Android Studio, or run `npm run android:debug` after Andr
 
 The bundled app can display the website locally. Gemini requests still need a deployed backend URL because Vercel serverless functions do not execute inside an APK. Configure that connection before testing AI responses in the installed app.
 
+The APK's public runtime configuration must contain the HTTPS origin of the same Vercel deployment that contains this repository's `api/xmanius-chat.js` function. Deploy from the repository root, not from `www/`; otherwise `/api/xmanius-chat` will return 404. Replace the example URL in `xmanius-runtime-config.js` and then run `npm run cap:sync` before rebuilding the APK if your deployment uses a different Vercel domain.
+
 ## Project structure
 
 ```text
@@ -44,19 +46,23 @@ Add this environment variable in the Vercel project settings. Do not commit the 
 
 ```text
 XMANIUS_GEMINI_API_KEY=your_separate_gemini_key
-XMANIUS_GEMINI_MODEL=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_2=your_second_gemini_key
-XMANIUS_GEMINI_MODEL_2=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_2=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_3=your_third_gemini_key
-XMANIUS_GEMINI_MODEL_3=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_3=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_4=your_fourth_gemini_key
-XMANIUS_GEMINI_MODEL_4=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_4=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_5=your_fifth_gemini_key
-XMANIUS_GEMINI_MODEL_5=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_5=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_6=your_sixth_gemini_key
-XMANIUS_GEMINI_MODEL_6=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_6=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_7=your_seventh_gemini_key
-XMANIUS_GEMINI_MODEL_7=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_7=gemini-2.5-flash
+XMANIUS_GEMINI_API_KEY_8=your_eighth_gemini_key
+XMANIUS_GEMINI_MODEL_8=gemini-2.5-flash
+XMANIUS_GEMINI_API_KEY_9=your_ninth_gemini_key
+XMANIUS_GEMINI_MODEL_9=gemini-2.5-flash
 # Optional, required only for the Web button:
 XMANIUS_GOOGLE_SEARCH_API_KEY=your_google_search_key
 XMANIUS_GOOGLE_SEARCH_CX=your_programmable_search_engine_id
@@ -69,7 +75,7 @@ The Web button uses Google’s server-side Custom Search JSON API when both opti
 
 YouTube requests use the YouTube Data API search endpoint so the app receives real video IDs and thumbnails for embedded previews. Set `XMANIUS_YOUTUBE_API_KEY` to a Google Cloud API key with YouTube Data API v3 enabled, or reuse the Google search key if that API is enabled on the same project.
 
-The chat displays only Xmanius 1. The server privately keeps a failover pool of up to seven Gemini keys: XMANIUS_GEMINI_API_KEY and _2 through _7. When the active key is rate-limited or temporarily unavailable, the next configured key is tried automatically. The extra model labels and key values are never sent to the browser.
+The chat lets the user select Xmanius 1 through Xmanius 9. Each selected model maps to exactly one server-side Gemini key; automatic key switching is disabled. If a selected key is rate-limited or unavailable, the response identifies that selected slot so the user can choose another model manually. Normal replies use a short provider timeout and budget; Think replies receive a separate, longer budget. The key values are never sent to the browser.
 
 ## GitHub Pages
 
