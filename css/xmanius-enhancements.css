@@ -1636,4 +1636,51 @@ body.xmanius-theme-light .message-body .math-function {
   .message.ai-message--thinking > .message-body {
     text-align: left;
   }
+
+  /* Keep the Android composer inside the viewport. This is intentionally
+     portrait-only so desktop positioning remains unchanged. */
+  .chat-composer {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: calc(100% - 24px);
+    max-width: none;
+    min-height: 64px;
+    border-radius: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    overflow: visible;
+    z-index: 50;
+  }
+
+  .chat-composer .composer-attachments {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    width: 100%;
+    max-height: min(42vh, 280px);
+    overflow: auto;
+    z-index: 60;
+  }
+
+  .chat-composer .chat-input {
+    min-width: 0;
+    flex: 1 1 0;
+    width: auto;
+  }
+
+  .chat-composer .model-picker {
+    position: absolute;
+    left: auto;
+    right: 0;
+    bottom: calc(100% + 8px);
+    max-width: calc(100vw - 24px);
+    max-height: min(64vh, 520px);
+    overflow: visible;
+    z-index: 70;
+  }
 }

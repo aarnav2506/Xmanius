@@ -39,7 +39,8 @@
   };
   const getApiEndpoint = () => {
     const base = readApiBase();
-    return base ? `${base}/api/xmanius-chat` : "/api/xmanius-chat";
+    if (!base) return "/api/xmanius-chat";
+    return /\/api\/xmanius-chat$/i.test(base) ? base : `${base}/api/xmanius-chat`;
   };
   const isNativeApp = () => window.location.protocol === "file:" || Boolean(window.Capacitor?.isNativePlatform?.());
   window.XmaniusApiEndpoint = getApiEndpoint;
@@ -73,6 +74,18 @@
   const usageKey = "xmanius-usage-v1";
   const usageLimit = 35;
   const usageWindow = 5 * 60 * 60 * 1000;
+  const keySlotHintStorageKey = "xmanius-key-slot-hint";
+  const readKeySlotHint = () => {
+    try {
+      const slot = Number(localStorage.getItem(keySlotHintStorageKey));
+      return Number.isInteger(slot) && slot >= 1 && slot <= 9 ? slot : null;
+    } catch { return null; }
+  };
+  const rememberKeySlot = (slot) => {
+    const value = Number(slot);
+    if (!Number.isInteger(value) || value < 1 || value > 9) return;
+    try { localStorage.setItem(keySlotHintStorageKey, String(value)); } catch { /* storage is optional */ }
+  };
   const readUsage = () => { try { const value = JSON.parse(localStorage.getItem(usageKey) || "null"); if (!value || Date.now() - value.startedAt >= usageWindow) return { count: 0, startedAt: Date.now() }; return value; } catch { return { count: 0, startedAt: Date.now() }; } };
   const formatResetTime = (timestamp) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(timestamp));
   const updateUsage = (increment = false) => { const usage = readUsage(); if (increment) usage.count += 1; localStorage.setItem(usageKey, JSON.stringify(usage)); const percent = Math.min(100, Math.round(usage.count / usageLimit * 100)); const resetAt = usage.startedAt + usageWindow; const resetText = formatResetTime(resetAt); usageIndicator?.style.setProperty("--usage", `${percent}%`); if (usageLabel) usageLabel.textContent = `${percent}%`; if (usageReset) usageReset.textContent = `Reset ${resetText}`; usageIndicator?.setAttribute("title", `${Math.max(0, usageLimit - usage.count)} requests left. Resets at ${resetText}.`); usageIndicator?.setAttribute("aria-label", `${percent}% used. ${Math.max(0, usageLimit - usage.count)} requests left. Resets at ${resetText}.`); if (usageNotice && usage.count >= usageLimit) { usageNotice.textContent = `Your 5-hour Xmanius limit is over. It will refresh at ${resetText}.`; usageNotice.classList.add("is-visible"); } return usage.count < usageLimit; };
@@ -334,7 +347,12 @@
   };
   const matrixCommandNames = new Set(["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "smallmatrix", "array"]);
   const normalizeBareMatrixCommands = (value) => {
-    const source = String(value || "");
+    // Some providers omit the TeX slash and insert a space in `pmatrix`.
+    // Canonicalize those tokens before pairing their opening and closing
+    // commands so the matrix renderer can preserve rows and columns.
+    const source = String(value || "")
+      .replace(/\\([pPbBvV])\s+matrix\b/g, "\\$1matrix")
+      .replace(/(^|[^\\A-Za-z{])([pPbBvV])\s+matrix\b/g, "$1$2matrix");
     // Recover the common provider output `pmatrix ... pmatrix` without
     // changing already escaped commands or ordinary prose that mentions
     // the word "matrix" only once.
@@ -366,6 +384,10 @@
       // slash followed by whitespace, which is also safe to recover.
       .replace(/\\\\/g, "\n")
       .replace(/(?:^|\s)\\(?=\s|$)/g, "\n")
+      // A few model responses use a lone slash before the next numeric row
+      // instead of a TeX row break. Recover that form without touching
+      // commands such as \\times or \\rightarrow.
+      .replace(/(^|[ \t])\\(?=\s*[-+−]?\d)/gm, "$1\n")
       .replace(/^\s*\{[^{}\n]+\}\s*(?=\S)/, "")
       .split(/\n+/)
       .map((row) => row.trim())
@@ -390,7 +412,10 @@
     return result.replace(/\*\*|__/g, "");
   };
   const renderMathExpression = (value) => {
-    const source = normalizeBareMatrixCommands(normalizeExtendedMathNotation(stripMathDelimiters(value)));
+    const source = normalizeBareMatrixCommands(
+      normalizeExtendedMathNotation(stripMathDelimiters(value))
+        .replace(/\b(?:times|multiplied\s+by)\b/gi, "\\times")
+    );
     let output = "";
     let cursor = 0;
     while (cursor < source.length) {
@@ -504,6 +529,9 @@
       .replace(/\$\$?/g, "")
       .replace(/(^|\n)\s*#{1,6}\s+/g, "$1")
       .replace(/\\([{}])/g, "$1");
+    // Keep paired Markdown emphasis available for the formatter below.
+    // Unmatched markers are removed after paired markers have been turned
+    // into <strong>, so raw `**` never leaks into the visible answer.
     // Models sometimes emit a Markdown blockquote marker for ordinary
     // prompt labels or prose. The app does not render blockquotes, so the
     // marker should never leak into the visible answer as a stray `>`.
@@ -534,6 +562,7 @@
       .replace(/__(.+?)__/gs, "<strong>$1</strong>")
       .replace(/~~(.+?)~~/gs, "<del>$1</del>")
       .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+    output = output.replace(/\*\*/g, "");
     tokens.forEach((html, index) => { output = output.split(`\uE000${index}\uE001`).join(html); });
     return output;
   };
@@ -592,7 +621,11 @@
     return null;
   };
   const renderTextWithMath = (value) => {
-    const source = normalizeBareMatrixCommands(normalizeExtendedMathNotation(value));
+    let source = normalizeBareMatrixCommands(normalizeExtendedMathNotation(value));
+    // Normalize multiplication written in ordinary language when both sides
+    // are clearly numeric. This fixes outputs such as `1 times 1 + 2 times 2`
+    // without changing prose that uses the word “times” normally.
+    source = source.replace(/(\d+(?:\s*\/\s*\d+)?|\([^()\n]+\))\s+(?:times|imes|multiplied\s+by)\s+(\d+(?:\s*\/\s*\d+)?|\([^()\n]+\))/gi, "$1 \\times $2");
     let output = "";
     let cursor = 0;
     let textStart = 0;
@@ -982,8 +1015,6 @@
     pendingAttachments = [];
     renderPendingAttachments();
     updateUsage(true);
-    const local = requestAttachments.length ? null : localAnswer(q);
-    if (local && appSettings.fastAnswers && !thinkMode && !webSearch && selectedModel === "xmanius-1") { addMessage(local, "assistant", { animate: true }); return; }
     const thinking = document.createElement("article");
     thinking.className = "message assistant thinking ai-message--thinking";
     thinking.setAttribute("role", "status");
@@ -1004,8 +1035,9 @@
     }, thinkMode ? 300000 : 180000);
     setSendingState(true);
     try {
-      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });
+      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, keySlotHint: readKeySlotHint(), attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });
       const data = await response.json().catch(() => ({}));
+      rememberKeySlot(data.activeKeySlot);
       thinking.remove();
     // Failover is intentionally silent: the public model label remains Xmanius 1.
       addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "", reasoningSummary: response.ok && thinkMode ? data.reasoningSummary : "", reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });

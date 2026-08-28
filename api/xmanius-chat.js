@@ -19,6 +19,10 @@ const THINK_PROVIDER_BUDGET_MS = 120000;
 // key is skipped for a short period instead of delaying every new message.
 const keyHealth = new Map();
 let knownGoodGeminiModel = "";
+// The pool is shared by requests handled by the same warm function instance.
+// Remembering the next key is important: otherwise every request starts at
+// key 1 again and pays the latency of discovering the same exhausted keys.
+let preferredGeminiKey = "xmanius-1";
 
 const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -31,10 +35,20 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = UPSTREAM_TIMEOUT_
 
 const errorKind = (status) => status === 429 ? "provider_quota" : status === 401 || status === 403 ? "auth_config" : status === 400 ? "invalid_request" : status >= 500 ? "provider_outage" : "provider_error";
 const retryableModelStatus = (status) => [401, 403, 404, 408, 409, 425, 429, 500, 502, 503, 504].includes(status);
-const keyCooldownMs = (status) => status === 429 ? 60000 : status === 401 || status === 403 || status === 404 ? 10 * 60 * 1000 : 15000;
+const keyCooldownMs = (status, failures = 1) => {
+  const base = status === 429 ? 5 * 60 * 1000 : status === 401 || status === 403 || status === 404 ? 10 * 60 * 1000 : 15000;
+  return Math.min(base * Math.max(1, failures), 30 * 60 * 1000);
+};
 const keyIsCoolingDown = (keyName) => (keyHealth.get(keyName)?.cooldownUntil || 0) > Date.now();
-const markKeyFailure = (keyName, status) => { keyHealth.set(keyName, { cooldownUntil: Date.now() + keyCooldownMs(status), status }); };
-const markKeySuccess = (keyName) => { keyHealth.set(keyName, { cooldownUntil: 0, status: 200, lastSuccessAt: Date.now() }); };
+const markKeyFailure = (keyName, status) => {
+  const previous = keyHealth.get(keyName);
+  const failures = (previous?.failures || 0) + 1;
+  keyHealth.set(keyName, { cooldownUntil: Date.now() + keyCooldownMs(status, failures), status, failures });
+};
+const markKeySuccess = (keyName) => {
+  keyHealth.set(keyName, { cooldownUntil: 0, status: 200, failures: 0, lastSuccessAt: Date.now() });
+  preferredGeminiKey = keyName;
+};
 const supportedAttachment = (mimeType, name) => /^(image\/(?:png|jpeg|jpg|webp|gif)|application\/pdf|text\/plain|text\/markdown|text\/csv|application\/json)$/i.test(mimeType) || /\.(?:png|jpe?g|webp|gif|pdf|txt|md|csv|json|js|html|css|py)$/i.test(name);
 const normalizeAttachment = (item) => {
   if (!item || typeof item !== "object") return null;
@@ -175,15 +189,37 @@ export default async function handler(request, response) {
     let timeoutCount = 0;
     let lastProviderStatus = 0;
     const configuredModels = modelOrder.filter((candidateModel) => apiKeyForModel(candidateModel));
+    const hintedSlot = Number(body.keySlotHint);
+    if (Number.isInteger(hintedSlot) && hintedSlot >= 1 && hintedSlot <= modelOrder.length) {
+      const hintedModel = `xmanius-${hintedSlot}`;
+      if (configuredModels.includes(hintedModel)) preferredGeminiKey = hintedModel;
+    }
     const healthyModels = configuredModels.filter((candidateModel) => !keyIsCoolingDown(candidateModel));
-    // Keep key 1 as the normal primary, but use the next available key when
-    // a previous request proved that the primary is unavailable.
-    const orderedModels = (healthyModels.length ? healthyModels : configuredModels).sort((left, right) => {
-      const leftRank = left === selectedModel ? 0 : 1;
-      const rightRank = right === selectedModel ? 0 : 1;
-      if (leftRank !== rightRank) return leftRank - rightRank;
-      return (keyHealth.get(left)?.lastSuccessAt || 0) > (keyHealth.get(right)?.lastSuccessAt || 0) ? -1 : 1;
+    // Start at the last successful key (or the next key after the last
+    // failure), while preserving the configured 1 -> 9 order. This avoids
+    // repeatedly probing exhausted keys before reaching a healthy key such as
+    // 5, 6, 7, 8, or 9.
+    const rotateFromPreferred = (models) => {
+      if (!models.length) return [];
+      const preferredIndex = configuredModels.indexOf(preferredGeminiKey);
+      if (preferredIndex < 0) return models;
+      return [
+        ...models.filter((name) => configuredModels.indexOf(name) >= preferredIndex),
+        ...models.filter((name) => configuredModels.indexOf(name) < preferredIndex),
+      ];
+    };
+    const availableModels = healthyModels.length ? healthyModels : [...configuredModels].sort((left, right) => {
+      return (keyHealth.get(left)?.cooldownUntil || 0) - (keyHealth.get(right)?.cooldownUntil || 0);
     });
+    const orderedModels = rotateFromPreferred(availableModels);
+    const advanceToNextHealthyKey = (failedModel) => {
+      const failedIndex = configuredModels.indexOf(failedModel);
+      const nextModel = configuredModels
+        .slice(failedIndex + 1)
+        .concat(configuredModels.slice(0, Math.max(0, failedIndex)))
+        .find((name) => !keyIsCoolingDown(name));
+      if (nextModel) preferredGeminiKey = nextModel;
+    };
     for (const candidateModel of orderedModels) {
       const remainingBudgetMs = providerBudgetMs - (Date.now() - providerStartedAt);
       if (remainingBudgetMs <= 0) break;
@@ -209,6 +245,7 @@ export default async function handler(request, response) {
           lastProviderError = error;
           if (error?.name === "AbortError") timeoutCount += 1;
           markKeyFailure(candidateModel, error?.name === "AbortError" ? 504 : 503);
+          advanceToNextHealthyKey(candidateModel);
           // A network timeout is the only slow failure path. Give the next
           // healthy key a chance, but stop when the request budget is spent.
           continue;
@@ -217,6 +254,7 @@ export default async function handler(request, response) {
         if (upstream.ok) { markKeySuccess(candidateModel); knownGoodGeminiModel = candidate; successfulCandidate = candidate; successfulApiKey = apiKey; break; }
         lastProviderError = new Error(`Gemini request failed (${upstream.status})`);
         markKeyFailure(candidateModel, upstream.status);
+        advanceToNextHealthyKey(candidateModel);
         // A fallback model is useful for a missing model (404). Quota,
         // authentication, and provider failures belong to this key, so move
         // to the next key immediately instead of making another slow request.
@@ -260,7 +298,8 @@ export default async function handler(request, response) {
     const answerText = sanitizeAssistantBranding(summaryMatch ? reply.slice(summaryMatch[0].length).trim() : reply);
     const finalReply = searchError && webSearch ? `${answerText || "I could not produce an answer for that."}\n\n> Web search status: ${searchError}` : (answerText || "I could not produce an answer for that.");
     activity.push({ type: "answer", label: rethink ? "Rechecked and formatted the answer" : "Prepared and formatted the answer", status: "completed" });
-    return response.status(200).json({ reply: finalReply, reasoningSummary, sources: searchResults, searchError, requestId });
+    const activeKeySlot = successfulCandidate && successfulApiKey ? Number((preferredGeminiKey || "").replace("xmanius-", "")) || null : null;
+    return response.status(200).json({ reply: finalReply, reasoningSummary, sources: searchResults, searchError, requestId, activeKeySlot });
   } catch (error) {
     const timedOut = error?.name === "AbortError";
     return fail(504, timedOut ? "The AI service took too long to respond. Please try again or switch models." : "The AI service is temporarily unavailable. Please try again.", timedOut ? "provider_timeout" : "provider_unavailable");
