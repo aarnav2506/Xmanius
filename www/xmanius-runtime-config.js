@@ -9,5 +9,5 @@
  */
 // The APK is a static Capacitor bundle, so it must call the deployed API.
 // Browser deployments and `vercel dev` use their same-origin `/api` route.
-const xmaniusNativeApp = Boolean(window.Capacitor?.isNativePlatform?.()) || /^(capacitor|ionic):$/i.test(window.location.protocol);
+const xmaniusNativeApp = Boolean(window.Capacitor?.isNativePlatform?.()) || /^(capacitor|ionic|file):$/i.test(window.location.protocol);
 window.XMANIUS_API_BASE_URL = xmaniusNativeApp ? "https://xmanius.vercel.app" : "";

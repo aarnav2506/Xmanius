@@ -1295,20 +1295,21 @@ body.xmanius-theme-light .settings-memory-card {
   color: inherit;
   line-height: 1.2;
   white-space: nowrap;
+  margin: 0 .2em;
 }
 
 .math-matrix-grid {
   display: flex;
   max-width: 100%;
   flex-direction: column;
-  gap: .16em;
-  padding: .08em .3em;
+  gap: .25em;
+  padding: .12em .38em;
 }
 
 .math-matrix-row {
   display: grid;
   grid-template-columns: repeat(var(--matrix-cols), max-content);
-  column-gap: 1.05em;
+  column-gap: 1.1em;
   align-items: baseline;
   justify-content: center;
 }
@@ -1321,46 +1322,53 @@ body.xmanius-theme-light .settings-memory-card {
 .math-matrix::before,
 .math-matrix::after {
   display: block;
-  width: .32em;
-  min-height: calc(100% - .08em);
-  align-self: center;
+  width: .38em;
+  align-self: stretch;
+  box-sizing: border-box;
   content: "";
+  flex-shrink: 0;
 }
 
 .math-matrix-round::before {
   border-top: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   border-left: 1.5px solid currentColor;
-  border-radius: 55% 0 0 55%;
+  border-right: none;
+  border-radius: 999px 0 0 999px / 50% 0 0 50%;
 }
 
 .math-matrix-round::after {
   border-top: 1.5px solid currentColor;
-  border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
-  border-radius: 0 55% 55% 0;
+  border-right: 1.5px solid currentColor;
+  border-left: none;
+  border-radius: 0 999px 999px 0 / 0 50% 50% 0;
 }
 
 .math-matrix-square::before {
   border-top: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   border-left: 1.5px solid currentColor;
+  border-right: none;
 }
 
 .math-matrix-square::after {
   border-top: 1.5px solid currentColor;
-  border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  border-left: none;
 }
 
 .math-matrix-curly::before,
 .math-matrix-curly::after {
   display: flex;
-  width: .38em;
+  width: auto;
+  min-width: .38em;
   border: 0;
   align-items: center;
+  justify-content: center;
   font-family: "Cambria Math", "STIX Two Math", "Segoe UI Symbol", sans-serif;
-  font-size: 1.45em;
+  font-size: 1.5em;
   line-height: 1;
 }
 
@@ -1375,27 +1383,35 @@ body.xmanius-theme-light .settings-memory-card {
 }
 
 .math-matrix-single::before {
-  border-top: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
+  width: 0;
+  border-top: none;
+  border-bottom: none;
+  border-right: none;
   border-left: 1.5px solid currentColor;
 }
 
 .math-matrix-single::after {
-  border-top: 1.5px solid currentColor;
+  width: 0;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
   border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
 }
 
 .math-matrix-double::before {
-  border-top: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
+  width: 0;
+  border-top: none;
+  border-bottom: none;
+  border-right: none;
   border-left: 3px double currentColor;
 }
 
 .math-matrix-double::after {
-  border-top: 1.5px solid currentColor;
+  width: 0;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
   border-right: 3px double currentColor;
-  border-bottom: 1.5px solid currentColor;
 }
 
 /* Permutations and factorials use real superscript/subscript markup instead
