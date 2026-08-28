@@ -13,6 +13,9 @@ const THINK_UPSTREAM_TIMEOUT_MS = 45000;
 const SEARCH_UPSTREAM_TIMEOUT_MS = 12000;
 const NORMAL_PROVIDER_BUDGET_MS = 20000;
 const THINK_PROVIDER_BUDGET_MS = 120000;
+// A stale or mistyped deployment model must not make every selected slot fail.
+// This fallback still uses only the API key for the selected Xmanius slot.
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -114,7 +117,7 @@ export default async function handler(request, response) {
     // Use a fast model with thinking disabled for the normal path. A stale or
     // unavailable default model can otherwise cause a needless 404 then a
     // second upstream request before a simple greeting is answered.
-    const model = process.env.XMANIUS_GEMINI_MODEL || "gemini-2.5-flash";
+    const model = environmentValue("XMANIUS_GEMINI_MODEL") || DEFAULT_GEMINI_MODEL;
     let searchContext = "";
     let searchResults = [];
     let searchError = "";
@@ -179,10 +182,17 @@ export default async function handler(request, response) {
       const apiKey = apiKeyForModel(candidateModel);
       if (!apiKey) continue;
       attemptedKeys += 1;
-      const candidateSuffix = candidateModel === "xmanius-1" ? "" : "_" + candidateModel.slice("xmanius-".length);
-      const candidateBaseModel = process.env["XMANIUS_GEMINI_MODEL" + candidateSuffix] || model;
-      const fallbackModel = process.env.XMANIUS_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
-      const modelCandidates = [...new Set([candidateBaseModel, fallbackModel].filter(Boolean))];
+      const slot = candidateModel.slice("xmanius-".length);
+      const candidateSuffix = candidateModel === "xmanius-1" ? "" : "_" + slot;
+      // Resolve the selected slot independently; never probe or borrow another
+      // slot's key or model configuration.
+      const candidateBaseModel = environmentValue(
+        `XMANIUS_GEMINI_MODEL${candidateSuffix}`,
+        `XMANIUS_GEMINI_MODEL_${slot}`,
+      ) || model;
+      const fallbackModel = environmentValue("XMANIUS_GEMINI_FALLBACK_MODEL") || DEFAULT_GEMINI_MODEL;
+      // Always retain a known-safe final fallback after a provider 404.
+      const modelCandidates = [...new Set([candidateBaseModel, fallbackModel, DEFAULT_GEMINI_MODEL].filter(Boolean))];
       for (const candidate of modelCandidates) {
         const remainingAttemptMs = providerBudgetMs - (Date.now() - providerStartedAt);
         if (remainingAttemptMs <= 0) break;
@@ -215,7 +225,7 @@ export default async function handler(request, response) {
       return fail(timedOut ? 504 : 503, timedOut ? "The AI providers did not respond in time. I retried the configured keys; please try again shortly." : "The configured AI providers are temporarily unavailable. Please try again shortly.", timedOut ? "provider_timeout" : "provider_unavailable", { attemptedKeys, timeoutCount, lastProviderStatus });
     }
     let data = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) { const kind = errorKind(upstream.status); const providerMessage = kind === "provider_quota" ? `Xmanius ${selectedModel.replace("xmanius-", "")} is currently rate-limited. Choose another Xmanius model or try again later.` : kind === "auth_config" ? `Xmanius ${selectedModel.replace("xmanius-", "")} was rejected. Check its server-side Vercel environment variable and model name.` : kind === "invalid_request" ? "The AI provider rejected this request. Please try a shorter or clearer message." : upstream.status === 404 ? "The configured Gemini model is unavailable. Check its XMANIUS_GEMINI_MODEL variable in Vercel and redeploy." : "The selected Xmanius model is temporarily unavailable. Please try again shortly."; const providerStatus = upstream.status === 404 || upstream.status >= 500 ? 502 : upstream.status; return fail(providerStatus, providerMessage, upstream.status === 404 ? "provider_model_unavailable" : kind, { providerStatus: upstream.status, attemptedKeys, timeoutCount, lastProviderStatus }); }
+    if (!upstream.ok) { const kind = errorKind(upstream.status); const slotLabel = selectedModel.replace("xmanius-", ""); const providerMessage = kind === "provider_quota" ? `Xmanius ${slotLabel} is currently rate-limited. Choose another Xmanius model or try again later.` : kind === "auth_config" ? `Xmanius ${slotLabel} was rejected. Check its server-side API key in Vercel.` : kind === "invalid_request" ? "The AI provider rejected this request. Please try a shorter or clearer message." : upstream.status === 404 ? `Xmanius ${slotLabel} could not find an available provider model. Check its server-side model setting in Vercel.` : "The selected Xmanius model is temporarily unavailable. Please try again shortly."; const providerStatus = upstream.status === 404 || upstream.status >= 500 ? 502 : upstream.status; return fail(providerStatus, providerMessage, upstream.status === 404 ? "provider_model_unavailable" : kind, { providerStatus: upstream.status, attemptedKeys, timeoutCount, lastProviderStatus }); }
     let reply = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim() || "";
     const finishReason = data.candidates?.[0]?.finishReason;
     // Gemini can legally end a successful request at MAX_TOKENS. Continue

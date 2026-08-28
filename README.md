@@ -46,23 +46,23 @@ Add this environment variable in the Vercel project settings. Do not commit the 
 
 ```text
 XMANIUS_GEMINI_API_KEY=your_separate_gemini_key
-XMANIUS_GEMINI_MODEL=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_2=your_second_gemini_key
-XMANIUS_GEMINI_MODEL_2=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_2=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_3=your_third_gemini_key
-XMANIUS_GEMINI_MODEL_3=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_3=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_4=your_fourth_gemini_key
-XMANIUS_GEMINI_MODEL_4=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_4=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_5=your_fifth_gemini_key
-XMANIUS_GEMINI_MODEL_5=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_5=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_6=your_sixth_gemini_key
-XMANIUS_GEMINI_MODEL_6=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_6=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_7=your_seventh_gemini_key
-XMANIUS_GEMINI_MODEL_7=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_7=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_8=your_eighth_gemini_key
-XMANIUS_GEMINI_MODEL_8=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_8=gemini-2.5-flash
 XMANIUS_GEMINI_API_KEY_9=your_ninth_gemini_key
-XMANIUS_GEMINI_MODEL_9=gemini-3.6-flash
+XMANIUS_GEMINI_MODEL_9=gemini-2.5-flash
 # Optional, required only for the Web button:
 XMANIUS_GOOGLE_SEARCH_API_KEY=your_google_search_key
 XMANIUS_GOOGLE_SEARCH_CX=your_programmable_search_engine_id
