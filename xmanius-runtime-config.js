@@ -9,4 +9,4 @@
  */
 // For the Android APK, set this to the HTTPS origin of the deployed API.
 // Never put a Gemini/provider API key in this public file.
-window.XMANIUS_API_BASE_URL = "";
+window.XMANIUS_API_BASE_URL = "xmanius.vercel.app";
