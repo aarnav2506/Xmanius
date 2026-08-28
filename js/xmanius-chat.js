@@ -12,6 +12,8 @@
   const accountStatus = document.querySelector("[data-account-status]");
   const modelToggle = document.querySelector("[data-model-toggle]");
   const modelPicker = document.querySelector("[data-model-picker]");
+  const moreModelsToggle = document.querySelector("[data-more-models]");
+  const modelSubmenu = document.querySelector("[data-model-submenu]");
   const modelName = document.querySelector(".model-name");
   const headerModelToggle = document.querySelector("[data-model-menu]");
   const thinkToggle = document.querySelector("[data-think-toggle]");
@@ -40,7 +42,8 @@
   const getApiEndpoint = () => {
     const base = readApiBase();
     if (!base) return "/api/xmanius-chat";
-    return /\/api\/xmanius-chat$/i.test(base) ? base : `${base}/api/xmanius-chat`;
+    const origin = /^[a-z][a-z\d+.-]*:\/\//i.test(base) ? base : `https://${base}`;
+    return /\/api\/xmanius-chat$/i.test(origin) ? origin : `${origin}/api/xmanius-chat`;
   };
   const isNativeApp = () => window.location.protocol === "file:" || Boolean(window.Capacitor?.isNativePlatform?.());
   window.XmaniusApiEndpoint = getApiEndpoint;
@@ -56,7 +59,7 @@
   let generalAssistant = null;
   let thinkMode = false;
   let webSearch = false;
-  let selectedModel = "xmanius-1";
+  let selectedModel = (() => { try { const value = localStorage.getItem("xmanius-selected-model-v1"); return /^xmanius-[1-9]$/.test(value || "") ? value : "xmanius-1"; } catch { return "xmanius-1"; } })();
   let followChatBottom = true;
   const isChatNearBottom = (threshold = 120) => !chatContent || chatContent.scrollHeight - chatContent.scrollTop - chatContent.clientHeight <= threshold;
   const scrollChatToBottom = ({ force = false, behavior = "auto" } = {}) => {
@@ -74,18 +77,6 @@
   const usageKey = "xmanius-usage-v1";
   const usageLimit = 35;
   const usageWindow = 5 * 60 * 60 * 1000;
-  const keySlotHintStorageKey = "xmanius-key-slot-hint";
-  const readKeySlotHint = () => {
-    try {
-      const slot = Number(localStorage.getItem(keySlotHintStorageKey));
-      return Number.isInteger(slot) && slot >= 1 && slot <= 9 ? slot : null;
-    } catch { return null; }
-  };
-  const rememberKeySlot = (slot) => {
-    const value = Number(slot);
-    if (!Number.isInteger(value) || value < 1 || value > 9) return;
-    try { localStorage.setItem(keySlotHintStorageKey, String(value)); } catch { /* storage is optional */ }
-  };
   const readUsage = () => { try { const value = JSON.parse(localStorage.getItem(usageKey) || "null"); if (!value || Date.now() - value.startedAt >= usageWindow) return { count: 0, startedAt: Date.now() }; return value; } catch { return { count: 0, startedAt: Date.now() }; } };
   const formatResetTime = (timestamp) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(timestamp));
   const updateUsage = (increment = false) => { const usage = readUsage(); if (increment) usage.count += 1; localStorage.setItem(usageKey, JSON.stringify(usage)); const percent = Math.min(100, Math.round(usage.count / usageLimit * 100)); const resetAt = usage.startedAt + usageWindow; const resetText = formatResetTime(resetAt); usageIndicator?.style.setProperty("--usage", `${percent}%`); if (usageLabel) usageLabel.textContent = `${percent}%`; if (usageReset) usageReset.textContent = `Reset ${resetText}`; usageIndicator?.setAttribute("title", `${Math.max(0, usageLimit - usage.count)} requests left. Resets at ${resetText}.`); usageIndicator?.setAttribute("aria-label", `${percent}% used. ${Math.max(0, usageLimit - usage.count)} requests left. Resets at ${resetText}.`); if (usageNotice && usage.count >= usageLimit) { usageNotice.textContent = `Your 5-hour Xmanius limit is over. It will refresh at ${resetText}.`; usageNotice.classList.add("is-visible"); } return usage.count < usageLimit; };
@@ -134,6 +125,9 @@
     document.documentElement.lang = appSettings.language === "auto" ? (navigator.language || "en") : appSettings.language;
   };
   const saveCurrentChat = () => {
+    // Memory is opt-in. When it is off, do not create or update a stored
+    // conversation, including during reset, send, or navigation.
+    if (!appSettings.memoryEnabled) return;
     const messages = [...list.querySelectorAll(".message")].map((item) => {
       let attachmentsForMessage = [];
       try { attachmentsForMessage = JSON.parse(item.dataset.attachmentRefs || "[]"); } catch {}
@@ -778,7 +772,7 @@
       const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
       const normalizedMathLine = normalizeExtendedMathNotation(trimmed);
       const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b)/.test(normalizedMathLine);
-      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|!|≤|≥|∈|(?<![A-Za-z])(?:\\d+|[A-Za-z])\\s*[CPcp]\\s*(?:\\d+|[A-Za-z])|(?<![A-Za-z])[CPcp]\s*\([^)]*,[^)]*\))).{2,900}$/.test(trimmed);
+      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|(?<![A-Za-z])[0-9]+!|≤|≥|∈|(?<![A-Za-z])(?:\\d+|[A-Za-z])\\s*[CPcp]\\s*(?:\\d+|[A-Za-z])|(?<![A-Za-z])[CPcp]\s*\([^)]*,[^)]*\))).{2,900}$/.test(trimmed);
       if ((hasMatrix || hasScalarMath) && (hasMatrix || (!mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)))) {
         output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
         highlightNextMath = false;
@@ -803,8 +797,12 @@
   window.XmaniusCoreRenderer = Object.freeze({ renderMarkdownToHtml });
   const animateAssistantText = (body, text, cursor) => {
     if (!body || !cursor || !text) return;
+    const messageItem = body.closest(".message");
+    messageItem?.classList.add("is-streaming");
     const total = text.length;
-    const duration = Math.min(50000, Math.max(1800, total * 16));
+    // Keep answers visibly progressive with the earlier steady cadence,
+    // without making the user wait indefinitely after the network finishes.
+    const duration = Math.min(12000, Math.max(900, total * 8));
     const interval = 18;
     const chunk = Math.max(1, Math.ceil(total / Math.max(1, Math.floor(duration / interval))));
     let position = 0;
@@ -839,6 +837,7 @@
         body.textContent = text;
       }
       if (cursor.isConnected) cursor.remove();
+      messageItem?.classList.remove("is-streaming");
       scrollToEnd();
     };
     const tick = () => {
@@ -1035,11 +1034,10 @@
     }, thinkMode ? 300000 : 180000);
     setSendingState(true);
     try {
-      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, keySlotHint: readKeySlotHint(), attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500) } }), signal: activeRequestController.signal });
+      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500), memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : "" } }), signal: activeRequestController.signal });
       const data = await response.json().catch(() => ({}));
-      rememberKeySlot(data.activeKeySlot);
       thinking.remove();
-    // Failover is intentionally silent: the public model label remains Xmanius 1.
+    // The selected Xmanius slot is shown explicitly; there is no silent key switch.
       addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "", reasoningSummary: response.ok && thinkMode ? data.reasoningSummary : "", reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode });
     } catch (error) {
       thinking.remove();
@@ -1175,11 +1173,21 @@
   dictationSend?.addEventListener("click", () => { const dictatedText = input.value.trim(); finishVoiceSession({ clearText: false, focus: true, abort: true }); if (dictatedText) input.value = dictatedText; });
   document.addEventListener("visibilitychange", () => { if (document.hidden && (recognition || form.classList.contains("is-listening"))) finishVoiceSession({ focus: false, abort: true }); });
   window.addEventListener("pagehide", () => finishVoiceSession({ focus: false, abort: true }));
-  const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); modelToggle?.setAttribute("aria-expanded", String(open)); headerModelToggle?.setAttribute("aria-expanded", String(open)); };
+  let moreModelsCloseTimer = 0;
+  const setModelSubmenu = (open) => { window.clearTimeout(moreModelsCloseTimer); modelSubmenu?.classList.toggle("is-open", open); moreModelsToggle?.setAttribute("aria-expanded", String(open)); };
+  const scheduleModelSubmenuClose = () => { window.clearTimeout(moreModelsCloseTimer); moreModelsCloseTimer = window.setTimeout(() => setModelSubmenu(false), 140); };
+  const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); modelToggle?.setAttribute("aria-expanded", String(open)); headerModelToggle?.setAttribute("aria-expanded", String(open)); if (!open) setModelSubmenu(false); };
   modelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
   headerModelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
-  const setSelectedModel = (model) => { selectedModel = ["xmanius-1", "xmanius-2", "xmanius-3"].includes(model) ? model : "xmanius-1"; modelPicker?.querySelectorAll("[data-model]").forEach((item) => { const active = item.dataset.model === selectedModel; item.classList.toggle("is-selected", active); item.setAttribute("aria-pressed", String(active)); const check = item.querySelector("b"); if (check) check.textContent = active ? "✓" : ""; }); if (modelName) modelName.innerHTML = `${selectedModel === "xmanius-3" ? "Xmanius 3" : selectedModel === "xmanius-2" ? "Xmanius 2" : "Xmanius 1"} <span class="dropdown-chevron" aria-hidden="true"></span>`; };
-  modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
+  moreModelsToggle?.addEventListener("mouseenter", () => setModelSubmenu(true));
+  moreModelsToggle?.addEventListener("mouseleave", scheduleModelSubmenuClose);
+  moreModelsToggle?.addEventListener("focus", () => setModelSubmenu(true));
+  modelSubmenu?.addEventListener("mouseenter", () => setModelSubmenu(true));
+  modelSubmenu?.addEventListener("mouseleave", scheduleModelSubmenuClose);
+  moreModelsToggle?.addEventListener("click", () => setModelSubmenu(!modelSubmenu?.classList.contains("is-open")));
+  const setSelectedModel = (model) => { selectedModel = /^xmanius-[1-9]$/.test(model || "") ? model : "xmanius-1"; try { localStorage.setItem("xmanius-selected-model-v1", selectedModel); } catch {} modelPicker?.querySelectorAll("[data-model]").forEach((item) => { const active = item.dataset.model === selectedModel; item.classList.toggle("is-selected", active); item.setAttribute("aria-pressed", String(active)); const check = item.querySelector("b"); if (check) check.textContent = active ? "✓" : ""; }); if (modelName) modelName.innerHTML = `${selectedModel.replace("xmanius-", "Xmanius ")} <span class="dropdown-chevron" aria-hidden="true"></span>`; };
+  setSelectedModel(selectedModel);
+  modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } if (event.target.closest("[data-more-models]")) { setModelSubmenu(!modelSubmenu?.classList.contains("is-open")); return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
   document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) setModelPicker(false); });
   const reset = () => { saveCurrentChat(); currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; input.value = ""; input.focus(); };
   document.querySelectorAll("[data-new-chat]").forEach((button) => button.addEventListener("click", reset));
@@ -1272,13 +1280,17 @@
   let settingsSection = "general";
   let settingsChoiceMenu = null;
   let settingsChoiceButton = null;
+  let memorySummaryBackdrop = null;
   const memoryClearedKey = "xmanius-memory-cleared-at";
   const buildMemorySummary = () => {
+    if (!appSettings.memoryEnabled) return "Memory is off. New chats are not being collected on this device.";
     const clearedAt = Number(localStorage.getItem(memoryClearedKey) || 0);
     const chats = readChats().filter((chat) => Number(chat.updatedAt || 0) > clearedAt);
     const titles = chats.slice(0, 5).map((chat) => chat.title).filter(Boolean);
     if (!chats.length) return "No local chat memory has been created yet.";
-    return "I keep this overview only in this browser. You have " + chats.length + " saved chat" + (chats.length === 1 ? "" : "s") + ". Recent topics include: " + (titles.join(", ") || "your recent conversations") + ".";
+    const allText = chats.flatMap((chat) => Array.isArray(chat.messages) ? chat.messages.map((message) => message.text || "") : []).join(" ").toLowerCase();
+    const themes = [["Mathematics and learning", /matrix|determinant|equation|algebra|probability|permutation|combination|calculus|math/], ["Xmanius development", /xmanius|api|android|apk|vercel|code|css|javascript|layout|render/], ["Creative and research work", /image|photo|video|prompt|design|website|search|taj mahal/]].filter(([, pattern]) => pattern.test(allText)).map(([label]) => label);
+    return "You have " + chats.length + " saved chat" + (chats.length === 1 ? "" : "s") + ". Recent topics include " + (titles.join(", ") || "your conversations") + "." + (themes.length ? " Main themes: " + themes.join(", ") + "." : "");
   };
   const closeProfileMenu = () => { profileMenu?.remove(); profileMenu = null; };
   const closeSettingsChoiceMenu = () => { settingsChoiceMenu?.remove(); settingsChoiceMenu = null; settingsChoiceButton = null; };
@@ -1296,6 +1308,16 @@
     settingsChoiceMenu.style.top = `${Math.round(Math.max(padding, top))}px`;
   };
   const closeSettings = () => { closeSettingsChoiceMenu(); settingsBackdrop?.remove(); settingsBackdrop = null; };
+  const closeMemorySummary = () => { memorySummaryBackdrop?.remove(); memorySummaryBackdrop = null; };
+  const openMemorySummary = () => {
+    closeMemorySummary();
+    const escaped = buildMemorySummary().replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    memorySummaryBackdrop = document.createElement("div");
+    memorySummaryBackdrop.className = "memory-summary-backdrop";
+    memorySummaryBackdrop.innerHTML = '<section class="memory-summary-shell" role="dialog" aria-modal="true" aria-label="Memory summary"><header><div><h2>Memory summary</h2><small>Updated from saved chats on this device</small></div><button type="button" data-close-memory-summary aria-label="Close memory summary">×</button></header><article><h3>Overview</h3><p>' + escaped + '</p><h3>How Xmanius uses this</h3><p>When Memory is enabled, this short local overview is provided with a new request only to make relevant answers more consistent. Turn Memory off to stop collecting new chats and stop using this overview.</p></article><footer><button type="button" class="memory-clear" data-clear-memory-summary>Clear saved memory</button><button type="button" data-close-memory-summary>Done</button></footer></section>';
+    document.body.append(memorySummaryBackdrop);
+    memorySummaryBackdrop.addEventListener("click", (event) => { if (event.target.closest("[data-clear-memory-summary]")) { localStorage.setItem(memoryClearedKey, String(Date.now())); closeMemorySummary(); if (settingsBackdrop) renderSettingsSection(); return; } if (event.target === memorySummaryBackdrop || event.target.closest("[data-close-memory-summary]")) closeMemorySummary(); });
+  };
   const settingValue = (key) => settingLabels[key]?.[appSettings[key]] || appSettings[key] || "Default";
   const createSettingRow = (key, label, description = "") => '<div class="settings-row"><div><strong>' + label + '</strong>' + (description ? '<small>' + description + '</small>' : '') + '</div><button type="button" class="settings-value" data-setting-choice="' + key + '">' + settingValue(key) + '<span class="dropdown-chevron" aria-hidden="true"></span></button></div>';
   const renderSettingsSection = () => {
@@ -1322,9 +1344,9 @@
         '<div class="settings-row settings-toggle-row"><div><strong>Fast answers</strong><small>Use quick local answers when the question is simple.</small></div><button type="button" class="settings-switch ' + (appSettings.fastAnswers ? "is-on" : "") + '" data-settings-fast aria-pressed="' + String(appSettings.fastAnswers) + '"><span></span></button></div>' +
         '<label class="settings-custom"><strong>Custom instructions</strong><textarea data-custom-instructions maxlength="500" placeholder="Additional behavior, style, and tone preferences">' + String(appSettings.customInstructions || "").replace(/</g, "&lt;") + '</textarea></label>';
     } else {
-      content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Keep a local overview of your saved chats to make this device easier to use.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
-        '<div class="settings-memory-card"><div><strong>Memory summary</strong><small data-memory-summary>' + buildMemorySummary().replace(/</g, "&lt;") + '</small></div><button type="button" class="settings-secondary" data-clear-memory>Clear</button></div>' +
-        '<p class="settings-note">Memory is local to this browser. It is not sent as a separate profile or uploaded as an account database.</p>';
+      content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Let Xmanius personalize relevant answers from chats saved on this device.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
+        '<div class="settings-memory-card"><div><strong>Memory summary</strong><small data-memory-summary>' + buildMemorySummary().replace(/</g, "&lt;") + '</small></div><button type="button" class="settings-secondary" data-manage-memory>Manage</button></div>' +
+        '<p class="settings-note">Turning Memory off stops collecting new chats and stops using saved context. You can remove existing saved memory in Manage.</p>';
     }
   };
   const openSettings = (section = "general") => {
@@ -1369,8 +1391,8 @@
         if (memory) { appSettings.memoryEnabled = !appSettings.memoryEnabled; saveSettings(); renderSettingsSection(); return; }
         const think = event.target.closest("[data-settings-think]");
         if (think) { thinkMode = !thinkMode; thinkToggle?.classList.toggle("active", thinkMode); thinkToggle?.setAttribute("aria-pressed", String(thinkMode)); renderSettingsSection(); return; }
-        const clear = event.target.closest("[data-clear-memory]");
-        if (clear) { localStorage.setItem(memoryClearedKey, String(Date.now())); renderSettingsSection(); return; }
+        const manageMemory = event.target.closest("[data-manage-memory]");
+        if (manageMemory) { openMemorySummary(); return; }
         const connect = event.target.closest('[data-profile-action="connect"]');
         if (connect) { window.alert("Google sign-in is not configured for this deployment yet. Your chats and files remain local to this browser."); return; }
       });

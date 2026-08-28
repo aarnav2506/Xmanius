@@ -26,6 +26,8 @@ Build a debug APK from Android Studio, or run `npm run android:debug` after Andr
 
 The bundled app can display the website locally. Gemini requests still need a deployed backend URL because Vercel serverless functions do not execute inside an APK. Configure that connection before testing AI responses in the installed app.
 
+The APK's public runtime configuration must contain the HTTPS origin of the same Vercel deployment that contains this repository's `api/xmanius-chat.js` function. Deploy from the repository root, not from `www/`; otherwise `/api/xmanius-chat` will return 404. Replace the example URL in `xmanius-runtime-config.js` and then run `npm run cap:sync` before rebuilding the APK if your deployment uses a different Vercel domain.
+
 ## Project structure
 
 ```text
@@ -73,7 +75,7 @@ The Web button uses Google’s server-side Custom Search JSON API when both opti
 
 YouTube requests use the YouTube Data API search endpoint so the app receives real video IDs and thumbnails for embedded previews. Set `XMANIUS_YOUTUBE_API_KEY` to a Google Cloud API key with YouTube Data API v3 enabled, or reuse the Google search key if that API is enabled on the same project.
 
-The chat displays only Xmanius 1. The server privately keeps a failover pool of up to nine Gemini keys: XMANIUS_GEMINI_API_KEY and _2 through _9. When the active key is rate-limited or temporarily unavailable, the next configured key is tried automatically. Key health is cached briefly in warm serverless instances, so known-bad or exhausted keys are skipped instead of delaying every request. Normal replies use a short provider timeout and budget; Think replies receive a separate, longer budget. The extra model labels and key values are never sent to the browser.
+The chat lets the user select Xmanius 1 through Xmanius 9. Each selected model maps to exactly one server-side Gemini key; automatic key switching is disabled. If a selected key is rate-limited or unavailable, the response identifies that selected slot so the user can choose another model manually. Normal replies use a short provider timeout and budget; Think replies receive a separate, longer budget. The key values are never sent to the browser.
 
 ## GitHub Pages
 
