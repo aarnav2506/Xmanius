@@ -6,16 +6,39 @@ const MAX_ATTACHMENT_DATA = 210000000;
 const MAX_ATTACHMENT_TEXT = 20000;
 // Keep the first response fast, but give long answers and Think mode more room.
 // Each request uses only the model slot selected in the UI.
-const UPSTREAM_TIMEOUT_MS = 9000;
-const NORMAL_UPSTREAM_TIMEOUT_MS = 9000;
-const NORMAL_LONG_REQUEST_TIMEOUT_MS = 16000;
-const THINK_UPSTREAM_TIMEOUT_MS = 45000;
-const SEARCH_UPSTREAM_TIMEOUT_MS = 12000;
-const NORMAL_PROVIDER_BUDGET_MS = 20000;
-const THINK_PROVIDER_BUDGET_MS = 120000;
-// All Xmanius slots use Gemini 3.6 Flash unless a slot deliberately has its
-// own server-side model variable. Keep this aligned with the deployed keys.
-const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
+// Fast timeouts for sub-second minimum latency response times.
+const UPSTREAM_TIMEOUT_MS = 6000;
+const NORMAL_UPSTREAM_TIMEOUT_MS = 6000;
+const NORMAL_LONG_REQUEST_TIMEOUT_MS = 10000;
+const THINK_UPSTREAM_TIMEOUT_MS = 30000;
+const SEARCH_UPSTREAM_TIMEOUT_MS = 8000;
+const NORMAL_PROVIDER_BUDGET_MS = 14000;
+const THINK_PROVIDER_BUDGET_MS = 60000;
+// Default Gemini models for each slot to maximize rate limits across pools.
+// High-quota Flash-Lite / 8b models (500 RPD) are included as defaults and fallbacks.
+// Primary high-quota Gemini 3.5 Flash Lite default (500 RPD) to avoid low 20 RPD limits.
+// Includes live/audio models (gemini-2.5-flash-native-audio-dialog, gemini-3.5-transcribe-live, gemini-3.5-live-translate).
+const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
+const SLOT_DEFAULT_MODELS = {
+  1: "gemini-3.5-flash-lite",
+  2: "gemini-2.5-flash-lite",
+  3: "gemini-2.0-flash-lite",
+  4: "gemini-1.5-flash-8b",
+  5: "gemini-3.5-flash-lite",
+  6: "gemini-2.5-flash-lite",
+  7: "gemini-2.0-flash-lite",
+  8: "gemini-1.5-flash-8b",
+  9: "gemini-3.5-flash-lite",
+};
+const HIGH_QUOTA_FALLBACKS = [
+  "gemini-3.5-flash-lite",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash-8b",
+  "gemini-2.5-flash-native-audio-dialog",
+  "gemini-3.5-transcribe-live",
+  "gemini-3.5-live-translate"
+];
 
 const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -182,23 +205,20 @@ export default async function handler(request, response) {
       if (!apiKey) continue;
       attemptedKeys += 1;
       const slot = candidateModel.slice("xmanius-".length);
+      const slotNum = Number(slot);
       const candidateSuffix = candidateModel === "xmanius-1" ? "" : "_" + slot;
-      // Resolve the selected slot independently; never probe or borrow another
-      // slot's key or model configuration.
+      const defaultSlotModel = SLOT_DEFAULT_MODELS[slotNum] || DEFAULT_GEMINI_MODEL;
       const candidateBaseModel = environmentValue(
         `XMANIUS_GEMINI_MODEL${candidateSuffix}`,
         `XMANIUS_GEMINI_MODEL_${slot}`,
-      ) || model;
-      const fallbackModel = environmentValue("XMANIUS_GEMINI_FALLBACK_MODEL") || DEFAULT_GEMINI_MODEL;
-      // Prefer the slot's configured model first. This means all nine slots
-      // use Gemini 3.6 Flash when configured that way, without a detour to a
-      // different model that can produce an avoidable 404.
-      const modelCandidates = [...new Set([candidateBaseModel, fallbackModel].filter(Boolean))];
+      ) || environmentValue("XMANIUS_GEMINI_MODEL") || defaultSlotModel;
+      const fallbackModel = environmentValue("XMANIUS_GEMINI_FALLBACK_MODEL");
+      // Prefer the slot's configured model first, followed by custom fallback or high-quota models (Flash-Lite / 8b)
+      // so if a model hits rate-limiting (429) or 404, high-quota models handle the request seamlessly.
+      const modelCandidates = [...new Set([candidateBaseModel, fallbackModel, ...HIGH_QUOTA_FALLBACKS].filter(Boolean))];
       for (const candidate of modelCandidates) {
         const remainingAttemptMs = providerBudgetMs - (Date.now() - providerStartedAt);
         if (remainingAttemptMs <= 0) break;
-        // Leave enough output room for long explanations, code, tables, and
-        // math while keeping normal answers on the fast path.
         const generationConfig = { temperature: thinkMode ? 0.35 : 0.55, maxOutputTokens: thinkMode ? 16384 : 4096 };
         if (/^gemini-2\.5/i.test(candidate)) generationConfig.thinkingConfig = { thinkingBudget: thinkMode ? 1024 : 0 };
         else if (/^gemini-3/i.test(candidate)) generationConfig.thinkingConfig = { thinkingLevel: thinkMode ? "medium" : "minimal" };
@@ -208,16 +228,14 @@ export default async function handler(request, response) {
           upstream = undefined;
           lastProviderError = error;
           if (error?.name === "AbortError") timeoutCount += 1;
-          // Do not switch to another user-selected key automatically.
           continue;
         }
         lastProviderStatus = upstream.status;
         if (upstream.ok) { successfulCandidate = candidate; successfulApiKey = apiKey; break; }
         lastProviderError = new Error(`Gemini request failed (${upstream.status})`);
-        // A fallback model is useful for a missing model (404). Quota,
-        // authentication, and provider failures belong to this key, so move
-        // to the next key immediately instead of making another slow request.
-        if (upstream.status !== 404) break;
+        // If status is 401 or 403 (invalid key), stop attempting models on this key.
+        // If status is 404 (model not found) or 429 (quota rate-limit reached), try the next candidate model (e.g. Flash-Lite).
+        if (upstream.status === 401 || upstream.status === 403) break;
       }
       if (upstream?.ok) break;
     }

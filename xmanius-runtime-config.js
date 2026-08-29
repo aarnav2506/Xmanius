@@ -10,5 +10,6 @@
 // The Android APK needs the deployed HTTPS API. Browser deployments and
 // `vercel dev` use their own same-origin `/api` route, so local fixes are not
 // accidentally sent to an old remote deployment.
-const xmaniusNativeApp = Boolean(window.Capacitor?.isNativePlatform?.()) || /^(capacitor|ionic):$/i.test(window.location.protocol);
-window.XMANIUS_API_BASE_URL = xmaniusNativeApp ? : "https://xmanius.vercel.app";
+const xmaniusNativeApp = Boolean(window.Capacitor?.isNativePlatform?.()) || /^(capacitor|ionic|file):$/i.test(window.location.protocol);
+window.XMANIUS_API_BASE_URL = xmaniusNativeApp ? "https://xmanius.vercel.app" : "";
+

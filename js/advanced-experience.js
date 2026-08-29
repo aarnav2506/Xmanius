@@ -620,10 +620,6 @@
         message.textContent = "";
         addFormattedAnswer(message, text);
         messages.scrollTop = messages.scrollHeight;
-      };
-      subtitleAnimationFrame = window.requestAnimationFrame(typeReply);
-    };
-
     const addThinkingMessage = () => {
       const message = document.createElement("article");
       message.className = "ai-message ai-message--assistant ai-message--thinking";

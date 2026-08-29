@@ -215,7 +215,106 @@
     if (math) { const a = Number(math[1]), b = Number(math[3]); return `The answer is ${math[2] === "+" ? a + b : math[2] === "-" ? a - b : math[2] === "*" ? a * b : b ? a / b : "undefined"}.`; }
     return null;
   };
-  const speak = (text) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language; utterance.rate = .88; utterance.pitch = .82; window.speechSynthesis.speak(utterance); };
+  let isSpeaking = false;
+  let currentSpeechText = "";
+
+  const stopAiVoice = () => {
+    isSpeaking = false;
+    currentSpeechText = "";
+    if ("speechSynthesis" in window) {
+      try { window.speechSynthesis.cancel(); } catch (_) {}
+    }
+  };
+
+  const getBestNaturalVoice = (lang = "en-US") => {
+    if (!("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return null;
+    const priority = voices.filter((v) => v.lang.startsWith("en") || v.lang.startsWith("auto"));
+    const natural = priority.find((v) => /google|natural|neural|enhanced|premium|studio/i.test(v.name));
+    if (natural) return natural;
+    const googleFallback = voices.find((v) => /google/i.test(v.name));
+    if (googleFallback) return googleFallback;
+    return priority[0] || voices[0];
+  };
+
+  if ("speechSynthesis" in window) {
+    try { window.speechSynthesis.getVoices(); } catch (_) {}
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = () => { try { window.speechSynthesis.getVoices(); } catch (_) {} };
+    }
+  }
+
+  const speak = (text, onEnd) => {
+    const cleanText = String(text || "")
+      .replace(/```[\s\S]*?```/g, "Code block omitted.")
+      .replace(/`[^`]+`/g, (match) => match.slice(1, -1))
+      .replace(/\[\[[\s\S]*?\]\]/g, "")
+      .replace(/[*#_~>|-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!cleanText) { stopAiVoice(); if (onEnd) onEnd(); return; }
+
+    // Toggle stop if already playing the exact same message sound button
+    if (isSpeaking && currentSpeechText === cleanText) {
+      stopAiVoice();
+      if (typeof onEnd === "function") onEnd();
+      return;
+    }
+
+    stopAiVoice();
+    isSpeaking = true;
+    currentSpeechText = cleanText;
+
+    if ("speechSynthesis" in window) {
+      const chunks = cleanText.match(/[^.!?\n]+[.!?\n]+|\s*[^.!?\n]+$/g) || [cleanText];
+      let chunkIndex = 0;
+
+      const playNextChunk = () => {
+        if (!isSpeaking || chunkIndex >= chunks.length) {
+          stopAiVoice();
+          if (typeof onEnd === "function") onEnd();
+          return;
+        }
+
+        const chunk = chunks[chunkIndex].trim();
+        chunkIndex += 1;
+
+        if (!chunk) {
+          playNextChunk();
+          return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        const bestVoice = getBestNaturalVoice(appSettings.language);
+        if (bestVoice) utterance.voice = bestVoice;
+        utterance.lang = bestVoice ? bestVoice.lang : (appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language);
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
+
+        utterance.onend = () => {
+          if (isSpeaking) playNextChunk();
+        };
+
+        utterance.onerror = () => {
+          if (isSpeaking) playNextChunk();
+        };
+
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch (_) {
+          stopAiVoice();
+          if (typeof onEnd === "function") onEnd();
+        }
+      };
+
+      playNextChunk();
+    } else {
+      stopAiVoice();
+      if (typeof onEnd === "function") onEnd();
+    }
+  };
   const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
   const stripAnswerSummaryTags = (value) => { let summary = ""; const text = normalizeResponseText(value).replace(/\[\[ANSWER_SUMMARY\]\]([\s\S]*?)\[\[\/ANSWER_SUMMARY\]\]/gi, (_, content) => { if (!summary) summary = content.trim(); return ""; }).replace(/\[\[\/?ANSWER_SUMMARY\]\]/gi, ""); return { text: text.trim(), summary }; };
   const decodeHtmlEntities = (value) => {
@@ -1461,14 +1560,15 @@
     if (!canvas.dataset.started) { canvas.dataset.started = "true"; const ctx = canvas.getContext("2d"); const draw = (time) => { if (!generalAssistant?.classList.contains("is-open")) return; const dpr = Math.min(2, devicePixelRatio || 1); const size = Math.min(canvas.clientWidth || 420, canvas.clientHeight || 420); canvas.width = size * dpr; canvas.height = size * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, size, size); const cx = size / 2, cy = size / 2, radius = size * (.27 + Math.sin(time / 900) * .015); const glow = ctx.createRadialGradient(cx, cy, radius * .1, cx, cy, radius * 1.25); glow.addColorStop(0, "rgba(255,255,255,.98)"); glow.addColorStop(.2, "rgba(109,229,255,.92)"); glow.addColorStop(.58, "rgba(78,142,255,.72)"); glow.addColorStop(1, "rgba(125,72,201,0)"); ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, radius * 1.25, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(160,225,255,.7)"; ctx.lineWidth = 1.2; for (let i = 0; i < 90; i++) { const a = i * 2.399 + time / 5200; const r = radius * (.72 + (i % 7) / 25); ctx.fillStyle = `rgba(210,245,255,${.35 + (i % 5) / 10})`; ctx.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1.5, 1.5); } requestAnimationFrame(draw); }; requestAnimationFrame(draw); }
     const micButton = generalAssistant.querySelector("[data-general-mic]");
     if (!micButton.dataset.bound) { micButton.dataset.bound = "true"; micButton.addEventListener("click", () => startGeneralRecognition(generalAssistant)); }
-    generalAssistant.querySelectorAll("[data-general-close]").forEach((button) => { if (button.dataset.bound) return; button.dataset.bound = "true"; button.addEventListener("click", () => { generalAssistant.classList.remove("is-open", "is-voice-mode"); generalAssistant.setAttribute("aria-hidden", "true"); }); });
+    generalAssistant.querySelectorAll("[data-general-close]").forEach((button) => { if (button.dataset.bound) return; button.dataset.bound = "true"; button.addEventListener("click", () => { stopAiVoice(); generalAssistant.classList.remove("is-open", "is-voice-mode"); generalAssistant.setAttribute("aria-hidden", "true"); }); });
   };
 
   const startGeneralRecognition = (panel) => {
+    stopAiVoice();
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { panel.querySelector(".ai-guide__voice-greeting").textContent = "Voice input needs Chrome or Edge over HTTPS or localhost."; return; }
     const recognitionInstance = new Recognition(); recognitionInstance.lang = navigator.language || "en-US"; recognitionInstance.interimResults = false; recognitionInstance.continuous = false;
-    const mic = panel.querySelector("[data-general-mic]"); recognitionInstance.onstart = () => { panel.dataset.voiceState = "listening"; mic.classList.add("is-active"); panel.querySelector(".ai-guide__voice-greeting").textContent = "Listening…"; }; recognitionInstance.onresult = async (event) => { const question = event.results[0][0].transcript.trim(); panel.dataset.voiceState = "thinking"; panel.querySelector(".ai-guide__voice-greeting").textContent = "Thinking…"; const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: question }) }); const data = await response.json(); const answer = data.reply || data.error || "I could not answer that right now."; panel.querySelector(".ai-guide__voice-greeting").textContent = answer; if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(answer)); panel.dataset.voiceState = "speaking"; }; recognitionInstance.onend = () => { mic.classList.remove("is-active"); }; recognitionInstance.start();
+    const mic = panel.querySelector("[data-general-mic]"); recognitionInstance.onstart = () => { panel.dataset.voiceState = "listening"; mic.classList.add("is-active"); panel.querySelector(".ai-guide__voice-greeting").textContent = "Listening…"; }; recognitionInstance.onresult = async (event) => { const question = event.results[0][0].transcript.trim(); panel.dataset.voiceState = "thinking"; panel.querySelector(".ai-guide__voice-greeting").textContent = "Thinking…"; const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: question }) }); const data = await response.json(); const answer = data.reply || data.error || "I could not answer that right now."; panel.querySelector(".ai-guide__voice-greeting").textContent = answer; panel.dataset.voiceState = "speaking"; speak(answer, () => { panel.dataset.voiceState = "ready"; mic.classList.remove("is-active"); }); }; recognitionInstance.onend = () => { mic.classList.remove("is-active"); }; recognitionInstance.start();
   };
   window.__openXmaniusVoice = openGeneralVoice;
   document.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) openGeneralVoice(); });
