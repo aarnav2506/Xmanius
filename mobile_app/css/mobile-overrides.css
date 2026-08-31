@@ -1,0 +1,91 @@
+/* mobile-overrides.css - Mobile Specific UI Changes */
+:root {
+  --mobile-spacing: 12px;
+}
+
+/* Reduce overall lengths for convenience on mobile */
+body, .chat-app, .chat-main {
+  font-size: 14px !important;
+}
+
+.message {
+  padding: 12px var(--mobile-spacing) !important;
+}
+
+.message-body p, .message-body li {
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+.chat-composer {
+  padding: 8px var(--mobile-spacing) !important;
+}
+
+.chat-input {
+  padding: 10px 14px !important;
+  min-height: 40px !important;
+}
+
+/* Sidebar Mobile Layout matching reference images */
+.chat-sidebar {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: var(--mobile-spacing) !important;
+  padding-bottom: 90px !important; /* Space for absolute positioned bottom elements */
+}
+
+.sidebar-header {
+  margin-bottom: 12px !important;
+}
+
+.sidebar-recents {
+  flex-grow: 1 !important;
+  overflow-y: auto !important;
+  margin-bottom: 0 !important;
+}
+
+/* Floating blue pill for New Chat at bottom right */
+.new-chat {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  width: auto !important;
+  margin: 0 !important;
+  border-radius: 28px !important;
+  background-color: #2b52d6 !important; /* Blue background */
+  color: #ffffff !important;
+  padding: 14px 24px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  z-index: 10 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  justify-content: center !important;
+}
+
+.new-chat span {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  display: inline !important; /* override collapsed hidden state */
+}
+
+.new-chat svg {
+  fill: #ffffff !important;
+  stroke: none !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* Account button at bottom left */
+.sidebar-account {
+  position: absolute !important;
+  bottom: 20px !important;
+  left: 20px !important;
+  width: auto !important;
+  max-width: calc(100% - 140px) !important; /* leave room for new chat button */
+  margin: 0 !important;
+  padding: 8px !important;
+  background: transparent !important;
+  border: none !important;
+}
