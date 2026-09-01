@@ -1,12 +1,12 @@
 "use strict";
 
-/*
- * Xmanius differentiator: Evidence Ledger
- *
- * Instead of showing a generic list of links, every important claim can carry
- * the source(s) that support it, a freshness check, and an uncertainty label.
- * Store the ledger with the response for inspection and future re-checking.
+/**
+ * XManius Evidence Ledger & Source Citation Engine
+ * Replaces generic link lists with a verifiable Evidence Graph:
+ * [S1], [S2] badges, freshness scores, claim-to-source mappings, and domain grouping.
  */
+
+const crypto = require("crypto");
 
 const CLAIM_STATUS = Object.freeze({
   SUPPORTED: "supported",
@@ -15,32 +15,48 @@ const CLAIM_STATUS = Object.freeze({
   CONFLICTING: "conflicting",
 });
 
-const hostOf = (url) => {
+const hostOf = function (url) {
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "unknown";
+    const parsed = new (require("url").URL)(url);
+    return parsed.hostname.replace(/^www\./, "");
+  } catch (e) {
+    try {
+      const match = String(url).match(/^https?:\/\/([^/?#]+)(?:[/?#]|$)/i);
+      return match ? match[1].replace(/^www\./, "") : "unknown";
+    } catch (err) {
+      return "unknown";
+    }
   }
 };
 
-const tokenize = (value) => new Set(
-  String(value || "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .filter((token) => token.length > 2),
-);
+const hashContent = function (text) {
+  return crypto.createHash("sha256").update(String(text || "")).digest("hex").slice(0, 12);
+};
 
-const overlap = (left, right) => {
+const tokenize = function (value) {
+  const words = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(function (token) { return token.length > 2; });
+  const set = new Set();
+  for (let i = 0; i < words.length; i++) set.add(words[i]);
+  return set;
+};
+
+const overlap = function (left, right) {
   const a = tokenize(left);
   const b = tokenize(right);
   if (!a.size || !b.size) return 0;
   let shared = 0;
-  for (const token of a) if (b.has(token)) shared += 1;
+  a.forEach(function (token) {
+    if (b.has(token)) shared += 1;
+  });
   return shared / Math.max(1, a.size);
 };
 
-const freshness = (publishedAt, now = Date.now()) => {
+const freshness = function (publishedAt, nowTime) {
+  const now = nowTime || Date.now();
   if (!publishedAt) return { label: "unknown", ageDays: null };
   const timestamp = Date.parse(publishedAt);
   if (!Number.isFinite(timestamp)) return { label: "unknown", ageDays: null };
@@ -51,58 +67,140 @@ const freshness = (publishedAt, now = Date.now()) => {
   };
 };
 
-const buildEvidenceLedger = ({ claims = [], sources = [], now = Date.now() } = {}) => {
-  const normalizedSources = sources
-    .filter((source) => source?.url)
-    .map((source, index) => ({
-      id: source.id || `S${index + 1}`,
-      title: source.title || hostOf(source.url),
-      url: source.url,
-      publisher: source.publisher || hostOf(source.url),
-      publishedAt: source.publishedAt || null,
-      snippet: source.snippet || "",
-      freshness: freshness(source.publishedAt, now),
-    }));
+class EvidenceLedger {
+  constructor(opts) {
+    const options = opts || {};
+    this.taskId = options.taskId;
+    this.sources = [];
+    this.claims = [];
+    this.createdAt = new Date().toISOString();
+  }
 
-  const entries = claims.map((claim, index) => {
-    const linked = normalizedSources
-      .map((source) => ({ source, score: overlap(claim.text, `${source.title} ${source.snippet}`) }))
-      .filter((item) => item.score >= 0.18)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4);
+  addSource(opts) {
+    const options = opts || {};
+    const url = options.url;
+    if (!url) return null;
+    const existing = this.sources.find(function (s) { return s.url === url; });
+    if (existing) return existing;
 
-    const sourceIds = linked.map((item) => item.source.id);
-    const status = sourceIds.length >= 2
-      ? CLAIM_STATUS.SUPPORTED
-      : sourceIds.length === 1
-        ? CLAIM_STATUS.PARTIAL
-        : CLAIM_STATUS.UNVERIFIED;
+    const sourceId = options.id || ("S" + (this.sources.length + 1));
+    const domain = hostOf(url);
+    const resolvedTitle = options.title || domain;
+    const snippet = options.snippet || "";
+    const contentHash = hashContent(options.content || snippet || url);
 
-    return {
-      id: claim.id || `C${index + 1}`,
-      text: claim.text,
-      status,
-      confidence: status === CLAIM_STATUS.SUPPORTED ? "high" : status === CLAIM_STATUS.PARTIAL ? "medium" : "low",
-      sourceIds,
-      note: status === CLAIM_STATUS.UNVERIFIED
-        ? "No attached source strongly supports this claim. Verify before relying on it."
-        : status === CLAIM_STATUS.PARTIAL
-          ? "One attached source is relevant; corroboration is recommended."
-          : "Multiple attached sources are relevant.",
+    const source = {
+      id: sourceId,
+      url: url,
+      title: resolvedTitle,
+      domain: domain,
+      publisher: options.publisher || domain,
+      publishedAt: options.publishedAt || null,
+      retrievedAt: new Date().toISOString(),
+      snippet: snippet,
+      contentHash: contentHash,
+      freshness: freshness(options.publishedAt),
+      claimsSupported: [],
     };
-  });
 
-  return {
-    generatedAt: new Date(now).toISOString(),
-    sources: normalizedSources,
-    claims: entries,
-    summary: {
-      totalClaims: entries.length,
-      supported: entries.filter((item) => item.status === CLAIM_STATUS.SUPPORTED).length,
-      partial: entries.filter((item) => item.status === CLAIM_STATUS.PARTIAL).length,
-      unverified: entries.filter((item) => item.status === CLAIM_STATUS.UNVERIFIED).length,
-    },
-  };
+    this.sources.push(source);
+    return source;
+  }
+
+  mapClaims(claimsList) {
+    const claims = claimsList || [];
+    const self = this;
+    const entries = claims.map(function (claim, index) {
+      const claimText = typeof claim === "string" ? claim : claim.text || "";
+      const claimId = (typeof claim === "object" && claim.id) ? claim.id : ("C" + (index + 1));
+
+      const linked = self.sources
+        .map(function (source) {
+          return {
+            source: source,
+            score: overlap(claimText, source.title + " " + source.snippet),
+          };
+        })
+        .filter(function (item) { return item.score >= 0.15; })
+        .sort(function (a, b) { return b.score - a.score; })
+        .slice(0, 4);
+
+      const sourceIds = linked.map(function (item) { return item.source.id; });
+      
+      sourceIds.forEach(function (sid) {
+        const src = self.sources.find(function (s) { return s.id === sid; });
+        if (src && src.claimsSupported.indexOf(claimId) === -1) {
+          src.claimsSupported.push(claimId);
+        }
+      });
+
+      const status =
+        sourceIds.length >= 2
+          ? CLAIM_STATUS.SUPPORTED
+          : sourceIds.length === 1
+          ? CLAIM_STATUS.PARTIAL
+          : CLAIM_STATUS.UNVERIFIED;
+
+      return {
+        id: claimId,
+        text: claimText,
+        status: status,
+        confidence: status === CLAIM_STATUS.SUPPORTED ? "high" : status === CLAIM_STATUS.PARTIAL ? "medium" : "low",
+        sourceIds: sourceIds,
+        note:
+          status === CLAIM_STATUS.UNVERIFIED
+            ? "No attached source strongly supports this claim. Verify before relying on it."
+            : status === CLAIM_STATUS.PARTIAL
+            ? "One attached source is relevant; corroboration is recommended."
+            : "Multiple attached sources support this claim.",
+      };
+    });
+
+    this.claims = entries;
+    return entries;
+  }
+
+  toSidebarSummary() {
+    const self = this;
+    return {
+      taskId: this.taskId,
+      totalSources: this.sources.length,
+      sources: this.sources.map(function (s) {
+        return {
+          id: s.id,
+          title: s.title,
+          url: s.url,
+          domain: s.domain,
+          retrievedAt: s.retrievedAt,
+          snippet: s.snippet,
+          freshness: s.freshness.label,
+          claimsCount: s.claimsSupported.length,
+        };
+      }),
+      totalClaims: this.claims.length,
+      claims: this.claims,
+      metrics: {
+        supported: this.claims.filter(function (c) { return c.status === CLAIM_STATUS.SUPPORTED; }).length,
+        partial: this.claims.filter(function (c) { return c.status === CLAIM_STATUS.PARTIAL; }).length,
+        unverified: this.claims.filter(function (c) { return c.status === CLAIM_STATUS.UNVERIFIED; }).length,
+      },
+    };
+  }
+}
+
+const buildEvidenceLedger = function (opts) {
+  const options = opts || {};
+  const ledger = new EvidenceLedger({ taskId: options.taskId });
+  (options.sources || []).forEach(function (s) { ledger.addSource(s); });
+  ledger.mapClaims(options.claims || []);
+  return ledger.toSidebarSummary();
 };
 
-module.exports = { CLAIM_STATUS, buildEvidenceLedger, freshness, hostOf };
+module.exports = {
+  CLAIM_STATUS: CLAIM_STATUS,
+  EvidenceLedger: EvidenceLedger,
+  buildEvidenceLedger: buildEvidenceLedger,
+  freshness: freshness,
+  hostOf: hostOf,
+  hashContent: hashContent,
+};

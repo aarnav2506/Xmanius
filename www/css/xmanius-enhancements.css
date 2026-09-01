@@ -8,6 +8,66 @@
   transition: opacity .15s ease;
 }
 
+.settings-voice-preview-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 14px 0;
+  padding: 14px 18px;
+  border: 1px solid #3c3c42;
+  border-radius: 14px;
+  background: #28282b;
+}
+
+.voice-preview-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.voice-preview-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #36363c;
+  font-size: 18px;
+}
+
+.voice-preview-info strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #f1f1f3;
+}
+
+.voice-preview-info small {
+  color: #a9a9b0;
+  font-size: 12px;
+}
+
+.voice-test-play-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #484850;
+  border-radius: 20px;
+  background: #3a3a40;
+  color: #f1f1f3;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.voice-test-play-btn:hover {
+  background: #484852;
+  border-color: #60606a;
+}
+
 /* Final Android portrait override: keep every primary control inside the phone viewport. */
 @media (max-width: 720px) and (orientation: portrait) {
   html,
@@ -43,6 +103,21 @@
 
   .chat-app.sidebar-visible .chat-sidebar {
     transform: translate3d(0, 0, 0);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    background: rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 240ms ease;
+  }
+
+  .chat-app.sidebar-visible .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .chat-header {
