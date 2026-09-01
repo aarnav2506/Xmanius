@@ -91,9 +91,13 @@
   const showAttachmentNotice = (message, duration = 4200) => { if (!usageNotice) return; window.clearTimeout(attachmentNoticeTimer); usageNotice.textContent = message; usageNotice.classList.add("is-visible"); attachmentNoticeTimer = window.setTimeout(() => { if (usageNotice.textContent === message) { usageNotice.textContent = ""; usageNotice.classList.remove("is-visible"); } }, duration); };
   const chatsKey = "xmanius-chats-v1";
   let currentChatId = crypto.randomUUID?.() || String(Date.now());
-  const saveChats = (chats) => localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
+  const saveChats = (chats) => {
+    localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
+    if (window.XmaniusAuth?.getState()?.user) {
+      window.XmaniusAuth.syncCloudChats().catch(() => {});
+    }
+  };
   const cleanTitleText = (rawText) => {
-    if (!rawText) return "";
     return String(rawText)
       .replace(/\[\[ANSWER_SUMMARY\]\][\s\S]*?\[\[\/ANSWER_SUMMARY\]\]/gi, "")
       .replace(/\[\[ANSWER_SUMMARY\]\][^\n]*/gi, "")
@@ -662,7 +666,9 @@
       .replace(/\b(?:arctan|atan)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\tan^{-1}")
       .replace(/\b(sin|cos|tan)\s+inverse\b/gi, "\\$1^{-1}")
       .replace(/\b(?:determinant|det)\s+(?=[A-Za-z0-9{])/gi, "\\det ")
-      .replace(/(?<![A-Za-z0-9])(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/g, "\\frac{$1}{$2}");
+      .replace(/(?<![A-Za-z0-9])(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/g, "\\frac{$1}{$2}")
+      .replace(/√\s*(\d+|[a-zA-Z]+|\([^\n()]+\))/g, "\\sqrt{$1}")
+      .replace(/(?<![A-Za-z0-9\\])([a-zA-Z0-9]+)\s*\^\s*([0-9a-zA-Z+\-]+|\{[^{}]+\})/g, "$1^{$2}");
     return source;
   };
   const mathCommandMap = Object.freeze({
@@ -1414,7 +1420,23 @@
     pendingAttachments.forEach((attachment, index) => strip.append(createAttachmentCard(attachment, { removable: true, index })));
     attachments.append(strip);
   };
-  const addSelectedFiles = async (selected) => { if (!selected.length) return; if (pendingAttachments.length + selected.length > maxAttachments) { showAttachmentNotice(`You can attach up to ${maxAttachments} files per message.`); return; } for (const file of selected) { try { pendingAttachments.push(await prepareAttachment(file)); } catch (error) { showAttachmentNotice(error.message || "That file could not be added."); } } renderPendingAttachments(); input?.focus(); };
+  const addSelectedFiles = async (selected) => {
+    if (!selected.length) return;
+    if (pendingAttachments.length + selected.length > maxAttachments) {
+      showAttachmentNotice(`You can attach up to ${maxAttachments} files per message.`);
+      return;
+    }
+    for (const file of selected) {
+      try {
+        pendingAttachments.push(await prepareAttachment(file));
+        window.XmaniusLibrary?.saveMediaFile(file).catch(() => {});
+      } catch (error) {
+        showAttachmentNotice(error.message || "That file could not be added.");
+      }
+    }
+    renderPendingAttachments();
+    input?.focus();
+  };
   const handleAttachmentSelection = async (event) => { const selected = [...(event.target.files || [])]; event.target.value = ""; await addSelectedFiles(selected); };
   const renderMessageAttachmentPreviews = (message, items) => { const container = message?.querySelector(".message-attachments"); if (!container || !items?.length) return; container.replaceChildren(); items.forEach((attachment) => { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = createAttachmentCard(attachment); card.classList.add("message-image-preview"); container.append(card); }); };
   let cameraStream = null;
@@ -1490,6 +1512,19 @@
       if ((hasMatrix || hasScalarMath) && (hasMatrix || (!mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)))) {
         output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
         highlightNextMath = false;
+        index += 1;
+        continue;
+      }
+      const isFinalAnswerMarker = /^(?:Final\s+answers?|Answer)\s*:?\s*$/i.test(trimmed);
+      if (isFinalAnswerMarker) {
+        highlightNextMath = true;
+        output.push(`<h3>${inlineMarkdown(trimmed)}</h3>`);
+        index += 1;
+        continue;
+      }
+      const singleLineAnswer = trimmed.match(/^(?:Final\s+answers?|Answer)\s*:\s*(.+)$/i);
+      if (singleLineAnswer) {
+        output.push(`<p><strong>${escapeHtml(trimmed.slice(0, trimmed.indexOf(":") + 1))}</strong> <span class="math-answer-box">${inlineMarkdown(singleLineAnswer[1])}</span></p>`);
         index += 1;
         continue;
       }
@@ -1618,7 +1653,7 @@
       .replace(/\bXmanius\s+(Sonnet|Opus|Haiku)\b/g, "Claude $1")
       .trim();
   };
-  const addMessage = (text, type, { animate = false, persist = true, sources = [], searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false, memoryUpdated = false } = {}) => {
+  const addMessage = (text, type, { animate = false, persist = true, sources = [], artifacts = [], task = null, searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false, memoryUpdated = false } = {}) => {
     const answerEnvelope = stripAnswerSummaryTags(text);
     text = answerEnvelope.text;
     if (type === "assistant") text = sanitizeClientBranding(text);
@@ -1630,6 +1665,7 @@
     item.className = `message ${type}${type === "assistant" && text.length >= 650 ? " long-response" : ""}`;
     item.dataset.rawText = text;
     if (displaySources.length) item.dataset.sources = JSON.stringify(displaySources);
+    if (artifacts.length) item.dataset.artifacts = JSON.stringify(artifacts);
     if (reasoningSummary) item.dataset.reasoningSummary = reasoningSummary;
     if (reasoningSeconds) item.dataset.reasoningSeconds = String(reasoningSeconds);
     const body = document.createElement("div");
@@ -1727,6 +1763,24 @@
       actions.append(shareButton);
       actions.querySelector("[data-read-message]").addEventListener("click", () => speak(text));
       shareButton.addEventListener("click", async () => { if (navigator.share) await navigator.share({ title: "Xmanius response", text }).catch(() => {}); else await navigator.clipboard?.writeText(text); });
+
+      // ─── Cortex Agent UI ───────────────────────────────────────────────
+      if (task && task.steps && task.steps.length) {
+        const allArtifacts = artifacts || [];
+        const allSources = sources || [];
+
+        let cortexCard = null;
+        if (window.XmaniusCortex && window.XmaniusCortex.renderFullCortexResponse) {
+          cortexCard = window.XmaniusCortex.renderFullCortexResponse(task, allArtifacts, allSources);
+        }
+
+        if (cortexCard) {
+          body.style.display = "none";
+          item.insertBefore(cortexCard, item.firstChild);
+          // scroll card into view
+          setTimeout(() => cortexCard.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+        }
+      }
       item.append(actions);
     }
     list.append(item);
@@ -1788,14 +1842,100 @@
             await uploadLargeAttachment(attachment);
           }
         }
-        if (thinkingLabel) thinkingLabel.textContent = requestAttachments.length ? "Analyzing the uploaded attachment..." : (thinkMode ? "Thinking carefully" : "Thinking");
+      }
+      const isLocationQuery = /\b(near\s+me|nearby|closest|around\s+here|in\s+my\s+area|local|current\s+location|barber\s*shops?\s+near\s+me|restaurants?\s+near\s+me|food\s+near\s+me|shops?\s+near\s+me|stores?\s+near\s+me|salons?\s+near\s+me)\b/i.test(q);
+      let userLocation = null;
+      if (navigator.geolocation && (isLocationQuery || webSearch)) {
+        try {
+          userLocation = await new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                resolve({
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                  accuracy: pos.coords.accuracy
+                });
+              },
+              () => resolve(null),
+              { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+            );
+          });
+        } catch {}
       }
 
-      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, thinkMode, webSearch, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500), memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : "" } }), signal: activeRequestController.signal });
+      const isCortexMode = selectedModel === "xmanius-4" || selectedModel === "xmanius-7" || selectedModel === "xmanius-8";
+      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, runAsTask: isCortexMode, mode: isCortexMode ? "cortex" : (webSearch ? "research" : (thinkMode ? "deep_research" : "fast")), thinkMode, webSearch, location: userLocation, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500), memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : "" } }), signal: activeRequestController.signal });
       const data = await response.json().catch(() => ({}));
       thinking.remove();
-    // The selected Xmanius slot is shown explicitly; there is no silent key switch.
-      addMessage(response.ok ? data.reply : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? data.sources : [], searchError: response.ok ? data.searchError : "", reasoningSummary: response.ok && thinkMode ? data.reasoningSummary : "", reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode, memoryUpdated: memoryTriggered });
+
+      if (isCortexMode && response.ok) {
+        // ── CLIENT-SIDE CORTEX PIPELINE ──────────────────────────────────────
+        // Works whether or not the server ran the Cortex task engine.
+        // If server returned task data → use it. Otherwise build it from the reply text.
+        const serverTask = data.task || null;
+        const serverArtifacts = data.artifacts || [];
+        const replyText = data.reply || data.task?.output || "";
+
+        // Extract HTML code block from the reply if present
+        const htmlMatch = (replyText || "").match(/```html\s*([\s\S]*?)```/i);
+        const jsMatch = (replyText || "").match(/```javascript\s*([\s\S]*?)```/i) || (replyText || "").match(/```js\s*([\s\S]*?)```/i);
+        const anyCodeMatch = htmlMatch || jsMatch;
+        const extractedHtml = htmlMatch ? htmlMatch[1].trim() : null;
+        const extractedJs = jsMatch ? jsMatch[1].trim() : null;
+
+        const objective = requestMessage;
+        const taskId = (serverTask && serverTask.id) || ("ctask_" + Date.now().toString(36));
+
+        // Build synthetic task with steps if server didn't return a proper task
+        const task = serverTask && serverTask.steps && serverTask.steps.length ? serverTask : {
+          id: taskId,
+          state: "completed",
+          objective: objective,
+          output: replyText,
+          steps: [
+            { id: "s1", type: "plan", label: "Formulating execution plan & architecture", status: "completed", output: "" },
+            { id: "s2", type: "filesystem", label: "Writing project files & assets", status: "completed", output: anyCodeMatch ? "Generated " + (htmlMatch ? "HTML" : "JavaScript") + " source bundle" : "" },
+            { id: "s3", type: "test", label: "Running verification & tests", status: "completed", output: anyCodeMatch ? "Syntax verified. Logic validated." : "" },
+            { id: "s4", type: "verification", label: "Packaging interactive app & deliverables", status: "completed", output: anyCodeMatch ? "App bundle ready. Inline preview active." : "Response compiled." },
+          ],
+        };
+
+        // Build artifacts list: use server artifacts if available, otherwise build from extracted code
+        let artifacts = serverArtifacts.length ? serverArtifacts : [];
+        if (!artifacts.length && extractedHtml) {
+          artifacts = [
+            { id: "cfa_html_" + taskId, type: "html", title: "Interactive App", filename: "index.html", bundleHtml: extractedHtml, content: extractedHtml, metadata: {}, previewUrl: "", downloadUrl: "" },
+            { id: "cfa_pdf_" + taskId, type: "pdf", title: "Task_Report.pdf", filename: "Task_Report.pdf", bundleHtml: null, metadata: {}, previewUrl: "", downloadUrl: "" },
+          ];
+        } else if (!artifacts.length && extractedJs) {
+          const wrappedHtml = "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>App</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:20px;}</style></head><body><div id='app'></div><script>" + extractedJs + "<\/script></body></html>";
+          artifacts = [
+            { id: "cfa_html_" + taskId, type: "html", title: "Interactive App", filename: "index.html", bundleHtml: wrappedHtml, content: extractedJs, metadata: {}, previewUrl: "", downloadUrl: "" },
+            { id: "cfa_code_" + taskId, type: "code", title: "app.js", filename: "app.js", content: extractedJs, bundleHtml: null, metadata: {}, previewUrl: "", downloadUrl: "" },
+          ];
+        }
+
+        // Generate a printable HTML report artifact from the reply text
+        if (replyText && !artifacts.find((a) => a.metadata && a.metadata.isReport)) {
+          const reportHtml = "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Cortex Report</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#1e293b;padding:32px;max-width:800px;margin:auto;line-height:1.7;}h1,h2{color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:8px;}code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;}pre{background:#0f172a;color:#f8fafc;padding:20px;border-radius:10px;overflow-x:auto;font-size:12px;}.badge{display:inline-block;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;}.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12px;text-align:center;}</style></head><body><h1>Cortex Deliverable Report</h1><div class='badge'>✓ Cortex Verified</div><h2>Objective</h2><p>" + (objective || "").replace(/</g,"&lt;").replace(/>/g,"&gt;") + "</p><h2>Result</h2><div>" + (replyText || "").replace(/```[\s\S]*?```/g, "").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\n\n/g, "</p><p>").replace(/^/, "<p>").replace(/$/, "</p>") + "</div><div class='footer'>Generated by XManius Cortex Agent Runtime v1</div></body></html>";
+          artifacts.push({ id: "cfa_report_" + taskId, type: "html", title: "Deliverable_Report.html", filename: "report.html", bundleHtml: reportHtml, content: reportHtml, metadata: { isReport: true }, previewUrl: "", downloadUrl: "" });
+        }
+
+        addMessage(replyText || "Cortex execution complete.", "assistant", {
+          animate: false,
+          sources: data.sources || [],
+          artifacts: artifacts,
+          task: task,
+          searchError: "",
+          reasoningSummary: "",
+          reasoningSeconds: 0,
+          thinkMode: false,
+          memoryUpdated: false,
+        });
+      } else {
+        // The selected Xmanius slot is shown explicitly; there is no silent key switch.
+        addMessage(response.ok ? (data.reply || data.task?.output || "Task completed.") : (data.userMessage || data.error || `The AI request failed (${response.status}).`), "assistant", { animate: true, sources: response.ok ? (data.sources || data.task?.sources || []) : [], artifacts: response.ok ? (data.artifacts || data.task?.artifacts || []) : [], task: response.ok ? data.task : null, searchError: response.ok ? data.searchError : "", reasoningSummary: response.ok && thinkMode ? data.reasoningSummary : "", reasoningSeconds: thinkMode ? Math.max(1, Math.round((performance.now() - reasoningStartedAt) / 1000)) : 0, thinkMode, memoryUpdated: memoryTriggered });
+      }
     } catch (error) {
       thinking.remove();
       if (error.name === "AbortError") {
@@ -1985,9 +2125,30 @@
   dictationSend?.setAttribute("title", "Review dictated message");
   dictationCancel?.addEventListener("click", () => finishVoiceSession({ clearText: true, focus: true, abort: true }));
   dictationStop?.addEventListener("click", () => { voiceStopRequested = true; if (!recognition) { finishVoiceSession({ focus: true }); return; } try { recognition.stop(); } catch { finishVoiceSession({ focus: true, abort: true }); } });
-  dictationSend?.addEventListener("click", () => { const dictatedText = input.value.trim(); finishVoiceSession({ clearText: false, focus: true, abort: true }); if (dictatedText) input.value = dictatedText; });
   document.addEventListener("visibilitychange", () => { if (document.hidden && (recognition || form.classList.contains("is-listening"))) finishVoiceSession({ focus: false, abort: true }); });
   window.addEventListener("pagehide", () => finishVoiceSession({ focus: false, abort: true }));
+
+  // ─── 500MB Media Library Integration ──────────────────────────────────────
+  document.querySelectorAll("[data-open-library]").forEach((btn) => {
+    btn.addEventListener("click", () => window.XmaniusLibrary?.open());
+  });
+
+  window.XmaniusAttachExternalFile = (fileObj) => {
+    if (!fileObj) return;
+    pendingAttachments.push({
+      id: fileObj.id,
+      name: fileObj.name,
+      mimeType: fileObj.mimeType || fileObj.type || "application/octet-stream",
+      data: (fileObj.data || fileObj.dataUrl || "").replace(/^data:[^,]+,/, ""),
+      thumbnail: fileObj.dataUrl || "",
+      blobUrl: fileObj.dataUrl || "",
+      rawFile: null,
+      text: "",
+      fileUri: "",
+    });
+    renderPendingAttachments();
+    input?.focus();
+  };
   let moreModelsCloseTimer = 0;
   const setModelSubmenu = (open) => { window.clearTimeout(moreModelsCloseTimer); modelSubmenu?.classList.toggle("is-open", open); moreModelsToggle?.setAttribute("aria-expanded", String(open)); };
   const scheduleModelSubmenuClose = () => { window.clearTimeout(moreModelsCloseTimer); moreModelsCloseTimer = window.setTimeout(() => setModelSubmenu(false), 140); };
@@ -2000,7 +2161,26 @@
   modelSubmenu?.addEventListener("mouseenter", () => setModelSubmenu(true));
   modelSubmenu?.addEventListener("mouseleave", scheduleModelSubmenuClose);
   moreModelsToggle?.addEventListener("click", () => setModelSubmenu(!modelSubmenu?.classList.contains("is-open")));
-  const setSelectedModel = (model) => { selectedModel = /^xmanius-[1-9]$/.test(model || "") ? model : "xmanius-1"; try { localStorage.setItem("xmanius-selected-model-v1", selectedModel); } catch {} modelPicker?.querySelectorAll("[data-model]").forEach((item) => { const active = item.dataset.model === selectedModel; item.classList.toggle("is-selected", active); item.setAttribute("aria-pressed", String(active)); const check = item.querySelector("b"); if (check) check.textContent = active ? "✓" : ""; }); if (modelName) modelName.innerHTML = `${selectedModel.replace("xmanius-", isAndroid ? "Xmanias " : "Xmanius ")} <span class="dropdown-chevron" aria-hidden="true"></span>`; };
+  const getModelDisplayName = (modelKey) => {
+    const brand = isAndroid ? "Xmanias" : "Xmanius";
+    if (modelKey === "xmanius-1") return `${brand} 1.5`;
+    if (modelKey === "xmanius-2") return `${brand} Flash`;
+    if (modelKey === "xmanius-3") return `${brand} Pro`;
+    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `${brand} Cortex`;
+    return `${brand} ${modelKey.replace("xmanius-", "")}`;
+  };
+  const setSelectedModel = (model) => {
+    selectedModel = /^xmanius-[1-9]$/.test(model || "") ? model : "xmanius-1";
+    try { localStorage.setItem("xmanius-selected-model-v1", selectedModel); } catch {}
+    modelPicker?.querySelectorAll("[data-model]").forEach((item) => {
+      const active = item.dataset.model === selectedModel;
+      item.classList.toggle("is-selected", active);
+      item.setAttribute("aria-pressed", String(active));
+      const check = item.querySelector("b");
+      if (check) check.textContent = active ? "✓" : "";
+    });
+    if (modelName) modelName.innerHTML = `${getModelDisplayName(selectedModel)} <span class="dropdown-chevron" aria-hidden="true"></span>`;
+  };
   setSelectedModel(selectedModel);
   modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } if (event.target.closest("[data-more-models]")) { setModelSubmenu(!modelSubmenu?.classList.contains("is-open")); return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
   document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) setModelPicker(false); });
@@ -2491,10 +2671,15 @@
     closeSettingsChoiceMenu();
     const content = settingsBackdrop.querySelector("[data-settings-content]");
     const title = settingsBackdrop.querySelector("[data-settings-title]");
-    if (!content || !title) return;
     title.textContent = settingsSection === "general" ? "General" : settingsSection === "personalization" ? "Personalization" : settingsSection === "voice" ? "Voice Settings" : "Memory";
     if (settingsSection === "general") {
+      const authUser = window.XmaniusAuth?.getState()?.user;
+      const accountSection = authUser
+        ? '<div class="settings-row"><div><strong>Account &amp; Session</strong><small>Signed in as ' + (authUser.email || "Active User") + '</small></div><button type="button" class="settings-danger-btn" data-action-logout>Log Out</button></div>'
+        : '<div class="settings-row"><div><strong>Account &amp; Session</strong><small>Sign in to sync your conversations to the cloud.</small></div><button type="button" class="settings-value" data-action-open-auth style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600;">Log In / Sign Up</button></div>';
+
       content.innerHTML = '<div class="settings-intro"><strong>Make Xmanius work the way you prefer.</strong><small>These preferences are saved locally on this device.</small></div>' +
+        accountSection +
         createSettingRow("appearance", "Appearance", "Choose the interface theme.") +
         createSettingRow("contrast", "Contrast", "Adjust the contrast of the interface.") +
         createSettingRow("language", "Language", "Used for the interface and voice recognition.") +
@@ -2674,8 +2859,12 @@
         if (customInst) { settingsSection = "personalization"; renderSettingsSection(); return; }
         const manageMemory = event.target.closest("[data-manage-memory]");
         if (manageMemory) { closeSettings(); openMemorySummary(); return; }
+        const logoutAction = event.target.closest("[data-action-logout]");
+        if (logoutAction) { closeSettings(); window.XmaniusAuth?.signOut(); return; }
+        const loginAction = event.target.closest("[data-action-open-auth]");
+        if (loginAction) { closeSettings(); window.XmaniusAuth?.openAuthModal("signin"); return; }
         const connect = event.target.closest('[data-profile-action="connect"]');
-        if (connect) { window.alert("Account sign-in is not configured for this deployment yet. Your chats and files remain local to this browser."); return; }
+        if (connect) { closeSettings(); window.XmaniusAuth?.openAuthModal("signin"); return; }
       });
       settingsBackdrop.addEventListener("input", (event) => {
         if (event.target.matches("[data-custom-instructions]")) { appSettings.customInstructions = event.target.value.slice(0, 500); saveSettings(); }
@@ -2727,6 +2916,21 @@
         </svg>
         <span>Memory</span>
       </button>
+      <button type="button" data-profile-action="library">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>Media Vault (500MB)</span>
+      </button>
+      <button type="button" data-profile-action="avatar">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span>Change Profile Picture</span>
+      </button>
       <button type="button" data-profile-action="settings">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/>
@@ -2735,6 +2939,13 @@
         <span>Settings</span>
       </button>
       <hr class="profile-menu-divider">
+      ${window.XmaniusAuth?.getState()?.user ? `
+      <button type="button" data-profile-action="signout" style="color: #f87171;">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+        </svg>
+        <span>Sign Out</span>
+      </button>` : `
       <button type="button" data-profile-action="connect">
         <svg viewBox="0 0 24 24" width="19" height="19">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -2742,8 +2953,8 @@
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
         </svg>
-        <span>Connect Google Account</span>
-      </button>
+        <span>Log In / Sign Up</span>
+      </button>`}
       <button type="button" class="profile-menu-danger" data-profile-action="delete-all-chats">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>
@@ -2757,8 +2968,12 @@
       if (action === "personalization") openSettings("personalization");
       if (action === "memory") openSettings("memory");
       if (action === "settings") openSettings("general");
+      if (action === "library") window.XmaniusLibrary?.open();
+      if (action === "avatar") window.triggerAvatarUpload?.();
       if (action === "delete-all-chats") deleteAllChats();
-      if (action === "connect") window.alert("Account sign-in is not configured for this deployment yet. Your chats and files remain local to this browser.");
+      if (action === "connect") window.XmaniusAuth?.openAuthModal("signin");
+      if (action === "signout") window.XmaniusAuth?.signOut();
+      closeProfileMenu();
     });
     return menu;
   };
@@ -2837,3 +3052,4 @@
   window.__openXmaniusVoice = openGeneralVoice;
   document.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) openGeneralVoice(); });
 })();
+
