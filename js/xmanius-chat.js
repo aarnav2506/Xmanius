@@ -2494,7 +2494,7 @@
     if (modelKey === "xmanius-1") return `${brand} 1.5`;
     if (modelKey === "xmanius-2") return `${brand} Flash`;
     if (modelKey === "xmanius-3") return `${brand} Pro`;
-    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `${brand} Cortex`;
+    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `${brand} Polished`;
     return `${brand} ${modelKey.replace("xmanius-", "")}`;
   };
   const setSelectedModel = (model) => {
