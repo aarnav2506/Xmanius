@@ -600,7 +600,20 @@
       .replace(/\\ext\b/g, "\\text")
       .replace(/(^|[^\\A-Za-z])ext(?=\s*\{)/g, "$1\\text")
       .replace(/\bext([A-Z][A-Za-z0-9_-]*)/g, "\\text{$1}")
-      .replace(/(^|[^\\A-Za-z])imes(?=\s*[\{\[\(A-Z0-9\\]|\b)/g, "$1\\times");
+      .replace(/(^|[^\\A-Za-z])imes(?=\s*[\{\[\(A-Z0-9\\]|\b)/g, "$1\\times")
+      // Fix \detA, \vecX — command immediately followed by letter without brace
+      .replace(/\\(det)([A-Z])/g, "\\$1{$2}")
+      .replace(/\\(vec|hat|bar|tilde|widehat|widetilde)([A-Za-z])/g, "\\$1{$2}")
+      // Convert [[r1c1,r1c2],[r2c1,...]] Python-style array matrix to LaTeX bmatrix
+      .replace(/\[\[([^\[\]]+(?:\]\s*,\s*\[[^\[\]]+)*)\]\]/g, (_, content) => {
+        const rows = content.split(/\]\s*,\s*\[/).map((r, i, a) => {
+          let row = r;
+          if (i === 0) row = row.replace(/^\s*\[?/, "");
+          if (i === a.length - 1) row = row.replace(/\]?\s*$/, "");
+          return row.trim().split(/\s*,\s*/).join(" & ");
+        });
+        return "\\begin{bmatrix} " + rows.join(" \\\\ ") + " \\end{bmatrix}";
+      });
   };
   const normalizeCombinatoricsNotation = (value) => {
     let source = normalizeResponseText(value);
@@ -657,7 +670,7 @@
       .replace(new RegExp(`\\b(${unit})([2-9])\\b`, "gi"), "$1^{$2}")
       .replace(new RegExp(`\\b(${unit})\\s*²`, "gi"), "$1^{2}")
       .replace(new RegExp(`\\b(${unit})\\s*³`, "gi"), "$1^{3}")
-      .replace(/([A-Za-z0-9)])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}^{${[...power].map((character) => superscripts[character] || character).join("")}}`)
+      .replace(/([A-Za-z0-9α-ωΑ-Ωπ)])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}^{${[...power].map((character) => superscripts[character] || character).join("")}}`)
       .replace(/\bsqrt\s*\(([^()\n]+)\)/gi, "\\sqrt{$1}")
       .replace(/\bexp\s*\(([^()\n]+)\)/gi, "\\exp{$1}")
       .replace(/\b(?:determinant|det)\s*\(\s*([A-Za-z][A-Za-z0-9_]*)\s*\)/gi, "\\det{$1}")
@@ -665,28 +678,58 @@
       .replace(/\b(?:arccos|acos)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\cos^{-1}")
       .replace(/\b(?:arctan|atan)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\tan^{-1}")
       .replace(/\b(sin|cos|tan)\s+inverse\b/gi, "\\$1^{-1}")
+      .replace(/\b(?:determinant|det)\s+([A-Za-z])\b/gi, "\\det{$1}")
       .replace(/\b(?:determinant|det)\s+(?=[A-Za-z0-9{])/gi, "\\det ")
+      .replace(/1\s*\/\s*\\det\s*\{?([A-Za-z])\}?/g, "\\frac{1}{\\det{$1}}")
+      .replace(/\b(?:π|\\pi)\s*\/\s*(\d+)\b/g, "\\frac{\\pi}{$1}")
       .replace(/(?<![A-Za-z0-9])(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/g, "\\frac{$1}{$2}")
       .replace(/√\s*(\d+|[a-zA-Z]+|\([^\n()]+\))/g, "\\sqrt{$1}")
-      .replace(/(?<![A-Za-z0-9\\])([a-zA-Z0-9]+)\s*\^\s*([0-9a-zA-Z+\-]+|\{[^{}]+\})/g, "$1^{$2}");
+      .replace(/\b([A-Z])[-–—]1\b(?=\s*=|\s*adj|\s*\+)/g, "$1^{-1}")
+      .replace(/\b([A-Z])\s*T\b(?=\s*=)/g, "$1^{T}")
+      .replace(/\b(sin|cos|tan|cot|sec|csc|cosec)\s+([α-ωΑ-Ω])\b/gi, "\\$1{$2}")
+      .replace(/\b(log|lg|ln)\s*_\s*\{?([0-9a-zA-Z]+)\}?\s*\(([^()\n]+)\)/gi, "\\$1_{$2}($3)")
+      .replace(/\b(log|lg|ln)\s*_\s*\{?([0-9a-zA-Z]+)\}?\s*([0-9a-zA-Z]+)/gi, "\\$1_{$2}{$3}")
+      .replace(/\blim\s*_\s*\{?([^}\n]+)\}?/gi, "\\lim_{$1}")
+      .replace(/(?<![A-Za-z0-9\\])([a-zA-Z0-9α-ωΑ-Ω]+)\s*\^\s*([0-9a-zA-Zα-ωΑ-Ω+\-]+|\{[^{}]+\})/g, "$1^{$2}");
     return source;
   };
   const mathCommandMap = Object.freeze({
-    longrightarrow: "→", rightarrow: "→", to: "→", longleftrightarrow: "↔", leftrightarrow: "↔",
-    Delta: "Δ", delta: "δ", alpha: "α", beta: "β", gamma: "γ", Gamma: "Γ", theta: "θ", Theta: "Θ",
-    lambda: "λ", Lambda: "Λ", mu: "μ", nu: "ν", xi: "ξ", Xi: "Ξ", pi: "π", Pi: "Π", rho: "ρ",
-    sigma: "σ", Sigma: "Σ", tau: "τ", phi: "φ", Phi: "Φ", chi: "χ", psi: "ψ", Psi: "Ψ", omega: "ω", Omega: "Ω",
-    epsilon: "ε", varepsilon: "ε", eta: "η", iota: "ι", kappa: "κ",
-    infty: "∞", partial: "∂", nabla: "∇", sum: "Σ", prod: "Π", int: "∫", approx: "≈", cong: "≅", circ: "°",
-    exp: "exp", ln: "ln", log: "log", sin: "sin", cos: "cos", tan: "tan", cot: "cot", sec: "sec", csc: "csc", sinh: "sinh", cosh: "cosh", tanh: "tanh", det: "det", determinant: "det", leq: "≤", le: "≤", geq: "≥", ge: "≥", neq: "≠", pm: "±", mp: "∓", times: "×", cdot: "×",
-    div: "÷", in: "∈", notin: "∉", subset: "⊂", subseteq: "⊆", supset: "⊃", supseteq: "⊇", cup: "∪", cap: "∩", emptyset: "∅", degree: "°",
-    diamondsuit: "♦", heartsuit: "♥", spadesuit: "♠", clubsuit: "♣", qquad: "  ", quad: " ",
-    dots: "…", ldots: "…", cdots: "⋯"
+    longrightarrow: "\u2192", rightarrow: "\u2192", Rightarrow: "\u27F9", leftarrow: "\u2190", Leftarrow: "\u27F8",
+    leftrightarrow: "\u2194", Leftrightarrow: "\u27FA", longleftrightarrow: "\u2194", to: "\u2192", implies: "\u27F9", iff: "\u27FA",
+    uparrow: "\u2191", downarrow: "\u2193", Uparrow: "\u21D1", Downarrow: "\u21D3",
+    Delta: "\u0394", delta: "\u03B4", alpha: "\u03B1", beta: "\u03B2", gamma: "\u03B3", Gamma: "\u0393", theta: "\u03B8", Theta: "\u0398",
+    lambda: "\u03BB", Lambda: "\u039B", mu: "\u03BC", nu: "\u03BD", xi: "\u03BE", Xi: "\u039E", pi: "\u03C0", Pi: "\u03A0", rho: "\u03C1", varrho: "\u03C1",
+    sigma: "\u03C3", Sigma: "\u03A3", tau: "\u03C4", phi: "\u03C6", varphi: "\u03C6", Phi: "\u03A6", chi: "\u03C7", psi: "\u03C8", Psi: "\u03A8",
+    omega: "\u03C9", Omega: "\u03A9", epsilon: "\u03B5", varepsilon: "\u03B5", eta: "\u03B7", iota: "\u03B9", kappa: "\u03BA", zeta: "\u03B6",
+    infty: "\u221E", partial: "\u2202", nabla: "\u2207", sum: "\u2211", prod: "\u220F", int: "\u222B", approx: "\u2248", cong: "\u2245",
+    exp: "exp", ln: "ln", log: "log", sin: "sin", cos: "cos", tan: "tan", cot: "cot", sec: "sec",
+    csc: "csc", cosec: "cosec", sinh: "sinh", cosh: "cosh", tanh: "tanh", coth: "coth",
+    arcsin: "arcsin", arccos: "arccos", arctan: "arctan",
+    det: "det", determinant: "det", lim: "lim", min: "min", max: "max",
+    gcd: "gcd", lcm: "lcm", arg: "arg", mod: "mod",
+    leq: "\u2264", le: "\u2264", geq: "\u2265", ge: "\u2265", neq: "\u2260", equiv: "\u2261", not: "\u00AC",
+    pm: "\u00B1", mp: "\u2213", times: "\u00D7", cdot: "\u22C5", cdotp: "\u22C5", circ: "\u2218",
+    div: "\u00F7", in: "\u2208", notin: "\u2209", subset: "\u2282", subseteq: "\u2286", supset: "\u2283", supseteq: "\u2287",
+    cup: "\u222A", cap: "\u2229", setminus: "\u2216", emptyset: "\u2205", varnothing: "\u2205", degree: "\u00B0",
+    therefore: "\u2234", because: "\u2235",
+    forall: "\u2200", exists: "\u2203", nexists: "\u2204",
+    angle: "\u2220", measuredangle: "\u2221", perp: "\u22A5", parallel: "\u2225", nparallel: "\u2226",
+    lfloor: "\u230A", rfloor: "\u230B", lceil: "\u2308", rceil: "\u2309",
+    ll: "\u226A", gg: "\u226B", sim: "\u223C", simeq: "\u2243", prec: "\u227A", succ: "\u227B",
+    Re: "\u211C", Im: "\u2111", hbar: "\u210F", ell: "\u2113", aleph: "\u2135",
+    vdots: "\u22EE", ddots: "\u22F1", cdots: "\u22EF", ldots: "\u2026", dots: "\u2026",
+    iint: "\u222C", iiint: "\u222D", oint: "\u222E",
+    bigcup: "\u22C3", bigcap: "\u22C2", bigoplus: "\u2295", bigotimes: "\u2297",
+    prime: "\u2032", doubleprime: "\u2033",
+    checkmark: "\u2713", star: "\u22C6", bullet: "\u2022",
+    triangle: "\u25B3", square: "\u25A1",
+    diamondsuit: "\u2666", heartsuit: "\u2665", spadesuit: "\u2660", clubsuit: "\u2663",
+    qquad: "  ", quad: " "
   });
-  const mathWrapperCommands = new Set(["text", "textbf", "textrm", "mathrm", "mathbf", "mathit", "mathbb", "mathsf", "operatorname", "boldsymbol", "overline", "underline", "vec"]);
+  const mathWrapperCommands = new Set(["text", "textbf", "textrm", "mathrm", "mathbf", "mathit", "mathbb", "mathsf", "operatorname", "boldsymbol", "overline", "underline"]);
   const combinationCommandNames = new Set(["comb", "choose", "combination"]);
   const permutationCommandNames = new Set(["perm", "permutation"]);
-  const mathArgumentCommands = new Set(["frac", "dfrac", "tfrac", "binom", "sqrt", "boxed", "fbox", "factorial", "det", "determinant", ...combinationCommandNames, ...permutationCommandNames, ...mathWrapperCommands]);
+  const mathArgumentCommands = new Set(["frac", "dfrac", "tfrac", "binom", "sqrt", "boxed", "fbox", "factorial", "det", "determinant", "vec", "hat", "tilde", "bar", "widehat", "widetilde", "overbrace", "underbrace", ...combinationCommandNames, ...permutationCommandNames, ...mathWrapperCommands]);
   const skipMathWhitespace = (source, start) => { let cursor = start; while (cursor < source.length && /\s/.test(source[cursor])) cursor += 1; return cursor; };
   const readBalancedMathGroup = (source, start, opener = "{", closer = "}") => {
     const cursor = skipMathWhitespace(source, start);
@@ -831,9 +874,19 @@
           if (upper && lower) { output += `<span class="math-binomial"><span>${renderMathExpression(upper.value)}</span><span>${renderMathExpression(lower.value)}</span></span>`; cursor = lower.next; continue; }
         }
         if (command === "det" || command === "determinant") {
-          const argument = source[cursor] === "{" || source[cursor] === "(" ? readMathArgument(source, cursor) : null;
-          if (argument) { output += `<span class="math-function math-determinant"><span class="math-function-name">det</span><span class="math-function-argument">(${renderMathExpression(argument.value)})</span></span>`; cursor = argument.next; continue; }
-          output += `<span class="math-function math-determinant"><span class="math-function-name">det</span></span>`;
+          const tempPos = skipMathWhitespace(source, cursor);
+          let argument = null, nextCursor = cursor;
+          if (source[tempPos] === "{" || source[tempPos] === "(") {
+            argument = readMathArgument(source, tempPos);
+            if (argument) nextCursor = argument.next;
+          } else if (source[tempPos] && /[A-Za-z]/.test(source[tempPos])) {
+            argument = { value: source[tempPos], next: tempPos + 1 };
+            nextCursor = tempPos + 1;
+          }
+          output += argument
+            ? `<span class="math-function math-determinant"><span class="math-function-name">det</span><span class="math-function-argument"> ${renderMathExpression(argument.value)}</span></span>`
+            : `<span class="math-function math-determinant"><span class="math-function-name">det</span></span>`;
+          if (argument) cursor = nextCursor;
           continue;
         }
         if (permutationCommandNames.has(command)) {
@@ -851,6 +904,86 @@
           if (optional) { degree = optional.value; cursor = optional.next; }
           const radicand = readMathArgument(source, cursor);
           if (radicand) { output += `<span class="math-sqrt">${degree ? `<sup class="math-root-index">${renderMathExpression(degree)}</sup>` : ""}√<span>${renderMathExpression(radicand.value)}</span></span>`; cursor = radicand.next; continue; }
+        }
+        if (command === "log" || command === "lg" || command === "ln" || command === "lb") {
+          const isLn = command === "ln";
+          let base = null;
+          const tempPos2 = skipMathWhitespace(source, cursor);
+          if (!isLn && source[tempPos2] === "_") {
+            const baseArg = readMathArgument(source, tempPos2 + 1);
+            if (baseArg) { base = baseArg.value; cursor = baseArg.next; }
+          }
+          const displayName = isLn ? "ln" : "log";
+          output += base
+            ? `<span class="math-function">${displayName}<sub class="math-log-base">${renderMathExpression(base)}</sub></span>`
+            : `<span class="math-function">${displayName}</span>`;
+          continue;
+        }
+        if (command === "lim") {
+          let sub = null;
+          const tempPos2 = skipMathWhitespace(source, cursor);
+          if (source[tempPos2] === "_") {
+            const subArg = readMathArgument(source, tempPos2 + 1);
+            if (subArg) { sub = subArg.value; cursor = subArg.next; }
+          }
+          output += sub
+            ? `<span class="math-lim"><span class="math-lim-name">lim</span><sub class="math-lim-sub">${renderMathExpression(sub)}</sub></span>`
+            : `<span class="math-function">lim</span>`;
+          continue;
+        }
+        if (command === "sum" || command === "prod" || command === "coprod" || command === "bigcup" || command === "bigcap" || command === "bigoplus" || command === "bigotimes") {
+          const bigsymMap = { sum: "\u2211", prod: "\u220F", coprod: "\u2210", bigcup: "\u22C3", bigcap: "\u22C2", bigoplus: "\u2295", bigotimes: "\u2297" };
+          const bsym = bigsymMap[command] || "\u2211";
+          let lower = null, upper = null;
+          for (let p = 0; p < 2; p++) {
+            const tp = skipMathWhitespace(source, cursor);
+            if (source[tp] === "_" && !lower) { const a = readMathArgument(source, tp + 1); if (a) { lower = a.value; cursor = a.next; } else break; }
+            else if (source[tp] === "^" && !upper) { const a = readMathArgument(source, tp + 1); if (a) { upper = a.value; cursor = a.next; } else break; }
+            else break;
+          }
+          output += (lower || upper)
+            ? `<span class="math-bigsym"><span class="math-bigsym-upper">${upper ? renderMathExpression(upper) : ""}</span><span class="math-bigsym-sym">${bsym}</span><span class="math-bigsym-lower">${lower ? renderMathExpression(lower) : ""}</span></span>`
+            : bsym;
+          continue;
+        }
+        if (command === "int" || command === "iint" || command === "iiint" || command === "oint") {
+          const intSymMap = { int: "\u222B", iint: "\u222C", iiint: "\u222D", oint: "\u222E" };
+          const isym = intSymMap[command] || "\u222B";
+          let lower = null, upper = null;
+          for (let p = 0; p < 2; p++) {
+            const tp = skipMathWhitespace(source, cursor);
+            if (source[tp] === "_" && !lower) { const a = readMathArgument(source, tp + 1); if (a) { lower = a.value; cursor = a.next; } else break; }
+            else if (source[tp] === "^" && !upper) { const a = readMathArgument(source, tp + 1); if (a) { upper = a.value; cursor = a.next; } else break; }
+            else break;
+          }
+          output += (lower || upper)
+            ? `<span class="math-int"><span class="math-int-sup">${upper ? renderMathExpression(upper) : ""}</span><span class="math-int-sym">${isym}</span><span class="math-int-sub">${lower ? renderMathExpression(lower) : ""}</span></span>`
+            : isym;
+          continue;
+        }
+        if (command === "vec") {
+          const arg = readMathArgument(source, cursor);
+          if (arg) { output += `<span class="math-vec">${renderMathExpression(arg.value)}</span>`; cursor = arg.next; continue; }
+        }
+        if (command === "hat" || command === "widehat") {
+          const arg = readMathArgument(source, cursor);
+          if (arg) { output += `<span class="math-hat">${renderMathExpression(arg.value)}</span>`; cursor = arg.next; continue; }
+        }
+        if (command === "tilde" || command === "widetilde") {
+          const arg = readMathArgument(source, cursor);
+          if (arg) { output += `<span class="math-tilde">${renderMathExpression(arg.value)}</span>`; cursor = arg.next; continue; }
+        }
+        if (command === "bar") {
+          const arg = readMathArgument(source, cursor);
+          if (arg) { output += `<span class="math-overline">${renderMathExpression(arg.value)}</span>`; cursor = arg.next; continue; }
+        }
+        if (command === "overbrace") {
+          const arg = readMathArgument(source, cursor);
+          if (arg) { output += `<span class="math-overbrace">${renderMathExpression(arg.value)}</span>`; cursor = arg.next; continue; }
+        }
+        if (command === "underbrace") {
+          const arg = readMathArgument(source, cursor);
+          if (arg) { output += `<span class="math-underbrace">${renderMathExpression(arg.value)}</span>`; cursor = arg.next; continue; }
         }
         if (command === "exp") {
           const argument = readMathArgument(source, cursor);
@@ -932,11 +1065,15 @@
       if (!isSafeHttpUrl(cleanUrl) || (offset > 0 && /["'=]/.test(whole[offset - 1]))) return url;
       return tokenFor(isImageUrl(cleanUrl) ? imageCard(cleanUrl, "Image preview") : sourceLink(cleanUrl, cleanUrl)) + trailing;
     });
+    const superscripts = { "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁺": "+", "⁻": "-", "⁽": "(", "⁾": ")" };
+    const subscripts = { "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9", "₊": "+", "₋": "-", "₍": "(", "₎": ")" };
     let output = escapeHtml(source)
       .replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>")
       .replace(/__(.+?)__/gs, "<strong>$1</strong>")
       .replace(/~~(.+?)~~/gs, "<del>$1</del>")
-      .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+      .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+      .replace(/([A-Za-z0-9α-ωΑ-Ωπ\)\]])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}<sup>${[...power].map((c) => superscripts[c] || c).join("")}</sup>`)
+      .replace(/([A-Za-z0-9α-ωΑ-Ωπ\)\]])([₀₁₂₃₄₅₆₇₈₉₊₋₍₎]+)/g, (_, base, sub) => `${base}<sub>${[...sub].map((c) => subscripts[c] || c).join("")}</sub>`);
     output = output.replace(/\*\*/g, "");
     tokens.forEach((html, index) => { output = output.split(`\uE000${index}\uE001`).join(html); });
     return output;
@@ -946,13 +1083,16 @@
     if (previous && /[A-Za-z0-9_]/.test(previous)) return null;
     const remainder = source.slice(start);
     const patterns = [
-      /^(?:[A-Za-zπ])\s*[\^_]\s*(?:\{[^{}\n]+\}|[A-Za-z0-9+\-]+)/,
+      /^(?:[A-Za-zα-ωΑ-ΩπθλμσφΔΩ])\s*[\^_]\s*(?:\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-Ω+\-]+)/,
       /^(?:mm|cm|dm|km|m|µm|um|nm|in|ft|yd|kg|mg|g|L|mL)\s*[\^_]\s*(?:\{[^{}\n]+\}|[0-9+\-]+)/i,
-      /^(?:e|π)\s*\^\s*(?:\{[^{}\n]+\}|\([^()\n]+\)|[A-Za-z0-9+\-]+)/i,
-      /^(?:determinant|det)\s*(?:\([^()\n]+\)|[A-Za-z][A-Za-z0-9]*)/i,
-      /^(?:sin|cos|tan|cot|sec|csc|sinh|cosh|tanh)\s*(?:\^\s*(?:\{[^{}\n]+\}|-?\d+))?\s*(?:\([^()\n]+\)|[A-Za-z][A-Za-z0-9]*)/i,
+      /^(?:e|π|\\pi)\s*\^\s*(?:\{[^{}\n]+\}|\([^()\n]+\)|[A-Za-z0-9+\-]+)/i,
+      /^(?:determinant|det)\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z][A-Za-z0-9]*)/i,
+      /^(?:sin|cos|tan|cot|sec|csc|cosec|sinh|cosh|tanh|coth|arcsin|arccos|arctan)\s*(?:\^\s*(?:\{[^{}\n]+\}|-?\d+))?\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-ΩπθλμσφΔΩ]+)/i,
+      /^(?:log|lg|ln|lb)(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)?\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-Ω]+)/i,
+      /^(?:lim)\s*(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)/i,
+      /^(?:adj|adjugate)\s*\(\s*[A-Za-z]\s*\)/i,
       /^(?:sqrt|exp)\s*\([^()\n]+\)/i,
-      /^(?:-?\d+(?:\.\d+)?)\s*\/\s*(?:-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/i
+      /^(?:-?\d+(?:\.\d+)?|π|\\pi|[A-Za-z])\s*\/\s*(?:-?\d+(?:\.\d+)?|π|\\pi|[A-Za-z]|\\[A-Za-z]+(?:\{[^{}]+\})?)(?![A-Za-z0-9])/i
     ];
     for (const pattern of patterns) {
       const match = remainder.match(pattern);
@@ -1167,6 +1307,8 @@
 
     let thumbnail = "";
     let data = "";
+    let blobUrl = "";
+    try { blobUrl = URL.createObjectURL(file); } catch {}
 
     if (isImage) {
       const dataUrl = await readAsDataUrl(file);
@@ -1176,12 +1318,15 @@
       thumbnail = await generateVideoThumbnail(file);
     }
 
-    let blobUrl = "";
-    try { blobUrl = URL.createObjectURL(file); } catch {}
-
-    if (file.size <= 3.5 * 1024 * 1024 && !data) {
-      const dataUrl = await readAsDataUrl(file);
-      data = dataUrl.replace(/^data:[^,]+,/, "");
+    // For all audio (MP3, WAV, AAC, M4A, OGG), video (MP4, WEBM), PDFs, and images up to 25MB:
+    // Encode full base64 data for native multimodal AI analysis!
+    if (file.size <= 25 * 1024 * 1024 && !data) {
+      try {
+        const dataUrl = await readAsDataUrl(file);
+        data = dataUrl.replace(/^data:[^,]+,/, "");
+      } catch (err) {
+        console.warn("Base64 encoding error for attachment:", err);
+      }
     }
 
     return {
@@ -1528,6 +1673,12 @@
         index += 1;
         continue;
       }
+      if (highlightNextMath) {
+        highlightNextMath = false;
+        output.push(`<p><span class="math-answer-box">${inlineMarkdown(trimmed)}</span></p>`);
+        index += 1;
+        continue;
+      }
       highlightNextMath = /final answer\s*:?$/i.test(trimmed);
       output.push(`<p>${inlineMarkdown(trimmed)}</p>`);
       index += 1;
@@ -1834,10 +1985,10 @@
     }, thinkMode ? 300000 : 180000);
     setSendingState(true);
     try {
-      if (requestAttachments.some(a => a.rawFile && a.rawFile.size > 3.5 * 1024 * 1024 && !a.fileUri)) {
+      if (requestAttachments.some(a => a.rawFile && a.rawFile.size > 25 * 1024 * 1024 && !a.fileUri)) {
         const thinkingLabel = thinking.querySelector("span");
         for (const attachment of requestAttachments) {
-          if (attachment.rawFile && attachment.rawFile.size > 3.5 * 1024 * 1024 && !attachment.fileUri) {
+          if (attachment.rawFile && attachment.rawFile.size > 25 * 1024 * 1024 && !attachment.fileUri) {
             if (thinkingLabel) thinkingLabel.textContent = `Uploading ${attachment.name} (${(attachment.rawFile.size / (1024 * 1024)).toFixed(1)} MB)...`;
             await uploadLargeAttachment(attachment);
           }
@@ -2128,9 +2279,13 @@
   document.addEventListener("visibilitychange", () => { if (document.hidden && (recognition || form.classList.contains("is-listening"))) finishVoiceSession({ focus: false, abort: true }); });
   window.addEventListener("pagehide", () => finishVoiceSession({ focus: false, abort: true }));
 
-  // ─── 500MB Media Library Integration ──────────────────────────────────────
+  // ─── 500MB Media Library & Settings Shortcuts ─────────────────────────────
   document.querySelectorAll("[data-open-library]").forEach((btn) => {
     btn.addEventListener("click", () => window.XmaniusLibrary?.open());
+  });
+
+  document.querySelectorAll("[data-open-personalization]").forEach((btn) => {
+    btn.addEventListener("click", () => openSettings("personalization"));
   });
 
   window.XmaniusAttachExternalFile = (fileObj) => {
@@ -2671,8 +2826,9 @@
     closeSettingsChoiceMenu();
     const content = settingsBackdrop.querySelector("[data-settings-content]");
     const title = settingsBackdrop.querySelector("[data-settings-title]");
-    title.textContent = settingsSection === "general" ? "General" : settingsSection === "personalization" ? "Personalization" : settingsSection === "voice" ? "Voice Settings" : "Memory";
+    
     if (settingsSection === "general") {
+      title.textContent = "General";
       const authUser = window.XmaniusAuth?.getState()?.user;
       const accountSection = authUser
         ? '<div class="settings-row"><div><strong>Account &amp; Session</strong><small>Signed in as ' + (authUser.email || "Active User") + '</small></div><button type="button" class="settings-danger-btn" data-action-logout>Log Out</button></div>'
@@ -2687,6 +2843,7 @@
         '<div class="settings-row settings-toggle-row"><div><strong>Enable dictation</strong><small>Allow microphone input in the chat composer.</small></div><button type="button" class="settings-switch is-on" aria-label="Dictation is available"><span></span></button></div>' +
         '<div class="settings-row"><div><strong>Delete all chats</strong><small>Permanently delete all conversation history stored on this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>';
     } else if (settingsSection === "personalization") {
+      title.textContent = "Personalization";
       content.innerHTML = '<div class="settings-intro"><strong>Choose how Xmanius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
         createSettingRow("baseTone", "Base style and tone", "The overall style of the answer.") +
         createSettingRow("warm", "Warm", "Friendlier and more personable.") +
@@ -2696,6 +2853,7 @@
         '<div class="settings-row settings-toggle-row"><div><strong>Fast answers</strong><small>Use quick local answers when the question is simple.</small></div><button type="button" class="settings-switch ' + (appSettings.fastAnswers ? "is-on" : "") + '" data-settings-fast aria-pressed="' + String(appSettings.fastAnswers) + '"><span></span></button></div>' +
         '<label class="settings-custom"><strong>Custom instructions</strong><textarea data-custom-instructions maxlength="500" placeholder="Additional behavior, style, and tone preferences">' + String(appSettings.customInstructions || "").replace(/</g, "&lt;") + '</textarea></label>';
     } else if (settingsSection === "voice") {
+      title.textContent = "Voice";
       content.innerHTML = '<div class="settings-intro"><strong>Customize voice, speech rate, and audio.</strong><small>Select voice character, pitch, speed, and test your voice settings.</small></div>' +
         createSettingRow("voiceCallSound", "Voice character", "Choose from energy, tone, and character options.") +
         '<div class="settings-voice-preview-card"><div class="voice-preview-info"><span class="voice-preview-icon">🎙</span><div><strong>Voice Preview</strong><small>Test how Xmanius sounds with your selected voice and speed.</small></div></div><button type="button" class="voice-test-play-btn" data-action-test-voice><span>▶ Test Voice</span></button></div>' +
@@ -2703,7 +2861,101 @@
         createSettingRow("voicePitch", "Voice pitch", "Adjust the pitch depth of speech.") +
         '<div class="settings-row settings-toggle-row"><div><strong>Auto read aloud</strong><small>Automatically speak AI responses when received.</small></div><button type="button" class="settings-switch ' + (appSettings.autoReadAloud ? "is-on" : "") + '" data-settings-autoread aria-pressed="' + String(appSettings.autoReadAloud) + '"><span></span></button></div>' +
         '<div class="settings-row settings-toggle-row"><div><strong>Hands-free mic</strong><small>Keep microphone active for continuous voice conversation.</small></div><button type="button" class="settings-switch ' + (appSettings.handsFreeMic ? "is-on" : "") + '" data-settings-handsfree aria-pressed="' + String(appSettings.handsFreeMic) + '"><span></span></button></div>';
+    } else if (settingsSection === "storage") {
+      title.textContent = "Storage";
+      content.innerHTML = `
+        <div class="storage-view-wrap">
+          <div class="storage-usage-block">
+            <span class="storage-usage-title" id="storage-usage-text">Loading storage...</span>
+            <div class="storage-progress-track">
+              <div class="storage-progress-bar" id="storage-progress-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <div class="storage-manage-header">
+            <h3>Manage storage</h3>
+            <p>Manage your library to free up storage</p>
+          </div>
+
+          <div class="storage-items-list">
+            <div class="storage-row-item" data-open-storage-category="docs">
+              <div class="storage-row-left">
+                <span class="storage-row-name">Files</span>
+                <span class="storage-row-meta" id="storage-docs-meta">Loading...</span>
+              </div>
+              <span class="storage-row-chevron">›</span>
+            </div>
+
+            <div class="storage-row-item" data-open-storage-category="images">
+              <div class="storage-row-left">
+                <span class="storage-row-name">Images</span>
+                <span class="storage-row-meta" id="storage-images-meta">Loading...</span>
+              </div>
+              <span class="storage-row-chevron">›</span>
+            </div>
+
+            <div class="storage-row-item" data-open-storage-category="audio">
+              <div class="storage-row-left">
+                <span class="storage-row-name">Audio & Video</span>
+                <span class="storage-row-meta" id="storage-media-meta">Loading...</span>
+              </div>
+              <span class="storage-row-chevron">›</span>
+            </div>
+          </div>
+
+          <button type="button" class="storage-open-vault-btn" data-action="open-full-vault">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            Open Media Vault
+          </button>
+        </div>
+      `;
+
+      window.XmaniusLibrary?.getStorageBreakdown().then(b => {
+        const usageText = content.querySelector("#storage-usage-text");
+        const progressBar = content.querySelector("#storage-progress-bar");
+        const docsMeta = content.querySelector("#storage-docs-meta");
+        const imagesMeta = content.querySelector("#storage-images-meta");
+        const mediaMeta = content.querySelector("#storage-media-meta");
+
+        if (usageText) usageText.textContent = `${b.usedFormatted} of ${b.maxFormatted} used`;
+        if (progressBar) progressBar.style.width = `${b.percent}%`;
+        if (docsMeta) docsMeta.textContent = `${b.filesSizeFormatted} • ${b.filesCount} files`;
+        if (imagesMeta) imagesMeta.textContent = `${b.imagesSizeFormatted} • ${b.imagesCount} images`;
+        if (mediaMeta) mediaMeta.textContent = `${b.mediaSizeFormatted} • ${b.mediaCount} media`;
+      });
+    } else if (settingsSection === "account") {
+      title.textContent = "Account";
+      const profile = window.XmaniusAuth?.getUserProfile() || { displayName: "Aarnav Thakur", username: "aarnav_thakur", email: "aarnavthakur25062009@gmail.com" };
+
+      content.innerHTML = `
+        <div class="account-view-wrap">
+          <div class="account-row-item">
+            <span class="account-row-label">Name</span>
+            <span class="account-row-value" data-action-edit-profile style="cursor:pointer;" title="Click to edit">${escapeHtml(profile.displayName)}</span>
+          </div>
+
+          <div class="account-row-item">
+            <span class="account-row-label">Username</span>
+            <span class="account-row-value" data-action-edit-profile style="cursor:pointer;" title="Click to edit">@${escapeHtml(profile.username)} <span style="font-size:16px;">›</span></span>
+          </div>
+
+          <div class="account-row-item">
+            <span class="account-row-label">Email</span>
+            <span class="account-row-value is-static">${escapeHtml(profile.email || "Not linked")} <span style="font-size:16px;">›</span></span>
+          </div>
+
+          <div class="account-row-item" style="border-bottom: none; margin-top: 14px;">
+            <span class="account-row-label" style="color: #ef4444; font-weight: 600;">Delete account</span>
+            <button type="button" class="account-delete-btn" data-action-delete-account>Delete</button>
+          </div>
+        </div>
+      `;
     } else {
+      title.textContent = "Memory";
       content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Let Xmanias personalize relevant answers from chats saved on this device.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
         '<div class="settings-memory-card"><div class="settings-memory-card-info"><strong>Memory summary</strong><p>View an overview of what Xmanias has learned about you. Use <a href="javascript:void(0);" data-open-custom-instructions>custom instructions</a> for information you’d like it to always keep in mind. You can still manage your old <a href="javascript:void(0);" data-manage-memory>saved memories</a>.</p></div><button type="button" class="settings-secondary-btn" data-manage-memory>Manage</button></div>' +
         '<div class="settings-memory-card"><div><strong>Delete all chats</strong><small>Permanently delete all saved conversation history from this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>' +
@@ -2788,22 +3040,19 @@
               </svg>
               <span>Voice</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="memory">
+            <button type="button" class="settings-nav-item" data-settings-section="storage">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="M2 10h20M7 15h.01M17 15h.01"/>
               </svg>
-              <span>Memory</span>
+              <span>Storage</span>
             </button>
-            <div class="settings-nav-spacer"></div>
-            <button type="button" class="settings-nav-item" data-profile-action="connect">
-              <svg viewBox="0 0 24 24" width="18" height="18">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            <button type="button" class="settings-nav-item" data-settings-section="account">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
               </svg>
-              <span>Connect Account</span>
+              <span>Account</span>
             </button>
           </aside>
           <section class="settings-main">
@@ -2817,6 +3066,7 @@
         if (event.target === settingsBackdrop || event.target.closest("[data-settings-close]")) { closeSettings(); return; }
         const section = event.target.closest("[data-settings-section]");
         if (section) { settingsSection = section.dataset.settingsSection; settingsBackdrop.querySelectorAll("[data-settings-section]").forEach((item) => item.classList.toggle("is-active", item === section)); renderSettingsSection(); return; }
+        
         const choiceButton = event.target.closest("[data-setting-choice]");
         if (choiceButton) {
           if (settingsChoiceMenu?.dataset.settingKey === choiceButton.dataset.settingChoice) { closeSettingsChoiceMenu(); return; }
@@ -2863,8 +3113,34 @@
         if (logoutAction) { closeSettings(); window.XmaniusAuth?.signOut(); return; }
         const loginAction = event.target.closest("[data-action-open-auth]");
         if (loginAction) { closeSettings(); window.XmaniusAuth?.openAuthModal("signin"); return; }
-        const connect = event.target.closest('[data-profile-action="connect"]');
-        if (connect) { closeSettings(); window.XmaniusAuth?.openAuthModal("signin"); return; }
+        
+        // Storage actions
+        const storageCategory = event.target.closest("[data-open-storage-category]");
+        if (storageCategory) {
+          closeSettings();
+          window.XmaniusLibrary?.open();
+          return;
+        }
+        const openFullVault = event.target.closest("[data-action='open-full-vault']");
+        if (openFullVault) {
+          closeSettings();
+          window.XmaniusLibrary?.open();
+          return;
+        }
+
+        // Account actions
+        const editProfileBtn = event.target.closest("[data-action-edit-profile]");
+        if (editProfileBtn) {
+          closeSettings();
+          window.XmaniusAuth?.openEditProfileModal();
+          return;
+        }
+        const deleteAccountBtn = event.target.closest("[data-action-delete-account]");
+        if (deleteAccountBtn) {
+          closeSettings();
+          window.XmaniusAuth?.deleteAccount();
+          return;
+        }
       });
       settingsBackdrop.addEventListener("input", (event) => {
         if (event.target.matches("[data-custom-instructions]")) { appSettings.customInstructions = event.target.value.slice(0, 500); saveSettings(); }
@@ -2879,22 +3155,29 @@
     renderSettingsSection();
   };
   const createProfileMenu = () => {
-    const isConnected = !!appSettings.googleConnected;
-    const userName = isConnected ? (appSettings.userName || "Aarnav Thakur") : "Guest User";
-    const userSub = isConnected ? (appSettings.userPlan || "Go") : "Connect Google Account";
+    const profile = window.XmaniusAuth?.getUserProfile?.() || {
+      displayName: "Aarnav Thakur",
+      username: "aarnav_thakur",
+      email: "aarnavthakur25062009@gmail.com",
+      avatarUrl: "",
+      isGuest: false
+    };
 
-    const userAvatarHtml = isConnected
-      ? `<div class="profile-menu-avatar">${(userName[0] || "A").toUpperCase()}</div>`
-      : `<div class="profile-menu-avatar profile-menu-avatar-guest"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>`;
+    let userAvatarHtml = "";
+    if (profile.avatarUrl) {
+      userAvatarHtml = `<div class="profile-menu-avatar" style="padding:0;overflow:hidden;"><img src="${profile.avatarUrl}" alt="${escapeHtml(profile.displayName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>`;
+    } else {
+      userAvatarHtml = `<div class="profile-menu-avatar" style="background:#3b82f6;color:white;font-weight:bold;display:flex;align-items:center;justify-content:center;">${(profile.displayName[0] || "A").toUpperCase()}</div>`;
+    }
 
     const menu = document.createElement("div");
     menu.className = "profile-menu";
     menu.innerHTML = `
-      <div class="profile-menu-user-row">
+      <div class="profile-menu-user-row" data-profile-action="edit-profile" style="cursor:pointer;" title="Edit profile">
         ${userAvatarHtml}
         <div class="profile-menu-user-info">
-          <span class="profile-menu-name">${escapeHtml(userName)}</span>
-          <span class="profile-menu-sub">${escapeHtml(userSub)}</span>
+          <span class="profile-menu-name">${escapeHtml(profile.displayName)}</span>
+          <span class="profile-menu-sub" style="color:#8e8e93;font-size:12px;">${profile.isGuest ? "Free Plan" : "@" + escapeHtml(profile.username)}</span>
         </div>
         <div class="profile-menu-chevron">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2902,34 +3185,19 @@
       </div>
       <hr class="profile-menu-divider">
       <button type="button" data-profile-action="personalization">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9.5"/>
           <path d="M10.5 8.5 A 3.5 3.5 0 0 0 9 12 A 3.5 3.5 0 0 0 12.5 15.5"/>
           <path d="M13.5 15.2 A 3.5 3.5 0 0 0 15.5 12.5"/>
         </svg>
         <span>Personalization</span>
       </button>
-      <button type="button" data-profile-action="memory">
+      <button type="button" data-profile-action="edit-profile">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
         </svg>
-        <span>Memory</span>
-      </button>
-      <button type="button" data-profile-action="library">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
-          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-          <polyline points="21 15 16 10 5 21"></polyline>
-        </svg>
-        <span>Media Vault (500MB)</span>
-      </button>
-      <button type="button" data-profile-action="avatar">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-          <circle cx="12" cy="13" r="4"></circle>
-        </svg>
-        <span>Change Profile Picture</span>
+        <span>Profile</span>
       </button>
       <button type="button" data-profile-action="settings">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2938,39 +3206,34 @@
         </svg>
         <span>Settings</span>
       </button>
+      <button type="button" data-profile-action="help">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="4"></circle>
+          <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+          <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+          <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+          <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+        </svg>
+        <span>Help</span>
+      </button>
       <hr class="profile-menu-divider">
-      ${window.XmaniusAuth?.getState()?.user ? `
-      <button type="button" data-profile-action="signout" style="color: #f87171;">
+      <button type="button" data-profile-action="logout" style="color: #ef4444;">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
         </svg>
-        <span>Sign Out</span>
-      </button>` : `
-      <button type="button" data-profile-action="connect">
-        <svg viewBox="0 0 24 24" width="19" height="19">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-        </svg>
-        <span>Log In / Sign Up</span>
-      </button>`}
-      <button type="button" class="profile-menu-danger" data-profile-action="delete-all-chats">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>
-        </svg>
-        <span>Delete all chats</span>
+        <span>Log out</span>
       </button>
     `;
     menu.addEventListener("click", (event) => {
       const action = event.target.closest("[data-profile-action]")?.dataset.profileAction;
       if (!action) return;
+      if (action === "edit-profile") {
+        closeProfileMenu();
+        window.XmaniusAuth?.openEditProfileModal();
+      }
       if (action === "personalization") openSettings("personalization");
-      if (action === "memory") openSettings("memory");
       if (action === "settings") openSettings("general");
-      if (action === "library") window.XmaniusLibrary?.open();
-      if (action === "avatar") window.triggerAvatarUpload?.();
-      if (action === "delete-all-chats") deleteAllChats();
       if (action === "connect") window.XmaniusAuth?.openAuthModal("signin");
       if (action === "signout") window.XmaniusAuth?.signOut();
       closeProfileMenu();

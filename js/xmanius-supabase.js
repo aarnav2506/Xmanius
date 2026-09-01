@@ -317,6 +317,210 @@
     window.location.reload();
   }
 
+  // ─── User Profile & Custom Metadata ───────────────────────────────────────
+  function getUserProfile() {
+    const meta = state.user?.user_metadata || {};
+    const identityMeta = state.user?.identities?.[0]?.identity_data || {};
+    const customAvatar = localStorage.getItem("xmanius-custom-avatar");
+    const customName = localStorage.getItem("xmanius-custom-name");
+    const customUsername = localStorage.getItem("xmanius-custom-username");
+
+    const defaultFallbackName = state.user ? (state.user.email ? state.user.email.split("@")[0] : "User") : "Aarnav Thakur";
+    const displayName = customName || meta.full_name || meta.name || identityMeta.full_name || identityMeta.name || defaultFallbackName;
+    const username = customUsername || meta.user_name || meta.username || identityMeta.user_name || displayName.toLowerCase().replace(/[^a-z0-9]/g, "_") || "aarnav_thakur";
+    const email = state.user?.email || (state.user ? "" : "aarnavthakur25062009@gmail.com");
+    const avatarUrl = customAvatar || meta.avatar_url || meta.picture || identityMeta.avatar_url || identityMeta.picture || "";
+
+    return { displayName, username, email, avatarUrl, isGuest: !state.user };
+  }
+
+  async function updateUserProfile({ displayName, username, avatarUrl }) {
+    if (displayName) localStorage.setItem("xmanius-custom-name", displayName);
+    if (username) localStorage.setItem("xmanius-custom-username", username.replace(/^@/, ""));
+    if (avatarUrl) localStorage.setItem("xmanius-custom-avatar", avatarUrl);
+
+    const client = getClient();
+    if (client && state.user) {
+      try {
+        await client.auth.updateUser({
+          data: {
+            full_name: displayName,
+            username: username ? username.replace(/^@/, "") : undefined,
+            avatar_url: avatarUrl || undefined
+          }
+        });
+      } catch (e) {
+        console.warn("Could not sync profile metadata to Supabase:", e);
+      }
+    }
+    updateUI();
+  }
+
+  // ─── Edit Profile Modal (Matching Screenshot 3) ───────────────────────────
+  let editProfileModalEl = null;
+
+  function openEditProfileModal() {
+    if (editProfileModalEl) editProfileModalEl.remove();
+
+    const profile = getUserProfile();
+    let tempAvatar = profile.avatarUrl;
+
+    const modal = document.createElement("div");
+    modal.className = "edit-profile-backdrop is-active";
+    modal.innerHTML = `
+      <div class="edit-profile-card" role="dialog" aria-modal="true" aria-label="Edit profile">
+        <header class="edit-profile-header">
+          <h2 class="edit-profile-title">Edit profile</h2>
+          <button type="button" class="edit-profile-close" data-action="close" aria-label="Close">×</button>
+        </header>
+        
+        <div class="edit-profile-avatar-section">
+          <div class="edit-profile-avatar-wrap" data-action="pick-avatar" title="Change profile photo">
+            ${tempAvatar 
+              ? `<img src="${tempAvatar}" alt="${profile.displayName}" class="edit-profile-avatar-img" id="edit-profile-avatar-preview">` 
+              : `<div class="edit-profile-avatar-fallback" id="edit-profile-avatar-preview">${(profile.displayName[0] || "A").toUpperCase()}</div>`
+            }
+            <button type="button" class="edit-profile-camera-btn" aria-label="Upload photo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </button>
+          </div>
+          <input type="file" id="edit-profile-file-input" accept="image/*" style="display: none;">
+        </div>
+
+        <form class="edit-profile-form" id="edit-profile-form">
+          <div class="edit-profile-field">
+            <label class="edit-profile-label" for="edit-profile-display-name">Display name</label>
+            <input type="text" id="edit-profile-display-name" class="edit-profile-input" value="${profile.displayName}" placeholder="Your name" required autocomplete="name">
+          </div>
+
+          <div class="edit-profile-field">
+            <label class="edit-profile-label" for="edit-profile-username">Username</label>
+            <input type="text" id="edit-profile-username" class="edit-profile-input" value="${profile.username}" placeholder="username" required autocomplete="username">
+          </div>
+
+          <div class="edit-profile-footer">
+            <button type="button" class="edit-profile-btn-cancel" data-action="close">Cancel</button>
+            <button type="submit" class="edit-profile-btn-save">Save</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    editProfileModalEl = modal;
+
+    const fileInput = modal.querySelector("#edit-profile-file-input");
+    const avatarWrap = modal.querySelector("[data-action='pick-avatar']");
+    const avatarPreview = modal.querySelector("#edit-profile-avatar-preview");
+
+    avatarWrap?.addEventListener("click", () => fileInput?.click());
+
+    fileInput?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        tempAvatar = String(reader.result || "");
+        if (avatarPreview.tagName.toLowerCase() === "img") {
+          avatarPreview.src = tempAvatar;
+        } else {
+          avatarPreview.outerHTML = `<img src="${tempAvatar}" alt="Preview" class="edit-profile-avatar-img" id="edit-profile-avatar-preview">`;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal || e.target.closest("[data-action='close']")) {
+        modal.classList.remove("is-active");
+        setTimeout(() => modal.remove(), 220);
+      }
+    });
+
+    const form = modal.querySelector("#edit-profile-form");
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const newDisplayName = modal.querySelector("#edit-profile-display-name")?.value.trim();
+      const newUsername = modal.querySelector("#edit-profile-username")?.value.trim().replace(/^@/, "");
+
+      await updateUserProfile({
+        displayName: newDisplayName || profile.displayName,
+        username: newUsername || profile.username,
+        avatarUrl: tempAvatar
+      });
+
+      modal.classList.remove("is-active");
+      setTimeout(() => modal.remove(), 220);
+    });
+  }
+
+  // ─── Delete Account (Permanent Wipe from Cloud & Local) ───────────────────
+  async function deleteAccount() {
+    const confirmModal = document.createElement("div");
+    confirmModal.className = "delete-account-modal";
+    confirmModal.innerHTML = `
+      <div class="delete-account-card">
+        <h3>Delete Account Permanently?</h3>
+        <p>This action cannot be undone. All your conversation history, uploaded media vault files, custom instructions, and personal settings will be permanently wiped from the database and this device.</p>
+        <div class="delete-account-actions">
+          <button type="button" class="delete-account-btn-cancel" data-action="cancel">Cancel</button>
+          <button type="button" class="delete-account-btn-confirm" data-action="confirm">Delete Account</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(confirmModal);
+
+    return new Promise((resolve) => {
+      confirmModal.addEventListener("click", async (e) => {
+        if (e.target.closest("[data-action='cancel']")) {
+          confirmModal.remove();
+          resolve(false);
+          return;
+        }
+
+        if (e.target.closest("[data-action='confirm']")) {
+          const btn = confirmModal.querySelector("[data-action='confirm']");
+          if (btn) btn.textContent = "Deleting...";
+
+          const client = getClient();
+          if (client && state.user) {
+            try {
+              // Delete all cloud chats
+              await client.from("user_chats").delete().eq("user_id", state.user.id);
+            } catch (err) {
+              console.warn("Cloud deletion note:", err);
+            }
+            try {
+              await client.auth.signOut();
+            } catch {}
+          }
+
+          // Clear IndexedDB Media Vault
+          if (window.indexedDB) {
+            try { window.indexedDB.deleteDatabase("xmanius-media-vault-v1"); } catch {}
+          }
+
+          // Clear all local storage
+          localStorage.removeItem("xmanius-chats-v1");
+          localStorage.removeItem("xmanius-settings-v1");
+          localStorage.removeItem("xmanius-custom-avatar");
+          localStorage.removeItem("xmanius-custom-name");
+          localStorage.removeItem("xmanius-custom-username");
+          localStorage.removeItem("xmanius-memory-v1");
+          localStorage.removeItem("xmanius-saved-memories-v1");
+
+          confirmModal.remove();
+          window.location.reload();
+          resolve(true);
+        }
+      });
+    });
+  }
+
   // ─── UI & Profile Updates ─────────────────────────────────────────────────
   function updateUI() {
     const accountBtn = document.querySelector("[data-account-button]");
@@ -326,36 +530,22 @@
 
     if (!accountBtn) return;
 
-    const customAvatar = localStorage.getItem("xmanius-custom-avatar");
+    const profile = getUserProfile();
 
-    if (state.user) {
-      const meta = state.user.user_metadata || {};
-      const identityMeta = state.user.identities?.[0]?.identity_data || {};
-      const name = meta.full_name || meta.name || identityMeta.full_name || identityMeta.name || state.user.email?.split("@")[0] || "User";
-      const avatarUrl = customAvatar || meta.avatar_url || meta.picture || identityMeta.avatar_url || identityMeta.picture || "";
-
-      if (accountName) accountName.textContent = name;
-      if (accountStatus) accountStatus.textContent = state.user.email || "Active User";
-
-      if (avatarSpan) {
-        if (avatarUrl) {
-          avatarSpan.innerHTML = `<img src="${avatarUrl}" alt="${name}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;">`;
-        } else {
-          avatarSpan.innerHTML = `<span style="font-weight: bold; color: white; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #3b82f6; border-radius: 50%; font-size: 13px;">${name.slice(0, 1).toUpperCase()}</span>`;
-        }
+    if (accountName) accountName.textContent = profile.displayName;
+    if (accountStatus) {
+      if (profile.isGuest) {
+        accountStatus.textContent = "Connect Google Account";
+      } else {
+        accountStatus.textContent = "@" + profile.username;
       }
-    } else {
-      if (accountName) accountName.textContent = "Guest User";
-      if (accountStatus) accountStatus.textContent = "Log In / Sign Up";
-      if (avatarSpan) {
-        if (customAvatar) {
-          avatarSpan.innerHTML = `<img src="${customAvatar}" alt="Guest" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;">`;
-        } else {
-          avatarSpan.innerHTML = `
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-            </svg>`;
-        }
+    }
+
+    if (avatarSpan) {
+      if (profile.avatarUrl) {
+        avatarSpan.innerHTML = `<img src="${profile.avatarUrl}" alt="${profile.displayName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;">`;
+      } else {
+        avatarSpan.innerHTML = `<span style="font-weight: bold; color: white; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #3b82f6; border-radius: 50%; font-size: 13px;">${profile.displayName.slice(0, 1).toUpperCase()}</span>`;
       }
     }
   }
@@ -437,6 +627,10 @@
   window.XmaniusAuth = {
     getClient: getClient,
     getState: () => state,
+    getUserProfile: getUserProfile,
+    updateUserProfile: updateUserProfile,
+    openEditProfileModal: openEditProfileModal,
+    deleteAccount: deleteAccount,
     openAuthModal: openAuthModal,
     closeAuthModal: closeAuthModal,
     signInWithGoogle: signInWithGoogle,

@@ -390,12 +390,48 @@
     };
   }
 
+  async function getStorageBreakdown() {
+    const files = await getAllFiles();
+    const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+    const images = files.filter(f => f.category === "images");
+    const audio = files.filter(f => f.category === "audio");
+    const video = files.filter(f => f.category === "video");
+    const docs = files.filter(f => f.category === "docs" || (!["images", "audio", "video"].includes(f.category)));
+
+    const imageBytes = images.reduce((acc, f) => acc + (f.size || 0), 0);
+    const audioBytes = audio.reduce((acc, f) => acc + (f.size || 0), 0);
+    const videoBytes = video.reduce((acc, f) => acc + (f.size || 0), 0);
+    const docBytes = docs.reduce((acc, f) => acc + (f.size || 0), 0);
+
+    const formatSize = (bytes) => {
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+      return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+    };
+
+    return {
+      totalBytes,
+      maxBytes: MAX_STORAGE_BYTES,
+      usedFormatted: formatSize(totalBytes),
+      maxFormatted: "500 MB",
+      percent: Math.min(100, Math.round((totalBytes / MAX_STORAGE_BYTES) * 100)),
+      filesCount: docs.length,
+      filesSizeFormatted: formatSize(docBytes),
+      imagesCount: images.length,
+      imagesSizeFormatted: formatSize(imageBytes),
+      mediaCount: audio.length + video.length,
+      mediaSizeFormatted: formatSize(audioBytes + videoBytes),
+      raw: { docs, images, audio, video, files }
+    };
+  }
+
   window.XmaniusLibrary = {
     open: openLibrary,
     close: closeLibrary,
     saveMediaFile: saveMediaFile,
     getAllFiles: getAllFiles,
     getUsedStorageBytes: getUsedStorageBytes,
+    getStorageBreakdown: getStorageBreakdown,
   };
 
   if (document.readyState === "loading") {

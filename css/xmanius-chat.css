@@ -258,13 +258,22 @@ body.xmanius-theme-light .composer-mic.active { color:#2563eb !important; filter
 .math-sqrt { display:inline-flex; align-items:stretch; vertical-align:middle; margin:0 .12em; line-height:1.2; font-family:"Times New Roman", Times, Georgia, serif; }
 .math-sqrt > span { border-top:1.5px solid currentColor; padding-top:1px; padding-inline:2px 3px; display:inline-block; }
 
-/* Matrix bracket & grid styling */
-.math-matrix { display:inline-flex; align-items:center; margin:0.3em 0.25em; vertical-align:middle; }
-.math-matrix.math-matrix-round { border-left:2px solid currentColor; border-right:2px solid currentColor; border-radius:12px; padding:2px 6px; }
-.math-matrix.math-matrix-square { border-left:2.5px solid currentColor; border-right:2.5px solid currentColor; border-radius:3px; padding:2px 6px; }
-.math-matrix.math-matrix-single { border-left:1.5px solid currentColor; border-right:1.5px solid currentColor; padding:2px 6px; }
-.math-matrix-grid { display:inline-grid; grid-template-columns:repeat(var(--matrix-cols, 1), auto); gap:4px 12px; text-align:center; align-items:center; font-family:"Times New Roman", Times, Georgia, serif; }
-.math-matrix-cell { padding:2px 4px; }
+/* Matrix bracket & grid -- proper [ ] ( ) shapes via ::before/::after */
+.math-matrix { display:inline-flex; align-items:stretch; margin:0.25em 0.15em; vertical-align:middle; }
+.math-matrix::before,
+.math-matrix::after { content:""; flex:0 0 5px; min-width:5px; }
+.math-matrix.math-matrix-square::before { border:1.5px solid currentColor; border-right:none; }
+.math-matrix.math-matrix-square::after  { border:1.5px solid currentColor; border-left:none; }
+.math-matrix.math-matrix-round::before { border:1.5px solid currentColor; border-right:none; border-radius:50% 0 0 50%/40% 0 0 40%; flex:0 0 7px; }
+.math-matrix.math-matrix-round::after  { border:1.5px solid currentColor; border-left:none; border-radius:0 50% 50% 0/0 40% 40% 0; flex:0 0 7px; }
+.math-matrix.math-matrix-single::before { border-left:1.5px solid currentColor; flex:0 0 4px; }
+.math-matrix.math-matrix-single::after  { border-right:1.5px solid currentColor; flex:0 0 4px; }
+.math-matrix.math-matrix-double::before { border-left:3px double currentColor; flex:0 0 6px; }
+.math-matrix.math-matrix-double::after  { border-right:3px double currentColor; flex:0 0 6px; }
+.math-matrix.math-matrix-curly::before { content:"{"; flex:none; font-size:1.8em; line-height:0.9; padding:0 1px; border:none; align-self:center; }
+.math-matrix.math-matrix-curly::after  { content:"}"; flex:none; font-size:1.8em; line-height:0.9; padding:0 1px; border:none; align-self:center; }
+.math-matrix-grid { display:inline-grid; grid-template-columns:repeat(var(--matrix-cols, 1), auto); gap:3px 10px; text-align:center; align-items:center; padding:4px 2px; font-family:"Times New Roman", Times, Georgia, serif; }
+.math-matrix-cell { padding:1px 3px; }
 
 /* Highlighted Boxed Final Answer matching user screenshot */
 .math-answer-box,
@@ -283,6 +292,36 @@ body.xmanius-theme-light .composer-mic.active { color:#2563eb !important; filter
   box-shadow:0 0 12px rgba(255,255,255,0.12);
   vertical-align:middle;
 }
+
+/* log subscript base */
+.math-log-base { font-size:0.68em; vertical-align:sub; line-height:0; }
+/* lim with subscript below */
+.math-lim { display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle; margin:0 0.1em; }
+.math-lim-name { font-style:italic; }
+.math-lim-sub { font-size:0.6em; line-height:1.2; }
+/* Sum/product big operators with stacked limits */
+.math-bigsym { display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle; margin:0 0.12em; }
+.math-bigsym-upper { font-size:0.55em; line-height:1.2; min-height:0.5em; text-align:center; }
+.math-bigsym-sym { font-size:1.45em; line-height:1.1; }
+.math-bigsym-lower { font-size:0.55em; line-height:1.2; min-height:0.5em; text-align:center; }
+/* Integral with limits */
+.math-int { display:inline-flex; align-items:center; vertical-align:middle; margin:0 0.1em; }
+.math-int-sym { font-size:1.85em; line-height:0.85; margin:0 0.02em; }
+.math-int-sup { font-size:0.55em; align-self:flex-start; padding-top:2px; }
+.math-int-sub { font-size:0.55em; align-self:flex-end; padding-bottom:2px; }
+/* Vector arrow above variable */
+.math-vec { display:inline-block; position:relative; padding-top:0.6em; }
+.math-vec::before { content:"\2192"; position:absolute; top:0; left:0; right:0; text-align:center; font-size:0.6em; line-height:1; }
+/* Hat ^ above variable */
+.math-hat { display:inline-block; position:relative; padding-top:0.45em; }
+.math-hat::before { content:"^"; position:absolute; top:-0.05em; left:0; right:0; text-align:center; font-size:0.75em; line-height:1; }
+/* Tilde ~ above variable */
+.math-tilde { display:inline-block; position:relative; padding-top:0.4em; }
+.math-tilde::before { content:"~"; position:absolute; top:-0.05em; left:0; right:0; text-align:center; font-size:0.85em; line-height:1; }
+/* Overbrace and underbrace */
+.math-overbrace { border-top:1.5px solid currentColor; padding-top:2px; display:inline-block; }
+.math-underbrace { border-bottom:1.5px solid currentColor; padding-bottom:2px; display:inline-block; }
+
 .math-final-bracket {
   display:inline-flex;
   align-items:center;
@@ -294,6 +333,15 @@ body.xmanius-theme-light .composer-mic.active { color:#2563eb !important; filter
   font-family:"Times New Roman", Times, Georgia, serif;
   color:#ffffff;
   font-size:1.05em;
+}
+
+body.xmanius-theme-light .math-answer-box,
+body.xmanius-theme-light .math-boxed-answer,
+body.xmanius-theme-light .math-final-bracket {
+  border-color:#1e1e1e;
+  color:#1e1e1e;
+  background:rgba(0,0,0,0.03);
+  box-shadow:0 0 8px rgba(0,0,0,0.08);
 }
 
 body.xmanius-theme-light .model-name .dropdown-chevron,
