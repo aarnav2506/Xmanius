@@ -2414,9 +2414,10 @@
   let moreModelsCloseTimer = 0;
   const setModelSubmenu = (open) => { window.clearTimeout(moreModelsCloseTimer); modelSubmenu?.classList.toggle("is-open", open); moreModelsToggle?.setAttribute("aria-expanded", String(open)); };
   const scheduleModelSubmenuClose = () => { window.clearTimeout(moreModelsCloseTimer); moreModelsCloseTimer = window.setTimeout(() => setModelSubmenu(false), 140); };
-  const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); modelToggle?.setAttribute("aria-expanded", String(open)); headerModelToggle?.setAttribute("aria-expanded", String(open)); if (!open) setModelSubmenu(false); };
-  modelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
-  headerModelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
+  const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); document.querySelectorAll("[data-model-toggle]").forEach(el => el.setAttribute("aria-expanded", String(open))); if (!open) setModelSubmenu(false); };
+  document.querySelectorAll("[data-model-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => setModelPicker(!modelPicker?.classList.contains("is-open")));
+  });
   moreModelsToggle?.addEventListener("mouseenter", () => setModelSubmenu(true));
   moreModelsToggle?.addEventListener("mouseleave", scheduleModelSubmenuClose);
   moreModelsToggle?.addEventListener("focus", () => setModelSubmenu(true));
@@ -2441,7 +2442,7 @@
       const check = item.querySelector("b");
       if (check) check.textContent = active ? "✓" : "";
     });
-    if (modelName) modelName.innerHTML = `${getModelDisplayName(selectedModel)} <span class="dropdown-chevron" aria-hidden="true"></span>`;
+    if (modelName) modelName.innerHTML = `<span data-active-model-name>${getModelDisplayName(selectedModel)}</span> <span class="model-chevron" style="display:inline-block; margin-left:4px; font-size:12px; transform:translateY(1px);">⌵</span>`;
   };
   setSelectedModel(selectedModel);
   modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } if (event.target.closest("[data-more-models]")) { setModelSubmenu(!modelSubmenu?.classList.contains("is-open")); return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
@@ -2953,24 +2954,6 @@
           <button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button>
         </div>
       `;
-    } else if (settingsSection === "datacontrols") {
-      title.textContent = "Data controls";
-      content.innerHTML = `
-        <div class="settings-row">
-          <div>
-            <strong>Delete all chats</strong>
-            <small>Permanently delete all conversation history stored on this device.</small>
-          </div>
-          <button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button>
-        </div>
-        <div class="settings-row">
-          <div>
-            <strong>Export data</strong>
-            <small>Download your saved chat history as a JSON file.</small>
-          </div>
-          <button type="button" class="settings-secondary-btn" data-action-export-chats>Export</button>
-        </div>
-      `;
     } else if (settingsSection === "personalization") {
       title.textContent = "Personalization";
       content.innerHTML = '<div class="settings-intro"><strong>Choose how XManius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
@@ -3174,15 +3157,6 @@
               <span>General</span>
             </button>
 
-            <button type="button" class="settings-nav-item" data-settings-section="datacontrols">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-              </svg>
-              <span>Data controls</span>
-            </button>
-
             <button type="button" class="settings-nav-item" data-settings-section="personalization" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="9.5"/>
@@ -3203,9 +3177,8 @@
 
             <button type="button" class="settings-nav-item" data-settings-section="memory" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2a5 5 0 0 1 5 5v1a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z"/>
-                <path d="M8 13v2a4 4 0 0 0 8 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
               </svg>
               <span>Memories</span>
             </button>

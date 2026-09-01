@@ -41,6 +41,24 @@
     authMode: "signin", // "signin" | "signup"
   };
 
+  // Synchronously restore cached session from localStorage if available
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("sb-") && key.endsWith("-auth-token"))) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.user || parsed.currentSession?.user)) {
+            state.user = parsed.user || parsed.currentSession?.user;
+            state.session = parsed.session || parsed.currentSession;
+            break;
+          }
+        }
+      }
+    }
+  } catch {}
+
   // ─── Modal DOM Creation ───────────────────────────────────────────────────
   function createAuthModal() {
     if (document.getElementById("xmanius-auth-modal")) return;
@@ -550,7 +568,8 @@
   function updateUI() {
     const guestFooter = document.getElementById("sidebar-guest-footer");
     const userBtn = document.getElementById("sidebar-user-account-btn");
-    const personalizationBtn = document.getElementById("sidebar-auth-personalization");
+    const headerBrandGuest = document.getElementById("header-brand-guest");
+    const headerModelBtn = document.getElementById("header-model-btn");
     const accountName = document.querySelector("[data-account-name]");
     const accountStatus = document.querySelector("[data-account-status]");
     const avatarSpan = userBtn ? userBtn.querySelector(".avatar") : null;
@@ -560,11 +579,15 @@
     if (profile.isGuest) {
       if (guestFooter) guestFooter.style.display = "flex";
       if (userBtn) userBtn.style.display = "none";
-      if (personalizationBtn) personalizationBtn.style.display = "none";
+      if (headerBrandGuest) headerBrandGuest.style.display = "block";
+      if (headerModelBtn) headerModelBtn.style.display = "none";
+      document.querySelectorAll(".model-picker-models[data-auth-only]").forEach(el => el.style.display = "none");
     } else {
       if (guestFooter) guestFooter.style.display = "none";
       if (userBtn) userBtn.style.display = "flex";
-      if (personalizationBtn) personalizationBtn.style.display = "flex";
+      if (headerBrandGuest) headerBrandGuest.style.display = "none";
+      if (headerModelBtn) headerModelBtn.style.display = "inline-flex";
+      document.querySelectorAll(".model-picker-models[data-auth-only]").forEach(el => el.style.display = "block");
 
       if (accountName) accountName.textContent = profile.displayName;
       if (accountStatus) accountStatus.textContent = "@" + profile.username;
