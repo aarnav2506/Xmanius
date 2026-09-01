@@ -550,6 +550,7 @@
   function updateUI() {
     const guestFooter = document.getElementById("sidebar-guest-footer");
     const userBtn = document.getElementById("sidebar-user-account-btn");
+    const personalizationBtn = document.getElementById("sidebar-auth-personalization");
     const accountName = document.querySelector("[data-account-name]");
     const accountStatus = document.querySelector("[data-account-status]");
     const avatarSpan = userBtn ? userBtn.querySelector(".avatar") : null;
@@ -559,9 +560,11 @@
     if (profile.isGuest) {
       if (guestFooter) guestFooter.style.display = "flex";
       if (userBtn) userBtn.style.display = "none";
+      if (personalizationBtn) personalizationBtn.style.display = "none";
     } else {
       if (guestFooter) guestFooter.style.display = "none";
       if (userBtn) userBtn.style.display = "flex";
+      if (personalizationBtn) personalizationBtn.style.display = "flex";
 
       if (accountName) accountName.textContent = profile.displayName;
       if (accountStatus) accountStatus.textContent = "@" + profile.username;

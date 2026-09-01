@@ -1058,3 +1058,16 @@
   color: #ffffff !important;
 }
 
+.settings-main header {
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid #27272a !important;
+  margin-bottom: 6px !important;
+}
+
+.settings-main header h2 {
+  margin: 0 !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #f8fafc !important;
+}
+

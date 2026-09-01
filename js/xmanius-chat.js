@@ -2937,18 +2937,12 @@
     if (settingsSection === "general") {
       title.textContent = "General";
       content.innerHTML = `
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 8px;">
-          <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #f8fafc;">General</h3>
-        </div>
         ${createSettingRow("appearance", "Appearance", "")}
         ${createSettingRow("language", "Language", "")}
       `;
     } else if (settingsSection === "datacontrols") {
       title.textContent = "Data controls";
       content.innerHTML = `
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 8px;">
-          <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #f8fafc;">Data controls</h3>
-        </div>
         <div class="settings-row">
           <div>
             <strong>Delete all chats</strong>
@@ -3139,8 +3133,12 @@
 
   const openSettings = (section = "general") => {
     closeProfileMenu();
-    settingsSection = section;
     const isGuest = !window.XmaniusAuth?.getState()?.user;
+    if (isGuest && (section === "personalization" || section === "storage" || section === "account" || section === "voice")) {
+      settingsSection = "general";
+    } else {
+      settingsSection = section;
+    }
 
     if (!settingsBackdrop) {
       settingsBackdrop = document.createElement("div");
