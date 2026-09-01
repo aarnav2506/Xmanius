@@ -1943,10 +1943,79 @@
   const hasCodeInHistory = () => [...list.querySelectorAll(".message.assistant")].some((item) => item.querySelector("[data-code-block]") || /```|<\/?(?:html|script|style|div|button|function|const|let)\b/i.test(item.dataset.rawText || ""));
   const needsCodeRethink = (question) => hasCodeInHistory() && /\b(?:error|bug|fault|broken|failed|failure|not\s+working|doesn['’]?t\s+work|does\s+not\s+work|fix\s+this|wrong)\b/i.test(question);
   const conversationHistory = () => [...list.querySelectorAll(".message")].slice(-12).map((item) => { const role = item.classList.contains("user") ? "user" : "model"; let text = item.dataset.rawText || item.querySelector(".message-body")?.textContent?.trim() || ""; if (role === "model") text = sanitizeClientBranding(text); return { role, text }; }).filter((item) => item.text);
+  // ─── Try Advanced Features Modal (Screenshot 1) ───────────────────────────
+  let advancedFeaturesModalEl = null;
+  const closeTryAdvancedFeaturesModal = () => {
+    advancedFeaturesModalEl?.remove();
+    advancedFeaturesModalEl = null;
+  };
+
+  const showTryAdvancedFeaturesModal = () => {
+    closeTryAdvancedFeaturesModal();
+    advancedFeaturesModalEl = document.createElement("div");
+    advancedFeaturesModalEl.className = "advanced-features-overlay is-active";
+    advancedFeaturesModalEl.innerHTML = `
+      <div class="advanced-features-card" role="dialog" aria-modal="true" aria-label="Try advanced features for free">
+        <button type="button" class="advanced-features-close" data-action="close" aria-label="Close">×</button>
+        <div class="advanced-features-banner"></div>
+        <div class="advanced-features-body">
+          <h2 class="advanced-features-title">Try advanced features for free</h2>
+          <p class="advanced-features-desc">Get smarter responses, upload files, create images, and more by logging in.</p>
+          <div class="advanced-features-actions">
+            <button type="button" class="advanced-features-btn-login" data-action="login">Log in</button>
+            <button type="button" class="advanced-features-btn-signup" data-action="signup">Sign up for free</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.append(advancedFeaturesModalEl);
+
+    advancedFeaturesModalEl.addEventListener("click", (e) => {
+      if (e.target === advancedFeaturesModalEl || e.target.closest("[data-action='close']")) {
+        closeTryAdvancedFeaturesModal();
+      }
+      if (e.target.closest("[data-action='login']")) {
+        closeTryAdvancedFeaturesModal();
+        window.XmaniusAuth?.openAuthModal("signin");
+      }
+      if (e.target.closest("[data-action='signup']")) {
+        closeTryAdvancedFeaturesModal();
+        window.XmaniusAuth?.openAuthModal("signup");
+      }
+    });
+  };
+
+  const exportChats = () => {
+    const chats = getChats();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chats, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", `xmanius_chats_${new Date().toISOString().slice(0,10)}.json`);
+    dlAnchorElem.click();
+    dlAnchorElem.remove();
+  };
+
   const ask = async (question, suppliedAttachments = pendingAttachments) => {
     const q = String(question || "").trim();
     const requestAttachments = [...suppliedAttachments];
     if ((!q && !requestAttachments.length) || activeRequestController) return;
+
+    // ─── 5-Message & Advanced Features Limit for Guests ──────────────────────
+    const isGuestUser = !window.XmaniusAuth?.getState()?.user;
+    if (isGuestUser) {
+      if (requestAttachments.length > 0) {
+        showTryAdvancedFeaturesModal();
+        return;
+      }
+      let guestCount = parseInt(sessionStorage.getItem("xmanius-guest-msg-count") || "0", 10);
+      if (guestCount >= 5) {
+        showTryAdvancedFeaturesModal();
+        return;
+      }
+      guestCount++;
+      sessionStorage.setItem("xmanius-guest-msg-count", String(guestCount));
+    }
+
     if (!updateUsage()) return;
     const requestMessage = q || "Please analyze the attached file(s) and provide the relevant answer.";
     const history = conversationHistory();
@@ -2262,12 +2331,39 @@
       }
     }
   };
-  attachFilesButton?.addEventListener("click", () => { setModelPicker(false); fileInput?.click(); });
-  attachCameraButton?.addEventListener("click", () => { setModelPicker(false); void openCamera(); });
+  attachFilesButton?.addEventListener("click", () => {
+    setModelPicker(false);
+    if (!window.XmaniusAuth?.getState()?.user) {
+      showTryAdvancedFeaturesModal();
+      return;
+    }
+    fileInput?.click();
+  });
+  attachCameraButton?.addEventListener("click", () => {
+    setModelPicker(false);
+    if (!window.XmaniusAuth?.getState()?.user) {
+      showTryAdvancedFeaturesModal();
+      return;
+    }
+    void openCamera();
+  });
   fileInput?.addEventListener("change", handleAttachmentSelection);
   cameraInput?.addEventListener("change", handleAttachmentSelection);
   attachments?.addEventListener("click", (event) => { const remove = event.target.closest("[data-remove-attachment]"); if (!remove) return; pendingAttachments.splice(Number(remove.dataset.removeAttachment), 1); renderPendingAttachments(); });
-  document.addEventListener("keydown", (event) => { if (!event.ctrlKey || event.altKey || event.metaKey) return; const key = event.key.toLowerCase(); if (key === "k") { event.preventDefault(); fileInput?.click(); } if (key === "t") { event.preventDefault(); void openCamera(); } });
+  document.addEventListener("keydown", (event) => {
+    if (!event.ctrlKey || event.altKey || event.metaKey) return;
+    const key = event.key.toLowerCase();
+    if (key === "k") {
+      event.preventDefault();
+      if (!window.XmaniusAuth?.getState()?.user) { showTryAdvancedFeaturesModal(); return; }
+      fileInput?.click();
+    }
+    if (key === "t") {
+      event.preventDefault();
+      if (!window.XmaniusAuth?.getState()?.user) { showTryAdvancedFeaturesModal(); return; }
+      void openCamera();
+    }
+  });
   document.addEventListener("paste", (event) => { const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean); if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); } });
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
   sendButton?.addEventListener("click", (event) => { if (!activeRequestController) return; event.preventDefault(); activeRequestStopReason = "user"; activeRequestController.abort(); });
@@ -2279,13 +2375,24 @@
   document.addEventListener("visibilitychange", () => { if (document.hidden && (recognition || form.classList.contains("is-listening"))) finishVoiceSession({ focus: false, abort: true }); });
   window.addEventListener("pagehide", () => finishVoiceSession({ focus: false, abort: true }));
 
-  // ─── 500MB Media Library & Settings Shortcuts ─────────────────────────────
   document.querySelectorAll("[data-open-library]").forEach((btn) => {
     btn.addEventListener("click", () => window.XmaniusLibrary?.open());
   });
 
   document.querySelectorAll("[data-open-personalization]").forEach((btn) => {
     btn.addEventListener("click", () => openSettings("personalization"));
+  });
+
+  document.querySelectorAll("[data-open-settings]").forEach((btn) => {
+    btn.addEventListener("click", () => openSettings("general"));
+  });
+
+  document.querySelectorAll("[data-open-help]").forEach((btn) => {
+    btn.addEventListener("click", () => openAboutMemory());
+  });
+
+  document.querySelectorAll("[data-action-open-auth]").forEach((btn) => {
+    btn.addEventListener("click", () => window.XmaniusAuth?.openAuthModal("signin"));
   });
 
   window.XmaniusAttachExternalFile = (fileObj) => {
@@ -2829,19 +2936,34 @@
     
     if (settingsSection === "general") {
       title.textContent = "General";
-      const authUser = window.XmaniusAuth?.getState()?.user;
-      const accountSection = authUser
-        ? '<div class="settings-row"><div><strong>Account &amp; Session</strong><small>Signed in as ' + (authUser.email || "Active User") + '</small></div><button type="button" class="settings-danger-btn" data-action-logout>Log Out</button></div>'
-        : '<div class="settings-row"><div><strong>Account &amp; Session</strong><small>Sign in to sync your conversations to the cloud.</small></div><button type="button" class="settings-value" data-action-open-auth style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600;">Log In / Sign Up</button></div>';
-
-      content.innerHTML = '<div class="settings-intro"><strong>Make Xmanius work the way you prefer.</strong><small>These preferences are saved locally on this device.</small></div>' +
-        accountSection +
-        createSettingRow("appearance", "Appearance", "Choose the interface theme.") +
-        createSettingRow("contrast", "Contrast", "Adjust the contrast of the interface.") +
-        createSettingRow("language", "Language", "Used for the interface and voice recognition.") +
-        '<div class="settings-row settings-toggle-row"><div><strong>Higher intelligence</strong><small>Use Think mode for questions that need deeper analysis.</small></div><button type="button" class="settings-switch ' + (thinkMode ? "is-on" : "") + '" data-settings-think aria-pressed="' + String(thinkMode) + '"><span></span></button></div>' +
-        '<div class="settings-row settings-toggle-row"><div><strong>Enable dictation</strong><small>Allow microphone input in the chat composer.</small></div><button type="button" class="settings-switch is-on" aria-label="Dictation is available"><span></span></button></div>' +
-        '<div class="settings-row"><div><strong>Delete all chats</strong><small>Permanently delete all conversation history stored on this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>';
+      content.innerHTML = `
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #f8fafc;">General</h3>
+        </div>
+        ${createSettingRow("appearance", "Appearance", "")}
+        ${createSettingRow("language", "Language", "")}
+      `;
+    } else if (settingsSection === "datacontrols") {
+      title.textContent = "Data controls";
+      content.innerHTML = `
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #f8fafc;">Data controls</h3>
+        </div>
+        <div class="settings-row">
+          <div>
+            <strong>Delete all chats</strong>
+            <small>Permanently delete all conversation history stored on this device.</small>
+          </div>
+          <button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <strong>Export data</strong>
+            <small>Download your saved chat history as a JSON file.</small>
+          </div>
+          <button type="button" class="settings-secondary-btn" data-action-export-chats>Export</button>
+        </div>
+      `;
     } else if (settingsSection === "personalization") {
       title.textContent = "Personalization";
       content.innerHTML = '<div class="settings-intro"><strong>Choose how Xmanius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
@@ -2929,37 +3051,46 @@
       });
     } else if (settingsSection === "account") {
       title.textContent = "Account";
-      const profile = window.XmaniusAuth?.getUserProfile() || { displayName: "Aarnav Thakur", username: "aarnav_thakur", email: "aarnavthakur25062009@gmail.com" };
+      const profile = window.XmaniusAuth?.getUserProfile() || { displayName: "Guest User", username: "", email: "", isGuest: true };
 
-      content.innerHTML = `
-        <div class="account-view-wrap">
-          <div class="account-row-item">
-            <span class="account-row-label">Name</span>
-            <span class="account-row-value" data-action-edit-profile style="cursor:pointer;" title="Click to edit">${escapeHtml(profile.displayName)}</span>
+      if (profile.isGuest) {
+        content.innerHTML = `
+          <div class="account-view-wrap">
+            <div class="account-row-item">
+              <span class="account-row-label">Account Status</span>
+              <span class="account-row-value is-static" style="color: #94a3b8;">Guest (Not Signed In)</span>
+            </div>
+            <div style="margin-top: 18px; padding: 20px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; text-align: center;">
+              <p style="margin: 0 0 14px 0; font-size: 14px; color: #cbd5e1; line-height: 1.5;">Sign in to customize your username, save chats to the cloud, and unlock your 500MB Media Vault.</p>
+              <button type="button" class="storage-open-vault-btn" data-action-open-auth style="background: #3b82f6; border-color: #3b82f6; width: 100%; justify-content: center; font-weight: 600;">Log In / Sign Up</button>
+            </div>
           </div>
+        `;
+      } else {
+        content.innerHTML = `
+          <div class="account-view-wrap">
+            <div class="account-row-item">
+              <span class="account-row-label">Name</span>
+              <span class="account-row-value" data-action-edit-profile style="cursor:pointer;" title="Click to edit">${escapeHtml(profile.displayName)}</span>
+            </div>
 
-          <div class="account-row-item">
-            <span class="account-row-label">Username</span>
-            <span class="account-row-value" data-action-edit-profile style="cursor:pointer;" title="Click to edit">@${escapeHtml(profile.username)} <span style="font-size:16px;">›</span></span>
-          </div>
+            <div class="account-row-item">
+              <span class="account-row-label">Username</span>
+              <span class="account-row-value" data-action-edit-profile style="cursor:pointer;" title="Click to edit">@${escapeHtml(profile.username)} <span style="font-size:16px;">›</span></span>
+            </div>
 
-          <div class="account-row-item">
-            <span class="account-row-label">Email</span>
-            <span class="account-row-value is-static">${escapeHtml(profile.email || "Not linked")} <span style="font-size:16px;">›</span></span>
-          </div>
+            <div class="account-row-item">
+              <span class="account-row-label">Email</span>
+              <span class="account-row-value is-static">${escapeHtml(profile.email || "Not linked")} <span style="font-size:16px;">›</span></span>
+            </div>
 
-          <div class="account-row-item" style="border-bottom: none; margin-top: 14px;">
-            <span class="account-row-label" style="color: #ef4444; font-weight: 600;">Delete account</span>
-            <button type="button" class="account-delete-btn" data-action-delete-account>Delete</button>
+            <div class="account-row-item" style="border-bottom: none; margin-top: 14px;">
+              <span class="account-row-label" style="color: #ef4444; font-weight: 600;">Delete account</span>
+              <button type="button" class="account-delete-btn" data-action-delete-account>Delete</button>
+            </div>
           </div>
-        </div>
-      `;
-    } else {
-      title.textContent = "Memory";
-      content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Let Xmanias personalize relevant answers from chats saved on this device.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
-        '<div class="settings-memory-card"><div class="settings-memory-card-info"><strong>Memory summary</strong><p>View an overview of what Xmanias has learned about you. Use <a href="javascript:void(0);" data-open-custom-instructions>custom instructions</a> for information you’d like it to always keep in mind. You can still manage your old <a href="javascript:void(0);" data-manage-memory>saved memories</a>.</p></div><button type="button" class="settings-secondary-btn" data-manage-memory>Manage</button></div>' +
-        '<div class="settings-memory-card"><div><strong>Delete all chats</strong><small>Permanently delete all saved conversation history from this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>' +
-        '<p class="settings-note">Turning Memory off stops collecting new chats and stops using saved context. You can remove existing saved memory in Manage.</p>';
+        `;
+      }
     }
   };
 
@@ -2984,16 +3115,15 @@
     aboutMemoryBackdrop = document.createElement("div");
     aboutMemoryBackdrop.className = "about-memory-backdrop";
     aboutMemoryBackdrop.innerHTML = `
-      <section class="about-memory-shell" role="dialog" aria-modal="true" aria-label="About memory">
+      <section class="about-memory-shell" role="dialog" aria-modal="true" aria-label="About XManius">
         <header class="about-memory-header">
-          <h2>About memory</h2>
-          <button type="button" class="about-memory-close" data-close-about-memory aria-label="Close">×</button>
+          <h2>About XManius</h2>
+          <button type="button" class="about-memory-close" data-close-about-memory aria-label="Close">✕</button>
         </header>
         <div class="about-memory-body">
-          <p>Xmanias automatically remembers important information about you, and keeps it up to date. This summary page is a brief overview of what's been remembered — not a complete list.</p>
+          <p>XManius is your next-generation intelligent conversational AI. Fast, private, and powerful.</p>
         </div>
         <footer class="about-memory-footer">
-          <button type="button" class="about-memory-btn-learn" data-close-about-memory>Learn more</button>
           <button type="button" class="about-memory-btn-gotit" data-close-about-memory>Got it</button>
         </footer>
       </section>
@@ -3006,17 +3136,20 @@
       }
     });
   };
+
   const openSettings = (section = "general") => {
     closeProfileMenu();
     settingsSection = section;
+    const isGuest = !window.XmaniusAuth?.getState()?.user;
+
     if (!settingsBackdrop) {
       settingsBackdrop = document.createElement("div");
       settingsBackdrop.className = "settings-backdrop";
       settingsBackdrop.innerHTML = `
         <section class="settings-shell" role="dialog" aria-modal="true" aria-label="Xmanius settings">
           <aside class="settings-nav">
-            <button type="button" class="settings-close" data-settings-close aria-label="Close settings">×</button>
-            <input class="settings-search" data-settings-search type="search" placeholder="Search settings" aria-label="Search settings">
+            <button type="button" class="settings-close" data-settings-close aria-label="Close settings" style="align-self: flex-start; margin-bottom: 12px; font-size: 18px; width: 32px; height: 32px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; cursor: pointer;">✕</button>
+            
             <button type="button" class="settings-nav-item is-active" data-settings-section="general">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"/>
@@ -3024,7 +3157,17 @@
               </svg>
               <span>General</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="personalization">
+
+            <button type="button" class="settings-nav-item" data-settings-section="datacontrols">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+              </svg>
+              <span>Data controls</span>
+            </button>
+
+            <button type="button" class="settings-nav-item" data-settings-section="personalization" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="9.5"/>
                 <path d="M10.5 8.5 A 3.5 3.5 0 0 0 9 12 A 3.5 3.5 0 0 0 12.5 15.5"/>
@@ -3032,22 +3175,16 @@
               </svg>
               <span>Personalization</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="voice">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-              </svg>
-              <span>Voice</span>
-            </button>
-            <button type="button" class="settings-nav-item" data-settings-section="storage">
+
+            <button type="button" class="settings-nav-item" data-settings-section="storage" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="4" width="20" height="16" rx="2"/>
                 <path d="M2 10h20M7 15h.01M17 15h.01"/>
               </svg>
               <span>Storage</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="account">
+
+            <button type="button" class="settings-nav-item" data-settings-section="account" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="8" r="4"/>
                 <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
@@ -3103,6 +3240,8 @@
         if (memory) { appSettings.memoryEnabled = !appSettings.memoryEnabled; saveSettings(); renderSettingsSection(); return; }
         const deleteChats = event.target.closest("[data-action-delete-all-chats]");
         if (deleteChats) { deleteAllChats(); return; }
+        const exportChatsBtn = event.target.closest("[data-action-export-chats]");
+        if (exportChatsBtn) { exportChats(); return; }
         const think = event.target.closest("[data-settings-think]");
         if (think) { thinkMode = !thinkMode; thinkToggle?.classList.toggle("active", thinkMode); thinkToggle?.setAttribute("aria-pressed", String(thinkMode)); renderSettingsSection(); return; }
         const customInst = event.target.closest("[data-open-custom-instructions]");
@@ -3150,84 +3289,150 @@
         }
       });
     }
+
+    // Toggle auth-only tabs in settings
+    settingsBackdrop.querySelectorAll("[data-auth-only]").forEach(el => {
+      el.style.display = isGuest ? "none" : "flex";
+    });
+
     settingsBackdrop.classList.add("is-open");
     settingsBackdrop.querySelectorAll("[data-settings-section]").forEach((item) => item.classList.toggle("is-active", item.dataset.settingsSection === settingsSection));
     renderSettingsSection();
   };
   const createProfileMenu = () => {
     const profile = window.XmaniusAuth?.getUserProfile?.() || {
-      displayName: "Aarnav Thakur",
-      username: "aarnav_thakur",
-      email: "aarnavthakur25062009@gmail.com",
+      displayName: "Guest User",
+      username: "",
+      email: "",
       avatarUrl: "",
-      isGuest: false
+      isGuest: true
     };
 
     let userAvatarHtml = "";
-    if (profile.avatarUrl) {
+    if (profile.isGuest) {
+      userAvatarHtml = `<div class="profile-menu-avatar profile-menu-avatar-guest" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);border-radius:50%;"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>`;
+    } else if (profile.avatarUrl) {
       userAvatarHtml = `<div class="profile-menu-avatar" style="padding:0;overflow:hidden;"><img src="${profile.avatarUrl}" alt="${escapeHtml(profile.displayName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>`;
     } else {
-      userAvatarHtml = `<div class="profile-menu-avatar" style="background:#3b82f6;color:white;font-weight:bold;display:flex;align-items:center;justify-content:center;">${(profile.displayName[0] || "A").toUpperCase()}</div>`;
+      userAvatarHtml = `<div class="profile-menu-avatar" style="background:#3b82f6;color:white;font-weight:bold;display:flex;align-items:center;justify-content:center;">${(profile.displayName[0] || "U").toUpperCase()}</div>`;
     }
 
     const menu = document.createElement("div");
     menu.className = "profile-menu";
-    menu.innerHTML = `
-      <div class="profile-menu-user-row" data-profile-action="edit-profile" style="cursor:pointer;" title="Edit profile">
-        ${userAvatarHtml}
-        <div class="profile-menu-user-info">
-          <span class="profile-menu-name">${escapeHtml(profile.displayName)}</span>
-          <span class="profile-menu-sub" style="color:#8e8e93;font-size:12px;">${profile.isGuest ? "Free Plan" : "@" + escapeHtml(profile.username)}</span>
+
+    if (profile.isGuest) {
+      menu.innerHTML = `
+        <div class="profile-menu-user-row" data-profile-action="connect" style="cursor:pointer;" title="Click to Log In / Sign Up">
+          ${userAvatarHtml}
+          <div class="profile-menu-user-info">
+            <span class="profile-menu-name">Guest User</span>
+            <span class="profile-menu-sub" style="color:#38bdf8;font-size:12px;font-weight:500;">Log In / Sign Up</span>
+          </div>
+          <div class="profile-menu-chevron">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
-        <div class="profile-menu-chevron">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <hr class="profile-menu-divider">
+        <button type="button" data-profile-action="personalization">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.5"/>
+            <path d="M10.5 8.5 A 3.5 3.5 0 0 0 9 12 A 3.5 3.5 0 0 0 12.5 15.5"/>
+            <path d="M13.5 15.2 A 3.5 3.5 0 0 0 15.5 12.5"/>
+          </svg>
+          <span>Personalization</span>
+        </button>
+        <button type="button" data-profile-action="settings">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Settings</span>
+        </button>
+        <button type="button" data-profile-action="help">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+          </svg>
+          <span>Help</span>
+        </button>
+        <hr class="profile-menu-divider">
+        <button type="button" data-profile-action="connect" style="color: #38bdf8; font-weight: 500;">
+          <svg viewBox="0 0 24 24" width="19" height="19">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Log In / Sign Up</span>
+        </button>
+      `;
+    } else {
+      menu.innerHTML = `
+        <div class="profile-menu-user-row" data-profile-action="edit-profile" style="cursor:pointer;" title="Edit profile">
+          ${userAvatarHtml}
+          <div class="profile-menu-user-info">
+            <span class="profile-menu-name">${escapeHtml(profile.displayName)}</span>
+            <span class="profile-menu-sub" style="color:#8e8e93;font-size:12px;">@${escapeHtml(profile.username)}</span>
+          </div>
+          <div class="profile-menu-chevron">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
-      </div>
-      <hr class="profile-menu-divider">
-      <button type="button" data-profile-action="personalization">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9.5"/>
-          <path d="M10.5 8.5 A 3.5 3.5 0 0 0 9 12 A 3.5 3.5 0 0 0 12.5 15.5"/>
-          <path d="M13.5 15.2 A 3.5 3.5 0 0 0 15.5 12.5"/>
-        </svg>
-        <span>Personalization</span>
-      </button>
-      <button type="button" data-profile-action="edit-profile">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="8" r="4"/>
-          <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
-        </svg>
-        <span>Profile</span>
-      </button>
-      <button type="button" data-profile-action="settings">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-        <span>Settings</span>
-      </button>
-      <button type="button" data-profile-action="help">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <circle cx="12" cy="12" r="4"></circle>
-          <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
-          <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
-          <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
-          <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
-        </svg>
-        <span>Help</span>
-      </button>
-      <hr class="profile-menu-divider">
-      <button type="button" data-profile-action="logout" style="color: #ef4444;">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-        </svg>
-        <span>Log out</span>
-      </button>
-    `;
+        <hr class="profile-menu-divider">
+        <button type="button" data-profile-action="personalization">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.5"/>
+            <path d="M10.5 8.5 A 3.5 3.5 0 0 0 9 12 A 3.5 3.5 0 0 0 12.5 15.5"/>
+            <path d="M13.5 15.2 A 3.5 3.5 0 0 0 15.5 12.5"/>
+          </svg>
+          <span>Personalization</span>
+        </button>
+        <button type="button" data-profile-action="edit-profile">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+          </svg>
+          <span>Profile</span>
+        </button>
+        <button type="button" data-profile-action="settings">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Settings</span>
+        </button>
+        <button type="button" data-profile-action="help">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+          </svg>
+          <span>Help</span>
+        </button>
+        <hr class="profile-menu-divider">
+        <button type="button" data-profile-action="logout" style="color: #ef4444;">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+          </svg>
+          <span>Log out</span>
+        </button>
+      `;
+    }
+
     menu.addEventListener("click", (event) => {
       const action = event.target.closest("[data-profile-action]")?.dataset.profileAction;
       if (!action) return;
+      if (action === "connect") {
+        closeProfileMenu();
+        window.XmaniusAuth?.openAuthModal("signin");
+      }
       if (action === "edit-profile") {
         closeProfileMenu();
         window.XmaniusAuth?.openEditProfileModal();
