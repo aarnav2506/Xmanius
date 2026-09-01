@@ -1,22 +1,30 @@
-// Handle the dynamic greeting and centered empty state logic
+// Handle the dynamic personalized greeting and centered empty state logic
 (function() {
-  const greetings = [
-    "What should we focus on?",
-    "Ready when you are",
-    "Where should we begin?",
-    "What's the vibe?",
-    "What's on the agenda today?"
-  ];
-
   const emptyStateHeader = document.querySelector("[data-empty-state] h1");
   const emptyStateSection = document.querySelector("[data-empty-state]");
 
+  const getGreetingText = () => {
+    const profile = window.XmaniusAuth?.getUserProfile?.() || {};
+    const name = (!profile.isGuest && profile.displayName && profile.displayName !== "Guest User") ? profile.displayName.trim().split(/\s+/)[0] : "";
+
+    const templates = [
+      name ? `Ready when you are, ${name}` : "Ready when you are",
+      name ? `What's the vibe, ${name}?` : "What's the vibe?",
+      name ? `What's on the agenda today, ${name}?` : "What's on the agenda today?",
+      name ? `Where should we begin, ${name}?` : "Where should we begin?",
+      name ? `What should we focus on, ${name}?` : "What should we focus on?"
+    ];
+
+    return templates[Math.floor(Math.random() * templates.length)];
+  };
+
   const randomizeGreeting = () => {
     if (emptyStateHeader) {
-      const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-      emptyStateHeader.textContent = randomGreeting;
+      emptyStateHeader.textContent = getGreetingText();
     }
   };
+
+  window.XmaniusRandomizeGreeting = randomizeGreeting;
 
   // Randomize on initial script load
   randomizeGreeting();
@@ -28,7 +36,7 @@
         document.body.classList.remove('is-empty-state');
       } else {
         document.body.classList.add('is-empty-state');
-        randomizeGreeting(); // Also randomize when returning to empty state (e.g. clicking New Chat)
+        randomizeGreeting();
       }
     };
 

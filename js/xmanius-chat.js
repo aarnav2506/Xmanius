@@ -2063,26 +2063,36 @@
           }
         }
       }
-      const isLocationQuery = /\b(near\s+me|nearby|closest|around\s+here|in\s+my\s+area|local|current\s+location|barber\s*shops?\s+near\s+me|restaurants?\s+near\s+me|food\s+near\s+me|shops?\s+near\s+me|stores?\s+near\s+me|salons?\s+near\s+me)\b/i.test(q);
+      const isLocationQuery = /\b(near\s+me|nearby|closest|around\s+here|in\s+my\s+area|local|current\s+location|where\s+am\s+i|my\s+location|what\s+city|weather|weather\s+here|time\s+here|restaurants?\s+near\s+me|food\s+near\s+me|shops?\s+near\s+me|stores?\s+near\s+me|salons?\s+near\s+me|barbers?\s*shops?\s+near\s+me|hospitals?\s+near\s+me|hotels?\s+near\s+me|gas\s+stations?\s+near\s+me|pharmacy\s+near\s+me|places?\s+around\s+me|places?\s+near\s+me)\b/i.test(q);
       let userLocation = null;
       if (navigator.geolocation && (isLocationQuery || webSearch)) {
         try {
           userLocation = await new Promise((resolve) => {
             navigator.geolocation.getCurrentPosition(
               (pos) => {
+                const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
                 resolve({
                   latitude: pos.coords.latitude,
                   longitude: pos.coords.longitude,
-                  accuracy: pos.coords.accuracy
+                  accuracy: pos.coords.accuracy,
+                  timezone: tz
                 });
               },
-              () => resolve(null),
-              { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+              () => {
+                const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
+                resolve(tz ? { timezone: tz } : null);
+              },
+              { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
             );
           });
-        } catch {}
+        } catch {
+          const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
+          if (tz) userLocation = { timezone: tz };
+        }
       }
 
+      const profile = window.XmaniusAuth?.getUserProfile?.() || {};
+      const userName = (!profile.isGuest && profile.displayName && profile.displayName !== "Guest User") ? profile.displayName.trim() : "";
       const isCortexMode = selectedModel === "xmanius-4" || selectedModel === "xmanius-7" || selectedModel === "xmanius-8";
       const requestPayload = {
         message: requestMessage,
@@ -2097,6 +2107,8 @@
         attachments: requestAttachments.map(attachmentToRequest),
         preferences: {
           ...appSettings,
+          userName: userName,
+          isGuest: Boolean(profile.isGuest),
           customInstructions: String(appSettings.customInstructions || "").slice(0, 500),
           memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : ""
         }
@@ -2116,13 +2128,16 @@
         response = null;
       }
 
-      // If local server returned 404/500/network error, fallback to production backend
-      if ((!response || !response.ok) && primaryEndpoint.startsWith("/")) {
+      // If primary request failed or returned 502/503/504/404, fallback to production backend with active slot failover
+      if (!response || !response.ok) {
         try {
-          const fallbackRes = await fetch("https://xmanius.vercel.app/api/xmanius-chat", {
+          const endpointToUse = (primaryEndpoint && primaryEndpoint.startsWith("/")) ? "https://xmanius.vercel.app/api/xmanius-chat" : (primaryEndpoint || "https://xmanius.vercel.app/api/xmanius-chat");
+          const fallbackModel = (selectedModel === "xmanius-1" || selectedModel === "xmanius-5" || selectedModel === "xmanius-6") ? "xmanius-2" : selectedModel;
+          const fallbackPayload = { ...requestPayload, model: fallbackModel };
+          const fallbackRes = await fetch(endpointToUse, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestPayload),
+            body: JSON.stringify(fallbackPayload),
             signal: activeRequestController.signal
           });
           if (fallbackRes && fallbackRes.ok) {
@@ -3164,18 +3179,32 @@
   const openAboutMemory = () => {
     closeAboutMemory();
     aboutMemoryBackdrop = document.createElement("div");
-    aboutMemoryBackdrop.className = "about-memory-backdrop";
+    aboutMemoryBackdrop.className = "about-memory-backdrop is-open";
     aboutMemoryBackdrop.innerHTML = `
-      <section class="about-memory-shell" role="dialog" aria-modal="true" aria-label="About XManius">
+      <section class="about-memory-shell" role="dialog" aria-modal="true" aria-label="Help & About XManius">
         <header class="about-memory-header">
-          <h2>About XManius</h2>
+          <h2>Help & About XManius</h2>
           <button type="button" class="about-memory-close" data-close-about-memory aria-label="Close">✕</button>
         </header>
         <div class="about-memory-body">
-          <p>XManius is your next-generation intelligent conversational AI. Fast, private, and powerful.</p>
+          <p><strong>XManius AI</strong> is an intelligent conversational platform powered by advanced multimodal intelligence.</p>
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-weight: 600; font-size: 13.5px; margin-bottom: 2px;">⚡ Models & Speeds</div>
+              <div style="font-size: 12.5px; color: #a1a1aa;">Choose between XManius 1.5, Flash, Pro, and Cortex for coding, research, and general queries.</div>
+            </div>
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-weight: 600; font-size: 13.5px; margin-bottom: 2px;">🔒 Privacy & Storage</div>
+              <div style="font-size: 12.5px; color: #a1a1aa;">Your uploaded files and chats are strictly private and associated with your account only.</div>
+            </div>
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-weight: 600; font-size: 13.5px; margin-bottom: 2px;">📎 Multimodal Uploads</div>
+              <div style="font-size: 12.5px; color: #a1a1aa;">Supports images, PDFs, audio (MP3, WAV), video (MP4), documents, and code files.</div>
+            </div>
+          </div>
         </div>
-        <footer class="about-memory-footer">
-          <button type="button" class="about-memory-btn-gotit" data-close-about-memory>Got it</button>
+        <footer class="about-memory-footer" style="display: flex; justify-content: flex-end; padding-top: 16px;">
+          <button type="button" class="about-memory-btn-gotit" data-close-about-memory style="padding: 8px 20px; border-radius: 999px; background: #ffffff; color: #000000; border: none; font-weight: 600; font-size: 13.5px; cursor: pointer;">Got it</button>
         </footer>
       </section>
     `;
@@ -3517,15 +3546,33 @@
       if (action === "connect") {
         closeProfileMenu();
         window.XmaniusAuth?.openAuthModal("signin");
+        return;
       }
       if (action === "edit-profile") {
         closeProfileMenu();
         window.XmaniusAuth?.openEditProfileModal();
+        return;
       }
-      if (action === "personalization") openSettings("personalization");
-      if (action === "settings") openSettings("general");
-      if (action === "connect") window.XmaniusAuth?.openAuthModal("signin");
-      if (action === "signout") window.XmaniusAuth?.signOut();
+      if (action === "personalization") {
+        closeProfileMenu();
+        openSettings("personalization");
+        return;
+      }
+      if (action === "settings") {
+        closeProfileMenu();
+        openSettings("general");
+        return;
+      }
+      if (action === "help") {
+        closeProfileMenu();
+        openAboutMemory();
+        return;
+      }
+      if (action === "logout" || action === "signout") {
+        closeProfileMenu();
+        window.XmaniusAuth?.signOut();
+        return;
+      }
       closeProfileMenu();
     });
     return menu;
