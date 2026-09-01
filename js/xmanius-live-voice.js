@@ -1,11 +1,19 @@
 /**
- * XManius Live Multimodal Voice & Camera Interface
- * Full-screen interactive voice overlay featuring:
- * - Fluid dynamic blue sphere orb visualizer (canvas-rendered, mic-reactive)
- * - Hands-free continuous audio transcription & Gemini API speech response
- * - Live Camera vision feed & snapshot analysis
- * - Interruption detection (barge-in: AI stops speaking when user speaks)
- * - Full bottom pill control bar matching screenshot design
+ * XManius Live Multimodal Voice & Vision Interface
+ * Exact match to user screenshots (media_1788282358872.png, media_1788282389081.png, media_1788282408013.png, media_1788282470279.png):
+ * - Desktop layout: Mounts inside chat-main so left sidebar remains visible and dark
+ * - Dynamic mixing watercolor clouds:
+ *     * Procedural multi-layer fluid cloud swirling & blending inside the crisp circular sphere
+ *     * Living vapor and organic shape morphing between radiant white and vivid sky-blue
+ *     * Responds smoothly to speech audio volume
+ * - Bottom pill bar:
+ *     * "+" button toggles attachment popup ("📎 Add files", "📚 Add from library")
+ *     * Instant typing: Inline input field is always active so users can type directly without pressing "+"
+ *     * Mic toggle & Solid white circle with black "✕" close button
+ * - Spoken dialogue:
+ *     * Speaks completely naturally like a human friend
+ *     * Strips all formatting, numbers, bullet lists, markdown, and summary tags
+ * - Barge-in interruption detection (AI stops speaking when user speaks)
  */
 
 (function () {
@@ -15,6 +23,12 @@
   let canvasEl = null;
   let canvasCtx = null;
   let animFrameId = 0;
+
+  // Preload base texture for granular watercolor fiber details
+  const orbTextureImg = new Image();
+  orbTextureImg.src = 'assets/xmanius-voice-orb.png?v=20260901-cropped';
+  let orbImgLoaded = false;
+  orbTextureImg.onload = () => { orbImgLoaded = true; };
 
   let audioCtx = null;
   let analyser = null;
@@ -27,89 +41,98 @@
   let isMuted = false;
   let isCameraActive = false;
   let isMenuOpen = false;
+  let isAttachPopupOpen = false;
+  let isProcessingQuery = false;
+  let attachedFiles = [];
 
-  let currentTranscript = '';
   let audioPhase = 0;
+  let smoothVolume = 0;
 
-  // Render fluid watercolor sphere orb on HTML5 Canvas
-  function drawSphereOrb(volumeLevel) {
+  // ─── Dynamic Mixing Cloud Parameters ───────────────────────────────────────
+  const cloudLobes = [
+    { baseAngle: 0.2,  radiusRatio: 0.38, speed: 0.012, sizeRatio: 0.52, color: 'rgba(2, 132, 199, ' },
+    { baseAngle: 1.8,  radiusRatio: 0.44, speed: -0.015, sizeRatio: 0.58, color: 'rgba(14, 165, 233, ' },
+    { baseAngle: 3.4,  radiusRatio: 0.35, speed: 0.018, sizeRatio: 0.48, color: 'rgba(56, 189, 248, ' },
+    { baseAngle: 4.9,  radiusRatio: 0.42, speed: -0.011, sizeRatio: 0.62, color: 'rgba(0, 102, 204, ' },
+    { baseAngle: 1.1,  radiusRatio: 0.28, speed: 0.022, sizeRatio: 0.44, color: 'rgba(255, 255, 255, ' },
+    { baseAngle: 2.7,  radiusRatio: 0.32, speed: -0.019, sizeRatio: 0.46, color: 'rgba(240, 249, 255, ' },
+    { baseAngle: 5.6,  radiusRatio: 0.26, speed: 0.016, sizeRatio: 0.40, color: 'rgba(186, 230, 253, ' }
+  ];
+
+  // ─── Dynamic Watercolor Cloud Sphere Rendering (Exact Carbon Copy) ────────
+  function drawDynamicCloudSphere(volumeLevel) {
     if (!canvasCtx || !canvasEl) return;
-    const width = canvasEl.width;
-    const height = canvasEl.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const baseRadius = Math.min(width, height) * 0.22;
-    const pulseRadius = baseRadius + (volumeLevel * 35) + Math.sin(audioPhase * 2) * 4;
+    const W = canvasEl.width;
+    const H = canvasEl.height;
+    const cx = W / 2;
+    const cy = H / 2;
 
-    canvasCtx.clearRect(0, 0, width, height);
+    smoothVolume += (volumeLevel - smoothVolume) * 0.18;
 
-    // Outer aura glow
-    const auraGrad = canvasCtx.createRadialGradient(
-      centerX, centerY, baseRadius * 0.8,
-      centerX, centerY, pulseRadius * 1.45
-    );
-    auraGrad.addColorStop(0, 'rgba(0, 170, 255, 0.45)');
-    auraGrad.addColorStop(0.6, 'rgba(0, 102, 255, 0.15)');
-    auraGrad.addColorStop(1, 'rgba(0, 50, 150, 0)');
+    const baseR = Math.min(W, H) * 0.44;
+    const pulse = smoothVolume * 8 + Math.sin(audioPhase * 1.2) * 2;
+    const R = Math.max(10, baseR + pulse);
 
-    canvasCtx.beginPath();
-    canvasCtx.arc(centerX, centerY, pulseRadius * 1.45, 0, Math.PI * 2);
-    canvasCtx.fillStyle = auraGrad;
-    canvasCtx.fill();
+    canvasCtx.clearRect(0, 0, W, H);
 
-    // Main Sphere Body with moving watercolor texture gradients
+    // ── 1. Circular Clip for Crisp Edge ──
     canvasCtx.save();
     canvasCtx.beginPath();
-    canvasCtx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+    canvasCtx.arc(cx, cy, R, 0, Math.PI * 2);
     canvasCtx.clip();
 
-    // Base sphere fluid gradient
-    const sphereGrad = canvasCtx.createRadialGradient(
-      centerX - pulseRadius * 0.35, centerY - pulseRadius * 0.35, pulseRadius * 0.1,
-      centerX, centerY, pulseRadius
-    );
-    sphereGrad.addColorStop(0, '#ffffff');
-    sphereGrad.addColorStop(0.25, '#d4f2ff');
-    sphereGrad.addColorStop(0.55, '#0099ff');
-    sphereGrad.addColorStop(0.85, '#0055e6');
-    sphereGrad.addColorStop(1, '#002699');
+    // ── 2. Render Exact Carbon Copy Cloud Artwork ──
+    if (orbImgLoaded && orbTextureImg.naturalWidth > 0) {
+      // Draw exact high-resolution cropped artwork at 100% full opacity
+      canvasCtx.drawImage(orbTextureImg, cx - R, cy - R, R * 2, R * 2);
 
-    canvasCtx.fillStyle = sphereGrad;
-    canvasCtx.fill();
-
-    // Swirling inner watercolor cloud layers
-    const layerCount = 4;
-    for (let i = 0; i < layerCount; i++) {
-      const offsetAngle = audioPhase * (0.8 + i * 0.3) + i * Math.PI / 2;
-      const swirlX = centerX + Math.cos(offsetAngle) * (pulseRadius * 0.25);
-      const swirlY = centerY + Math.sin(offsetAngle) * (pulseRadius * 0.25);
-      const swirlRadius = pulseRadius * (0.55 + Math.sin(audioPhase + i) * 0.1);
-
-      const cloudGrad = canvasCtx.createRadialGradient(
-        swirlX, swirlY, 0,
-        swirlX, swirlY, swirlRadius
+      // ── Dynamic Watercolor Cloud Mixing Inside the Sphere ──
+      // Layer 1: Luminous white vapor cloud drifting across upper/mid clouds
+      const shiftX1 = Math.cos(audioPhase * 0.45) * (R * 0.10);
+      const shiftY1 = Math.sin(audioPhase * 0.35) * (R * 0.08);
+      const vapor1 = canvasCtx.createRadialGradient(
+        cx + shiftX1, cy - R * 0.15 + shiftY1, 0,
+        cx, cy, R * 0.95
       );
-      if (i % 2 === 0) {
-        cloudGrad.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-        cloudGrad.addColorStop(0.5, 'rgba(128, 223, 255, 0.3)');
-        cloudGrad.addColorStop(1, 'rgba(0, 102, 255, 0)');
-      } else {
-        cloudGrad.addColorStop(0, 'rgba(0, 180, 255, 0.7)');
-        cloudGrad.addColorStop(0.6, 'rgba(0, 70, 200, 0.25)');
-        cloudGrad.addColorStop(1, 'rgba(0, 30, 120, 0)');
-      }
+      const alpha1 = 0.16 + Math.sin(audioPhase * 1.2) * 0.05 + smoothVolume * 0.16;
+      vapor1.addColorStop(0.00, `rgba(255, 255, 255, ${Math.min(0.45, alpha1)})`);
+      vapor1.addColorStop(0.40, 'rgba(240, 249, 255, 0.07)');
+      vapor1.addColorStop(1.00, 'rgba(2, 132, 199, 0.00)');
+      canvasCtx.fillStyle = vapor1;
+      canvasCtx.fillRect(cx - R, cy - R, R * 2, R * 2);
 
-      canvasCtx.beginPath();
-      canvasCtx.arc(swirlX, swirlY, swirlRadius, 0, Math.PI * 2);
-      canvasCtx.fillStyle = cloudGrad;
-      canvasCtx.fill();
+      // Layer 2: Vivid azure sky-blue cloud mixing plume across mid/lower clouds
+      const shiftX2 = Math.sin(audioPhase * 0.40) * (R * 0.09);
+      const shiftY2 = Math.cos(audioPhase * 0.50) * (R * 0.07);
+      const vapor2 = canvasCtx.createRadialGradient(
+        cx + shiftX2, cy + R * 0.20 + shiftY2, 0,
+        cx, cy + R * 0.20, R * 0.80
+      );
+      const alpha2 = 0.14 + Math.cos(audioPhase * 0.9) * 0.04 + smoothVolume * 0.12;
+      vapor2.addColorStop(0.00, `rgba(14, 165, 233, ${Math.min(0.38, alpha2)})`);
+      vapor2.addColorStop(0.55, 'rgba(2, 132, 199, 0.06)');
+      vapor2.addColorStop(1.00, 'rgba(0, 102, 204, 0.00)');
+      canvasCtx.fillStyle = vapor2;
+      canvasCtx.fillRect(cx - R, cy - R, R * 2, R * 2);
+    } else {
+      // Fallback base gradient
+      const baseGrad = canvasCtx.createLinearGradient(cx, cy - R, cx, cy + R);
+      baseGrad.addColorStop(0.00, '#ffffff');
+      baseGrad.addColorStop(0.25, '#f0f9ff');
+      baseGrad.addColorStop(0.50, '#bae6fd');
+      baseGrad.addColorStop(0.78, '#0284c7');
+      baseGrad.addColorStop(1.00, '#0052cc');
+      canvasCtx.fillStyle = baseGrad;
+      canvasCtx.fillRect(cx - R, cy - R, R * 2, R * 2);
     }
 
     canvasCtx.restore();
-    audioPhase += 0.035;
+
+    const speedBoost = isAiSpeaking ? 0.038 : (smoothVolume > 0.05 ? 0.026 : 0.015);
+    audioPhase += speedBoost;
   }
 
-  // Canvas animation frame handler
+  // ─── Render Loop ────────────────────────────────────────────────────────────
   function renderLoop() {
     let volume = 0;
     if (analyser && isListening && !isMuted) {
@@ -121,18 +144,23 @@
         sum += v * v;
       }
       const rms = Math.sqrt(sum / dataArray.length);
-      volume = Math.min(1, rms * 4.5);
+      volume = Math.min(1, rms * 5.5);
 
-      // Barge-in Interruption Detection: If AI is speaking & user starts talking, cancel AI speech!
-      if (isAiSpeaking && volume > 0.18) {
+      // Barge-in: stop AI speech when user talks
+      if (isAiSpeaking && volume > 0.16) {
         stopAiSpeech();
       }
+    } else if (isAiSpeaking) {
+      volume = 0.28 + Math.sin(audioPhase * 3) * 0.12;
     }
 
-    drawSphereOrb(volume);
+    drawDynamicCloudSphere(volume);
     animFrameId = requestAnimationFrame(renderLoop);
   }
 
+  let voiceHistory = [];
+
+  // ─── AI Speech (Natural Human Conversational Synthesis) ─────────────────────
   function stopAiSpeech() {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -140,42 +168,122 @@
     isAiSpeaking = false;
   }
 
-  function speakText(text) {
-    if (!window.speechSynthesis || isMuted) return;
-    stopAiSpeech();
+  // Sanitize text so AI talks completely like a real human in conversation
+  function sanitizeForVoice(text) {
+    if (!text) return '';
+    let clean = String(text)
+      // Strip [[ANSWER_SUMMARY]]...[[/ANSWER_SUMMARY]] tags completely
+      .replace(/\[\[ANSWER_SUMMARY\]\][\s\S]*?\[\[\/ANSWER_SUMMARY\]\]/gi, '')
+      .replace(/\[\[ANSWER_SUMMARY\]\][^\n]*/gi, '')
+      .replace(/\[\[\/ANSWER_SUMMARY\]\]/gi, '')
+      .replace(/\[\[[\s\S]*?\]\]/g, '')
+      // Strip code blocks and inline code
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`]+`/g, '')
+      // Strip markdown links [label](url) -> label
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/https?:\/\/\S+/gi, '')
+      // Strip markdown headings (e.g. ## Heading -> Heading)
+      .replace(/^#{1,6}\s+/gm, '')
+      // Strip bullet points and list numbers at start of lines (e.g. "- item" or "1. item" -> "item")
+      .replace(/^[-*•+]\s+/gm, '')
+      .replace(/^\d+[\.\)]\s+/gm, '')
+      // Strip bold, italics, strikethrough, blockquotes
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/_([^_]+)_/g, '$1')
+      .replace(/~~([^~]+)~~/g, '$1')
+      .replace(/^>\s*/gm, '')
+      .replace(/---+/g, '')
+      .replace(/===+/g, '')
+      // Replace symbols with natural spoken words
+      .replace(/&/g, ' and ')
+      .replace(/%/g, ' percent')
+      .replace(/\+/g, ' plus ')
+      .replace(/=/g, ' equals ')
+      // Clean duplicate whitespace and newlines into natural breath pauses
+      .replace(/\n{2,}/g, ', ')
+      .replace(/\n/g, ', ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
-
-    utterance.onstart = () => {
-      isAiSpeaking = true;
-    };
-    utterance.onend = () => {
-      isAiSpeaking = false;
-    };
-    utterance.onerror = () => {
-      isAiSpeaking = false;
-    };
-
-    window.speechSynthesis.speak(utterance);
+    return clean;
   }
 
-  // Camera Management
+  function speakText(rawText) {
+    if (!window.speechSynthesis) return;
+    stopAiSpeech();
+
+    const clean = sanitizeForVoice(rawText);
+    if (!clean) return;
+
+    // Split text into natural spoken phrases / breath chunks for natural human pacing
+    const phrases = clean.match(/[^.!?,\n]+[.!?,\n]+|\s*[^.!?,\n]+$/g) || [clean];
+    let phraseIdx = 0;
+
+    const getBestVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      return voices.find(v =>
+        /Google\s+US\s+English|Google\s+UK\s+English|Microsoft\s+Aria|Microsoft\s+Jenny|Samantha\s+\(Enhanced\)|Samantha|Moira|Karen/i.test(v.name) && v.lang.startsWith('en')
+      ) || voices.find(v => v.lang.startsWith('en-') && !v.localService) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+    };
+
+    const playNextPhrase = () => {
+      if (phraseIdx >= phrases.length) {
+        isAiSpeaking = false;
+        return;
+      }
+
+      const phrase = phrases[phraseIdx].trim();
+      phraseIdx += 1;
+
+      if (!phrase) {
+        playNextPhrase();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(phrase);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.02;
+      utterance.volume = 1.0;
+
+      const voice = getBestVoice();
+      if (voice) utterance.voice = voice;
+
+      utterance.onstart = () => { isAiSpeaking = true; };
+      utterance.onend   = () => {
+        // Natural breath pause between spoken clauses (60ms)
+        setTimeout(() => {
+          playNextPhrase();
+        }, 60);
+      };
+      utterance.onerror = () => { isAiSpeaking = false; };
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length) {
+      playNextPhrase();
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        playNextPhrase();
+      };
+    }
+  }
+
+  // ─── Camera Management ──────────────────────────────────────────────────────
   async function toggleCamera() {
     const videoEl = document.getElementById('xmanius-live-video');
     const container = document.getElementById('xmanius-camera-container');
     if (!videoEl || !container) return;
 
     if (isCameraActive) {
-      if (videoStream) {
-        videoStream.getTracks().forEach(t => t.stop());
-        videoStream = null;
-      }
+      if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
       videoEl.srcObject = null;
       container.style.display = 'none';
       isCameraActive = false;
-      showToast('Camera turned off');
+      showStatus('Camera turned off');
     } else {
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({
@@ -184,10 +292,10 @@
         videoEl.srcObject = videoStream;
         container.style.display = 'block';
         isCameraActive = true;
-        showToast('Live Camera active');
+        showStatus('Live Camera active');
       } catch (err) {
         console.error('Camera access failed', err);
-        showToast('Unable to access camera.');
+        showStatus('Unable to access camera.');
       }
     }
   }
@@ -195,264 +303,488 @@
   function captureCameraFrame() {
     const videoEl = document.getElementById('xmanius-live-video');
     if (!videoEl || !isCameraActive || !videoStream) return null;
-
-    const snapCanvas = document.createElement('canvas');
-    snapCanvas.width = videoEl.videoWidth || 640;
-    snapCanvas.height = videoEl.videoHeight || 480;
-    const ctx = snapCanvas.getContext('2d');
-    ctx.drawImage(videoEl, 0, 0, snapCanvas.width, snapCanvas.height);
-    return snapCanvas.toDataURL('image/jpeg', 0.82);
-  }
-
-  function showToast(msg) {
-    const toast = document.getElementById('xmanius-live-toast');
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.add('is-visible');
-    setTimeout(() => {
-      if (toast.textContent === msg) toast.classList.remove('is-visible');
-    }, 3000);
-  }
-
-  // Start Mic & Audio Context
-  async function startAudioSession() {
     try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true }
-      });
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AudioCtx();
-      const source = audioCtx.createMediaStreamSource(mediaStream);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
-
-      isListening = true;
-      initSpeechRecognition();
-    } catch (err) {
-      console.warn('Microphone initialization error:', err);
-      showToast('Microphone permission required for Live Voice.');
+      const snap = document.createElement('canvas');
+      snap.width  = videoEl.videoWidth  || 640;
+      snap.height = videoEl.videoHeight || 480;
+      const ctx = snap.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, snap.width, snap.height);
+      return snap.toDataURL('image/jpeg', 0.85);
+    } catch (e) {
+      console.warn('Frame capture error:', e);
+      return null;
     }
   }
 
-  function initSpeechRecognition() {
+  // ─── Status / Toast ─────────────────────────────────────────────────────────
+  function showStatus(msg) {
+    const el = document.getElementById('xmanius-live-status');
+    if (!el) return;
+    if (!msg) {
+      el.classList.remove('is-visible');
+      return;
+    }
+    el.textContent = msg;
+    el.classList.add('is-visible');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => {
+      if (el.textContent === msg) el.classList.remove('is-visible');
+    }, 3200);
+  }
+
+  // ─── API Call: Multi-Turn Voice / Text → AI → Spoken Speech ──────────────────
+  async function handleUserVoiceQuery(queryText) {
+    if (!queryText || !queryText.trim() || isProcessingQuery) return;
+    isProcessingQuery = true;
+
+    stopAiSpeech();
+    showStatus('Thinking…');
+
+    const endpoint = (typeof window.XmaniusApiEndpoint === 'function')
+      ? window.XmaniusApiEndpoint()
+      : '/api/xmanius-chat';
+
+    const cameraFrame = captureCameraFrame();
+    const attachments = [...attachedFiles];
+    if (cameraFrame) {
+      attachments.push({
+        name: 'live_camera_snapshot.jpg',
+        mimeType: 'image/jpeg',
+        data: cameraFrame,
+        dataUrl: cameraFrame
+      });
+    }
+
+    const promptMessage = (cameraFrame && !queryText.trim())
+      ? 'Look at this live camera view and tell me what you see.'
+      : queryText.trim();
+
+    // Maintain multi-turn voice context
+    voiceHistory.push({ role: 'user', text: promptMessage });
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: promptMessage,
+          model: 'xmanius-1',
+          attachments,
+          thinkMode: false,
+          webSearch: true,
+          mode: 'live_voice',
+          voice: true,
+          history: voiceHistory.slice(-8)
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const reply = data.reply || data.answer || 'Got it.';
+        voiceHistory.push({ role: 'model', text: reply });
+        showStatus('');
+        attachedFiles = [];
+        speakText(reply);
+      } else {
+        showStatus('Could not reach AI. Try again.');
+        speakText("I couldn't complete that request. Please try again.");
+      }
+    } catch (err) {
+      console.error('[XManius Voice] API error:', err);
+      showStatus('Connection error.');
+      speakText('Connection error. Please check your network.');
+    } finally {
+      isProcessingQuery = false;
+    }
+  }
+
+  // ─── Microphone & Audio Context ─────────────────────────────────────────────
+  async function startAudioSession(userTriggered = false) {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (userTriggered) showStatus('Microphone not supported in this browser.');
+        return false;
+      }
+
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      });
+
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtxClass) {
+        audioCtx = new AudioCtxClass();
+        if (audioCtx.state === 'suspended') {
+          await audioCtx.resume();
+        }
+        const source = audioCtx.createMediaStreamSource(mediaStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.5;
+        source.connect(analyser);
+      }
+
+      isListening = true;
+      isMuted = false;
+      updateMicButtonState();
+      startSpeechRecognition();
+      showStatus('');
+      return true;
+    } catch (err) {
+      console.warn('[XManius Voice] Microphone init:', err);
+      isListening = false;
+      updateMicButtonState();
+      if (userTriggered) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          showStatus('Allow microphone access in browser settings.');
+        } else if (err.name === 'NotFoundError') {
+          showStatus('No microphone found.');
+        } else {
+          showStatus('Could not start microphone.');
+        }
+      }
+      return false;
+    }
+  }
+
+  function updateMicButtonState() {
+    const micBtn = document.getElementById('xmanius-live-mic-btn');
+    if (!micBtn) return;
+    const activeIcon = document.getElementById('mic-icon-active');
+    const mutedIcon  = document.getElementById('mic-icon-muted');
+
+    const shouldShowMuted = isMuted || !isListening;
+    micBtn.classList.toggle('is-muted', shouldShowMuted);
+    if (activeIcon) activeIcon.style.display = shouldShowMuted ? 'none' : 'block';
+    if (mutedIcon)  mutedIcon.style.display  = shouldShowMuted ? 'block' : 'none';
+  }
+
+  // ─── Speech Recognition ─────────────────────────────────────────────────────
+  function startSpeechRecognition() {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
-      showToast('Speech recognition not supported in browser.');
       return;
     }
 
+    if (recognition) {
+      try { recognition.stop(); } catch {}
+      recognition = null;
+    }
+
     recognition = new SpeechRec();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.continuous    = true;
+    recognition.interimResults = false;
+    recognition.lang          = navigator.language || 'en-US';
+    recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
-          const finalPhrase = event.results[i][0].transcript.trim();
-          if (finalPhrase) {
-            handleUserVoiceQuery(finalPhrase);
+          const phrase = event.results[i][0].transcript.trim();
+          if (phrase) {
+            handleUserVoiceQuery(phrase);
           }
-        } else {
-          interim += event.results[i][0].transcript;
         }
-      }
-
-      const inputDisplay = document.getElementById('xmanius-live-input');
-      if (inputDisplay && interim) {
-        inputDisplay.value = interim;
       }
     };
 
     recognition.onerror = (e) => {
-      if (e.error !== 'no-speech') {
-        console.warn('Speech recognition error:', e.error);
-      }
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      console.warn('[XManius Voice] Recognition event:', e.error);
     };
 
     recognition.onend = () => {
       if (isListening && !isMuted && voiceModalEl && voiceModalEl.classList.contains('is-open')) {
-        try { recognition.start(); } catch {}
+        try { recognition.start(); } catch (_) {}
       }
     };
 
-    try { recognition.start(); } catch {}
-  }
-
-  async function handleUserVoiceQuery(queryText) {
-    const inputDisplay = document.getElementById('xmanius-live-input');
-    if (inputDisplay) inputDisplay.value = queryText;
-
-    showToast('Thinking...');
-    stopAiSpeech();
-
-    const cameraFrame = captureCameraFrame();
-    const attachments = cameraFrame ? [{
-      name: 'camera_snapshot.jpg',
-      mimeType: 'image/jpeg',
-      dataUrl: cameraFrame
-    }] : [];
-
     try {
-      const response = await fetch('/api/xmanius-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: queryText,
-          model: 'xmanius-1', // Primary Slot 1 Gemini Model
-          attachments: attachments,
-          mode: 'fast'
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const replyText = data.reply || data.answer || 'I got your response.';
-        speakText(replyText);
-        showToast('Responding...');
-      } else {
-        speakText("I couldn't complete that request. Please try again.");
-      }
+      recognition.start();
     } catch (err) {
-      console.error('Voice API error:', err);
-      speakText('Connection error. Please check your network.');
+      console.warn('[XManius Voice] Recognition start:', err);
+      setTimeout(() => {
+        if (isListening && !isMuted) {
+          try { recognition.start(); } catch {}
+        }
+      }, 500);
     }
   }
 
-  // Create Overlay Modal DOM
+  // ─── Create Exact Overlay DOM ────────────────────────────────────────────────
   function createLiveVoiceDOM() {
     if (document.getElementById('xmanius-live-voice-modal')) return;
 
     const modal = document.createElement('div');
-    modal.id = 'xmanius-live-voice-modal';
+    modal.id        = 'xmanius-live-voice-modal';
     modal.className = 'xmanius-live-modal';
     modal.innerHTML = `
       <div class="xmanius-live-backdrop"></div>
-      
-      <!-- Camera Viewfinder Layer -->
-      <div id="xmanius-camera-container" class="xmanius-camera-viewfinder" style="display: none;">
+
+      <!-- Hidden file input for attachments -->
+      <input type="file" id="xmanius-live-file-input" style="display:none;" multiple accept="image/*,audio/*,video/*,application/pdf,text/*">
+
+      <!-- Top Right Settings / Equalizer Button matching reference -->
+      <button type="button" class="xmanius-live-top-btn" id="xmanius-live-settings-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="4" y1="8" x2="20" y2="8"></line>
+          <circle cx="16" cy="8" r="2.5" fill="#000" stroke="currentColor"></circle>
+          <line x1="4" y1="16" x2="20" y2="16"></line>
+          <circle cx="8" cy="16" r="2.5" fill="#000" stroke="currentColor"></circle>
+        </svg>
+      </button>
+
+      <!-- Camera Viewfinder -->
+      <div id="xmanius-camera-container" class="xmanius-camera-viewfinder" style="display:none;">
         <video id="xmanius-live-video" autoplay playsinline muted></video>
         <div class="xmanius-camera-badge">Live Camera Active</div>
       </div>
 
-      <!-- Center Fluid Canvas Sphere -->
+      <!-- Center Fluid Watercolor Sky-and-White Sphere Canvas -->
       <div class="xmanius-live-center">
-        <canvas id="xmanius-live-canvas" width="600" height="600"></canvas>
+        <canvas id="xmanius-live-canvas" width="500" height="500"></canvas>
       </div>
 
-      <!-- Toast Notification -->
-      <div id="xmanius-live-toast" class="xmanius-live-toast">XManius Live Voice</div>
+      <!-- Status / Toast -->
+      <div id="xmanius-live-status" class="xmanius-live-toast"></div>
 
-      <!-- Bottom Control Bar (matching user screenshot) -->
-      <div class="xmanius-live-bottom-bar">
-        <div class="xmanius-live-options-menu" id="xmanius-live-menu" style="display: none;">
-          <button type="button" class="xmanius-live-menu-item" id="xmanius-btn-camera">
-            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-            <span>Toggle Live Camera</span>
-          </button>
+      <!-- Options popup -->
+      <div class="xmanius-live-options-menu" id="xmanius-live-menu" style="display:none;">
+        <button type="button" class="xmanius-live-menu-item" id="xmanius-btn-camera">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          <span>Toggle Live Camera</span>
+        </button>
+      </div>
+
+      <!-- Attachment Popup matching media_1788282470279.png -->
+      <div class="xmanius-live-attach-popup" id="xmanius-live-attach-popup" style="display:none;">
+        <button type="button" class="xmanius-live-popup-item" id="xmanius-live-btn-add-files">
+          <svg viewBox="0 0 24 24" class="xmanius-popup-icon">
+            <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+          </svg>
+          <span class="xmanius-popup-title">Add files</span>
+          <span class="xmanius-popup-desc">Upload from computer</span>
+        </button>
+        <button type="button" class="xmanius-live-popup-item" id="xmanius-live-btn-add-library">
+          <svg viewBox="0 0 24 24" class="xmanius-popup-icon">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+            <path d="M6 6h10M6 10h10"></path>
+          </svg>
+          <span class="xmanius-popup-title">Add from library</span>
+          <span class="xmanius-popup-desc">Browse and search your files</span>
+        </button>
+      </div>
+
+      <!-- Bottom Pill Control Bar matching exact media_1788282408013.png -->
+      <div class="xmanius-live-bottom-bar" id="xmanius-live-bottom-bar">
+        <!-- Left "+" action & instant typing input -->
+        <div class="xmanius-live-type-wrapper" id="xmanius-live-type-wrapper">
+          <button type="button" class="xmanius-live-plus-btn" id="xmanius-live-plus-btn" aria-label="Add files or library">+</button>
+          <input type="text" class="xmanius-live-pill-input" id="xmanius-live-pill-input" placeholder="Type..." autocomplete="off">
         </div>
 
-        <button type="button" class="xmanius-live-btn xmanius-live-plus" id="xmanius-live-plus-btn" aria-label="More options">+</button>
-        
-        <div class="xmanius-live-input-wrapper">
-          <input type="text" id="xmanius-live-input" class="xmanius-live-input" placeholder="Type or speak hands-free..." autocomplete="off">
-        </div>
+        <div class="xmanius-live-bar-spacer"></div>
 
-        <button type="button" class="xmanius-live-btn xmanius-live-mic" id="xmanius-live-mic-btn" aria-label="Mute microphone">
-          <svg viewBox="0 0 24 24" id="mic-icon-active" style="width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
-          <svg viewBox="0 0 24 24" id="mic-icon-muted" style="display:none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="22"></line><line x1="9" y1="21" x2="15" y2="21"></line></svg>
+        <!-- Right mic mute / grant button -->
+        <button type="button" class="xmanius-live-btn xmanius-live-mic" id="xmanius-live-mic-btn" aria-label="Toggle microphone">
+          <svg viewBox="0 0 24 24" id="mic-icon-active" style="width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+            <line x1="8"  y1="22" x2="16" y2="22"></line>
+          </svg>
+          <svg viewBox="0 0 24 24" id="mic-icon-muted" style="display:none;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"></path>
+            <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+            <line x1="8"  y1="22" x2="16" y2="22"></line>
+          </svg>
         </button>
 
+        <!-- Right White Circle Close Button -->
         <button type="button" class="xmanius-live-btn xmanius-live-close" id="xmanius-live-close-btn" aria-label="Exit Live Voice">✕</button>
       </div>
     `;
 
-    document.body.appendChild(modal);
+    // Mount inside chat-main so sidebar remains visible on desktop, or fallback to body
+    const mountTarget = document.querySelector('.chat-main') || document.body;
+    mountTarget.appendChild(modal);
     voiceModalEl = modal;
 
-    canvasEl = document.getElementById('xmanius-live-canvas');
-    if (canvasEl) {
-      canvasCtx = canvasEl.getContext('2d');
-    }
+    canvasEl  = document.getElementById('xmanius-live-canvas');
+    if (canvasEl) canvasCtx = canvasEl.getContext('2d');
 
+    // ── Event wiring ──
     document.getElementById('xmanius-live-close-btn')?.addEventListener('click', closeLiveVoiceModal);
-    
-    const plusBtn = document.getElementById('xmanius-live-plus-btn');
-    const optionsMenu = document.getElementById('xmanius-live-menu');
-    plusBtn?.addEventListener('click', () => {
+
+    const plusBtn      = document.getElementById('xmanius-live-plus-btn');
+    const pillInput    = document.getElementById('xmanius-live-pill-input');
+    const attachPopup  = document.getElementById('xmanius-live-attach-popup');
+    const fileInput    = document.getElementById('xmanius-live-file-input');
+    const optionsMenu  = document.getElementById('xmanius-live-menu');
+
+    // Toggle attachment popup on "+" click
+    plusBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isAttachPopupOpen = !isAttachPopupOpen;
+      if (attachPopup) attachPopup.style.display = isAttachPopupOpen ? 'flex' : 'none';
+    });
+
+    // Close popup on outside click
+    modal.addEventListener('click', (e) => {
+      if (isAttachPopupOpen && !e.target.closest('#xmanius-live-attach-popup') && !e.target.closest('#xmanius-live-plus-btn')) {
+        isAttachPopupOpen = false;
+        if (attachPopup) attachPopup.style.display = 'none';
+      }
+    });
+
+    // "Add files" click
+    document.getElementById('xmanius-live-btn-add-files')?.addEventListener('click', () => {
+      isAttachPopupOpen = false;
+      if (attachPopup) attachPopup.style.display = 'none';
+      fileInput?.click();
+    });
+
+    // File selection handler
+    fileInput?.addEventListener('change', async () => {
+      const files = Array.from(fileInput.files || []);
+      for (const file of files) {
+        try {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target?.result;
+            attachedFiles.push({
+              name: file.name,
+              mimeType: file.type || 'application/octet-stream',
+              data: dataUrl,
+              dataUrl: dataUrl
+            });
+            showStatus(`Attached: ${file.name}`);
+          };
+          reader.readAsDataURL(file);
+        } catch (err) {
+          console.warn('File read error:', err);
+        }
+      }
+      fileInput.value = '';
+    });
+
+    // "Add from library" click
+    document.getElementById('xmanius-live-btn-add-library')?.addEventListener('click', () => {
+      isAttachPopupOpen = false;
+      if (attachPopup) attachPopup.style.display = 'none';
+      if (window.XmaniusLibrary) {
+        window.XmaniusLibrary.open();
+      } else {
+        showStatus('Library is ready.');
+      }
+    });
+
+    // Direct inline typing on Enter key
+    pillInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = pillInput.value.trim();
+        if (val) {
+          handleUserVoiceQuery(val);
+          pillInput.value = '';
+        }
+      }
+    });
+
+    document.getElementById('xmanius-live-settings-btn')?.addEventListener('click', () => {
       isMenuOpen = !isMenuOpen;
       if (optionsMenu) optionsMenu.style.display = isMenuOpen ? 'flex' : 'none';
     });
 
     document.getElementById('xmanius-btn-camera')?.addEventListener('click', () => {
       toggleCamera();
-      if (optionsMenu) {
-        optionsMenu.style.display = 'none';
-        isMenuOpen = false;
-      }
+      if (optionsMenu) { optionsMenu.style.display = 'none'; isMenuOpen = false; }
     });
 
     const micBtn = document.getElementById('xmanius-live-mic-btn');
-    micBtn?.addEventListener('click', () => {
+    micBtn?.addEventListener('click', async () => {
+      if (!isListening || !mediaStream) {
+        const success = await startAudioSession(true);
+        if (success) {
+          showStatus('');
+        }
+        return;
+      }
+
       isMuted = !isMuted;
-      micBtn.classList.toggle('is-muted', isMuted);
-      const activeIcon = document.getElementById('mic-icon-active');
-      const mutedIcon = document.getElementById('mic-icon-muted');
-      if (activeIcon) activeIcon.style.display = isMuted ? 'none' : 'block';
-      if (mutedIcon) mutedIcon.style.display = isMuted ? 'block' : 'none';
+      updateMicButtonState();
 
       if (isMuted) {
-        stopAiSpeech();
-        showToast('Microphone Muted');
+        if (recognition) { try { recognition.stop(); } catch {} }
+        showStatus('Microphone muted');
       } else {
-        showToast('Microphone Active');
-      }
-    });
-
-    const liveInput = document.getElementById('xmanius-live-input');
-    liveInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const val = liveInput.value.trim();
-        if (val) {
-          handleUserVoiceQuery(val);
-          liveInput.value = '';
-        }
+        showStatus('');
+        if (isListening) startSpeechRecognition();
       }
     });
   }
 
+  // ─── Canvas Resize ───────────────────────────────────────────────────────────
   function resizeCanvas() {
     if (!canvasEl) return;
     const rect = canvasEl.getBoundingClientRect();
-    canvasEl.width = rect.width * (window.devicePixelRatio || 1);
-    canvasEl.height = rect.height * (window.devicePixelRatio || 1);
+    const dpr  = window.devicePixelRatio || 1;
+    canvasEl.width  = rect.width  * dpr;
+    canvasEl.height = rect.height * dpr;
   }
 
+  // ─── Open / Close ────────────────────────────────────────────────────────────
   function openLiveVoiceModal() {
     createLiveVoiceDOM();
     if (!voiceModalEl) return;
+
+    isMuted           = false;
+    smoothVolume      = 0;
+    audioPhase        = 0;
+    isProcessingQuery = false;
+    isAttachPopupOpen = false;
+    attachedFiles     = [];
+    voiceHistory      = [];
+
+    updateMicButtonState();
+
+    const pillInput   = document.getElementById('xmanius-live-pill-input');
+    const attachPopup = document.getElementById('xmanius-live-attach-popup');
+    if (pillInput) pillInput.value = '';
+    if (attachPopup) attachPopup.style.display = 'none';
 
     voiceModalEl.classList.add('is-open');
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    startAudioSession();
     animFrameId = requestAnimationFrame(renderLoop);
-    showToast('XManius Live Voice Ready');
+
+    setTimeout(() => {
+      startAudioSession(false);
+    }, 100);
   }
 
   function closeLiveVoiceModal() {
     if (!voiceModalEl) return;
 
     voiceModalEl.classList.remove('is-open');
-    if (animFrameId) cancelAnimationFrame(animFrameId);
+    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = 0; }
     stopAiSpeech();
 
     isListening = false;
+    isProcessingQuery = false;
+    isAttachPopupOpen = false;
+    attachedFiles = [];
+
     if (recognition) {
       try { recognition.stop(); } catch {}
+      try { recognition.abort(); } catch {}
       recognition = null;
     }
 
@@ -465,21 +797,25 @@
       videoStream.getTracks().forEach(t => t.stop());
       videoStream = null;
     }
+    isCameraActive = false;
 
     if (audioCtx && audioCtx.state !== 'closed') {
       audioCtx.close().catch(() => {});
       audioCtx = null;
     }
+    analyser = null;
 
     window.removeEventListener('resize', resizeCanvas);
   }
 
+  // ─── Public API ───────────────────────────────────────────────────────────────
   window.XmaniusLiveVoice = {
-    open: openLiveVoiceModal,
-    close: closeLiveVoiceModal,
+    open:         openLiveVoiceModal,
+    close:        closeLiveVoiceModal,
     toggleCamera: toggleCamera
   };
 
+  // ─── Trigger on data-attach-live-voice click ──────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     document.body.addEventListener('click', (e) => {
       const trigger = e.target.closest('[data-attach-live-voice]');

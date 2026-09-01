@@ -719,43 +719,67 @@ body.xmanius-theme-light .attachment-remove { background:rgba(255,255,255,.96); 
 .settings-secondary-btn { padding:8px 18px; border-radius:20px; background:#2a2a2e; border:1px solid #3c3c40; color:#ffffff; font-size:14px; font-weight:500; cursor:pointer; flex:0 0 auto; }
 .settings-secondary-btn:hover { background:#36363a; }
 
-/* ─── XManius Live Multimodal Voice & Camera Interface (Matching media_1788260164595.png) ─── */
-.xmanius-live-modal { position:fixed; inset:0; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000000; opacity:0; pointer-events:none; transition:opacity .25s ease; }
+/* ─── XManius Live Multimodal Voice & Camera Interface (Exact Match media_1788282408013.png) ─── */
+.xmanius-live-modal { position:absolute; inset:0; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000000; opacity:0; pointer-events:none; transition:opacity .22s ease; overflow:hidden; }
 .xmanius-live-modal.is-open { opacity:1; pointer-events:auto; }
-.xmanius-live-backdrop { position:absolute; inset:0; background:radial-gradient(circle at center, rgba(0, 102, 255, 0.12) 0%, rgba(0, 0, 0, 1) 75%); }
+.xmanius-live-backdrop { position:absolute; inset:0; background:#000000; }
 
-.xmanius-live-center { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; height:100%; }
-.xmanius-live-center canvas { width:340px; height:340px; max-width:85vw; max-height:85vw; filter:drop-shadow(0 0 45px rgba(0, 150, 255, 0.45)); }
+/* Top Right Equalizer Settings Icon */
+.xmanius-live-top-btn { position:absolute; top:24px; right:28px; z-index:25; display:grid; place-items:center; width:38px; height:38px; border-radius:50%; border:0; background:transparent; color:#9ca3af; cursor:pointer; transition:color .15s ease, background .15s ease; }
+.xmanius-live-top-btn:hover { color:#ffffff; background:rgba(255,255,255,0.08); }
 
-.xmanius-live-toast { position:absolute; top:36px; left:50%; transform:translateX(-50%); z-index:10; padding:8px 18px; border-radius:20px; background:rgba(30, 30, 35, 0.85); border:1px solid rgba(255, 255, 255, 0.12); color:#e0f2fe; font-size:13px; font-weight:500; letter-spacing:-0.2px; opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; backdrop-filter:blur(12px); }
-.xmanius-live-toast.is-visible { opacity:1; transform:translateX(-50%) translateY(4px); }
+/* Center Sky-and-White Dynamic Watercolor Sphere */
+.xmanius-live-center { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; flex:1; }
+.xmanius-live-center canvas { width:240px; height:240px; max-width:65vw; max-height:65vw; border-radius:50%; }
+
+/* Toast / Status Notification */
+.xmanius-live-toast { position:absolute; top:28px; left:50%; transform:translateX(-50%); z-index:10; padding:6px 18px; border-radius:20px; background:rgba(28, 28, 32, 0.92); border:1px solid rgba(255,255,255,0.10); color:#bae6fd; font-size:12.5px; font-weight:500; opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; backdrop-filter:blur(14px); white-space:nowrap; }
+.xmanius-live-toast.is-visible { opacity:1; transform:translateX(-50%) translateY(2px); }
 
 /* Camera Viewfinder */
-.xmanius-camera-viewfinder { position:absolute; top:28px; right:28px; z-index:10; width:220px; height:140px; border-radius:18px; border:1px solid rgba(255, 255, 255, 0.22); overflow:hidden; background:#000000; box-shadow:0 12px 36px rgba(0, 0, 0, 0.85); animation:settings-fade-in .2s ease; }
+.xmanius-camera-viewfinder { position:absolute; top:24px; right:74px; z-index:10; width:190px; height:120px; border-radius:14px; border:1px solid rgba(255,255,255,0.20); overflow:hidden; background:#000; box-shadow:0 12px 36px rgba(0,0,0,0.85); }
 .xmanius-camera-viewfinder video { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
-.xmanius-camera-badge { position:absolute; bottom:8px; left:8px; padding:3px 8px; border-radius:6px; background:rgba(0, 0, 0, 0.75); color:#7dd3fc; font-size:11px; font-weight:600; letter-spacing:0.3px; backdrop-filter:blur(4px); }
+.xmanius-camera-badge { position:absolute; bottom:5px; left:6px; padding:2px 6px; border-radius:4px; background:rgba(0,0,0,0.75); color:#7dd3fc; font-size:10px; font-weight:600; }
 
-/* Bottom Control Bar */
-.xmanius-live-bottom-bar { position:absolute; bottom:36px; left:50%; transform:translateX(-50%); z-index:20; display:flex; align-items:center; gap:10px; height:58px; width:min(680px, calc(100vw - 32px)); padding:0 8px 0 16px; background:rgba(28, 28, 32, 0.92); border:1px solid rgba(255, 255, 255, 0.14); border-radius:999px; backdrop-filter:blur(24px); box-shadow:0 16px 50px rgba(0, 0, 0, 0.8); }
+/* Options Menu Popup */
+.xmanius-live-options-menu { position:absolute; top:66px; right:28px; z-index:30; display:flex; flex-direction:column; gap:4px; padding:6px; border-radius:12px; background:#1c1c1f; border:1px solid rgba(255,255,255,0.12); box-shadow:0 12px 32px rgba(0,0,0,0.7); }
+.xmanius-live-menu-item { display:flex; align-items:center; gap:8px; padding:8px 12px; border:0; border-radius:8px; background:transparent; color:#fff; font-size:13px; cursor:pointer; white-space:nowrap; }
+.xmanius-live-menu-item:hover { background:rgba(255,255,255,0.1); }
+.xmanius-live-menu-item svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 
-.xmanius-live-options-menu { position:absolute; bottom:calc(100% + 12px); left:16px; z-index:30; display:flex; flex-direction:column; gap:4px; padding:8px; border-radius:14px; background:#242428; border:1px solid rgba(255, 255, 255, 0.15); box-shadow:0 12px 32px rgba(0, 0, 0, 0.6); animation:settings-fade-in .15s ease; }
-.xmanius-live-menu-item { display:flex; align-items:center; gap:10px; padding:9px 14px; border:0; border-radius:99px; background:transparent; color:#ffffff; font-size:13.5px; cursor:pointer; white-space:nowrap; }
-.xmanius-live-menu-item:hover { background:rgba(255, 255, 255, 0.1); }
-.xmanius-live-menu-item svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+/* Live Voice Attachment Popup matching media_1788281717710.png */
+.xmanius-live-attach-popup { position:absolute; bottom:92px; left:50%; transform:translateX(-50%); z-index:25; display:flex; flex-direction:column; gap:4px; width:min(580px, calc(100vw - 32px)); padding:6px; background:#1e1e22; border:1px solid rgba(255,255,255,0.08); border-radius:18px; box-shadow:0 14px 36px rgba(0,0,0,0.75); }
+.xmanius-live-popup-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border:0; border-radius:12px; background:transparent; color:#ffffff; cursor:pointer; transition:background 0.15s ease; font-family:inherit; text-align:left; width:100%; }
+.xmanius-live-popup-item:hover { background:rgba(255,255,255,0.08); }
+.xmanius-popup-icon { width:18px; height:18px; fill:none; stroke:#ffffff; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+.xmanius-popup-title { font-size:14px; font-weight:500; color:#ffffff; }
+.xmanius-popup-desc { font-size:13px; font-weight:400; color:#9ca3af; margin-left:2px; }
 
-.xmanius-live-btn { display:grid; place-items:center; flex:0 0 38px; width:38px; height:38px; border-radius:50%; border:0; background:transparent; color:#d1d1d6; font-size:18px; cursor:pointer; transition:background .15s ease, transform .12s ease, color .15s ease; }
-.xmanius-live-btn:hover { background:rgba(255, 255, 255, 0.12); color:#ffffff; }
-.xmanius-live-btn.xmanius-live-plus { font-size:22px; font-weight:400; color:#a0a0a5; }
-.xmanius-live-btn.xmanius-live-close { background:#ffffff; color:#000000; font-size:14px; font-weight:700; width:36px; height:36px; margin-left:4px; }
-.xmanius-live-btn.xmanius-live-close:hover { background:#e5e5ea; transform:scale(1.05); }
+/* Bottom Pill Bar matching exact media_1788282408013.png */
+.xmanius-live-bottom-bar { position:absolute; bottom:36px; left:50%; transform:translateX(-50%); z-index:20; display:flex; align-items:center; height:48px; width:min(580px, calc(100vw - 32px)); padding:0 6px 0 12px; background:#1e1e22; border:1px solid rgba(255,255,255,0.06); border-radius:9999px; box-shadow:0 10px 30px rgba(0,0,0,0.7); }
 
+/* Left "+ Type" wrapper */
+.xmanius-live-type-wrapper { display:flex; align-items:center; gap:4px; flex:1; max-width:320px; }
+.xmanius-live-plus-btn { display:grid; place-items:center; width:28px; height:28px; border-radius:50%; border:0; background:transparent; color:#9ca3af; font-size:18px; font-weight:400; cursor:pointer; transition:color .15s ease, background .15s ease; font-family:inherit; line-height:1; }
+.xmanius-live-plus-btn:hover { color:#ffffff; background:rgba(255,255,255,0.08); }
+
+/* Always-ready direct inline input in pill bar */
+.xmanius-live-pill-input { border:0; outline:0; background:transparent; color:#ffffff; font-size:14px; font-family:inherit; padding:4px 6px; width:100%; flex:1; }
+.xmanius-live-pill-input::placeholder { color:#9ca3af; }
+
+.xmanius-live-bar-spacer { flex:1; }
+
+/* Action Buttons */
+.xmanius-live-btn { display:grid; place-items:center; flex:0 0 34px; width:34px; height:34px; border-radius:50%; border:0; background:transparent; color:#9ca3af; font-size:16px; cursor:pointer; transition:background .15s ease, color .15s ease; }
+.xmanius-live-btn:hover { color:#ffffff; background:rgba(255,255,255,0.1); }
+
+/* Red Circle Muted Mic Button */
 .xmanius-live-btn.xmanius-live-mic.is-muted { background:#ef4444; color:#ffffff; }
+.xmanius-live-btn.xmanius-live-mic.is-muted:hover { background:#dc2626; color:#ffffff; }
 
-.xmanius-live-input-wrapper { flex:1; min-width:0; display:flex; align-items:center; }
-.xmanius-live-input { width:100%; border:0; outline:0; background:transparent; color:#ffffff; font-size:15px; font-family:inherit; }
-.xmanius-live-input::placeholder { color:#8e8e93; }
-
-
+/* White Circle Close Button with Black ✕ */
+.xmanius-live-btn.xmanius-live-close { background:#ffffff; color:#000000; font-size:13px; font-weight:700; width:34px; height:34px; margin-left:6px; }
+.xmanius-live-btn.xmanius-live-close:hover { background:#e5e5e5; transform:scale(1.04); color:#000000; }
 
 
 

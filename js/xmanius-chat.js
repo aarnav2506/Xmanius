@@ -41,10 +41,15 @@
   const attachCameraButton = document.querySelector("[data-attach-camera]");
   const readApiBase = () => {
     try {
-      return String(window.XMANIUS_API_BASE_URL || localStorage.getItem("xmanius-api-base-url") || "").trim().replace(/\/+$/, "");
-    } catch {
-      return String(window.XMANIUS_API_BASE_URL || "").trim().replace(/\/+$/, "");
+      const configured = String(window.XMANIUS_API_BASE_URL || localStorage.getItem("xmanius-api-base-url") || "").trim().replace(/\/+$/, "");
+      if (configured) return configured;
+    } catch {}
+    // If running locally (file://, localhost, 127.0.0.1, Live Server), point to deployed production endpoint so local overview works out-of-the-box
+    const isLocal = typeof window !== "undefined" && (window.location.protocol === "file:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname.startsWith("192.168.") || window.location.hostname === "");
+    if (isLocal) {
+      return "https://xmanius.vercel.app";
     }
+    return "";
   };
   const getApiEndpoint = () => {
     const base = readApiBase();
@@ -2128,12 +2133,11 @@
         response = null;
       }
 
-      // If primary request failed or returned 502/503/504/404, fallback to production backend with active slot failover
+      // If primary request failed or returned 502/503/504/404, fallback to production backend preserving exact slot
       if (!response || !response.ok) {
         try {
           const endpointToUse = (primaryEndpoint && primaryEndpoint.startsWith("/")) ? "https://xmanius.vercel.app/api/xmanius-chat" : (primaryEndpoint || "https://xmanius.vercel.app/api/xmanius-chat");
-          const fallbackModel = (selectedModel === "xmanius-1" || selectedModel === "xmanius-5" || selectedModel === "xmanius-6") ? "xmanius-2" : selectedModel;
-          const fallbackPayload = { ...requestPayload, model: fallbackModel };
+          const fallbackPayload = { ...requestPayload, model: selectedModel };
           const fallbackRes = await fetch(endpointToUse, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2433,8 +2437,24 @@
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
   sendButton?.addEventListener("click", (event) => { if (!activeRequestController) return; event.preventDefault(); activeRequestStopReason = "user"; activeRequestController.abort(); });
   document.querySelector("[data-chat-mic]")?.addEventListener("click", startVoice);
-  dictationSend?.setAttribute("aria-label", "Review dictated message");
-  dictationSend?.setAttribute("title", "Review dictated message");
+  const handleDictationSend = () => {
+    const textToSend = input.value.trim();
+    voiceStopRequested = true;
+    if (recognition) {
+      try { recognition.stop(); } catch {}
+    }
+    finishVoiceSession({ clearText: false, focus: false, abort: false });
+    if (textToSend) {
+      ask(textToSend);
+    }
+  };
+
+  dictationSend?.setAttribute("aria-label", "Send message");
+  dictationSend?.setAttribute("title", "Send message directly");
+  dictationSend?.addEventListener("click", (event) => {
+    event.preventDefault();
+    handleDictationSend();
+  });
   dictationCancel?.addEventListener("click", () => finishVoiceSession({ clearText: true, focus: true, abort: true }));
   dictationStop?.addEventListener("click", () => { voiceStopRequested = true; if (!recognition) { finishVoiceSession({ focus: true }); return; } try { recognition.stop(); } catch { finishVoiceSession({ focus: true, abort: true }); } });
   document.addEventListener("visibilitychange", () => { if (document.hidden && (recognition || form.classList.contains("is-listening"))) finishVoiceSession({ focus: false, abort: true }); });
@@ -2494,7 +2514,7 @@
     if (modelKey === "xmanius-1") return `${brand} 1.5`;
     if (modelKey === "xmanius-2") return `${brand} Flash`;
     if (modelKey === "xmanius-3") return `${brand} Pro`;
-    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `${brand} Polished`;
+    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `Cortex`;
     return `${brand} ${modelKey.replace("xmanius-", "")}`;
   };
   const setSelectedModel = (model) => {

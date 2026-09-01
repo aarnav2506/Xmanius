@@ -41,8 +41,7 @@ export default async function handler(request, response) {
   const apiKey = process.env.XMANIUS_GEMINI_API_KEY || process.env.XMANIUS_GEMINI_API_KEY_1 || process.env.XMANIUS_GEMINI_API_KEY_2;
   if (!apiKey) return response.status(503).json({ error: "Server AI credentials not configured." });
 
-  const selectedModel = translate ? "gemini-3.5-live-translate" : "gemini-3.5-transcribe-live";
-  const fallbackModels = [selectedModel, "gemini-2.5-flash-native-audio-dialog", "gemini-2.5-flash-lite", "gemini-1.5-flash-8b"];
+  const fallbackModels = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
 
   const prompt = translate
     ? `Listen to this live audio recording carefully. Translate all spoken words accurately into clean, natural ${targetLanguage} text. Return only the translated text.`
