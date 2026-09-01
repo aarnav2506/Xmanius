@@ -472,6 +472,41 @@
   width: 100%;
 }
 
+.edit-profile-photo-buttons {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+  justify-content: center !important;
+}
+
+.edit-profile-small-btn {
+  padding: 6px 14px !important;
+  border-radius: 999px !important;
+  background: #27272a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.edit-profile-small-btn:hover {
+  background: #3f3f46 !important;
+  color: #ffffff !important;
+}
+
+.edit-profile-small-btn.edit-profile-btn-danger {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: #ef4444 !important;
+  color: #f87171 !important;
+}
+
+.edit-profile-small-btn.edit-profile-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #ffffff !important;
+}
+
 .edit-profile-footer {
   display: flex;
   align-items: center;
@@ -1028,6 +1063,70 @@
   color: #f4f4f5 !important;
 }
 
+.settings-danger-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  padding: 8px 18px !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #f87171 !important;
+  border: 1px solid #ef4444 !important;
+  border-radius: 999px !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: all 0.15s ease !important;
+}
+
+.settings-danger-btn:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #ffffff !important;
+}
+
+.settings-secondary-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  padding: 8px 18px !important;
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 999px !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: all 0.15s ease !important;
+}
+
+.settings-secondary-btn:hover {
+  background: #3f3f46 !important;
+}
+
+.settings-nav-spacer {
+  flex: 1 !important;
+}
+
+.settings-nav-account-item {
+  margin-top: auto !important;
+}
+
+.settings-nav-avatar {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+}
+
 .settings-row {
   display: flex !important;
   align-items: center !important;
@@ -1190,5 +1289,113 @@
   color: #38bdf8 !important;
   font-weight: 700 !important;
 }
+
+/* ─── Light Mode Theme Support for Settings Modal & Sidebar ──────────────── */
+body.xmanius-theme-light .settings-shell {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-nav {
+  background: #f8fafc !important;
+  border-right-color: #e2e8f0 !important;
+}
+
+body.xmanius-theme-light .settings-nav-item {
+  color: #64748b !important;
+}
+
+body.xmanius-theme-light .settings-nav-item:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-nav-item.is-active {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-main {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-main header {
+  border-bottom-color: #e2e8f0 !important;
+}
+
+body.xmanius-theme-light .settings-main header h2 {
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-row {
+  border-bottom-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-row strong {
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-row small {
+  color: #64748b !important;
+}
+
+body.xmanius-theme-light .settings-value {
+  color: #475569 !important;
+}
+
+body.xmanius-theme-light .settings-value:hover {
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .settings-close {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+body.xmanius-theme-light .settings-close:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Sidebar components in Light Mode */
+body.xmanius-theme-light .header-brand-title {
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .sidebar-guest-menu-btn {
+  color: #334155 !important;
+}
+
+body.xmanius-theme-light .sidebar-guest-menu-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .sidebar-guest-card {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.xmanius-theme-light .sidebar-guest-card-title {
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .sidebar-guest-card-sub {
+  color: #64748b !important;
+}
+
+body.xmanius-theme-light .sidebar-guest-card-login-btn {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #1e293b !important;
+}
+
+body.xmanius-theme-light .sidebar-guest-card-login-btn:hover {
+  background: #1e293b !important;
+}
+
 
 

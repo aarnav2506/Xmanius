@@ -7,9 +7,7 @@
  * Never put Gemini/provider keys in this file. They belong in Vercel
  * Environment Variables and are read only by /api/xmanius-chat.
  */
-// The Android APK needs the deployed HTTPS API. Browser deployments and
-// `vercel dev` use their own same-origin `/api` route, so local fixes are not
-// accidentally sent to an old remote deployment.
-const xmaniusNativeApp = Boolean(window.Capacitor?.isNativePlatform?.()) || /^(capacitor|ionic|file):$/i.test(window.location.protocol);
-window.XMANIUS_API_BASE_URL = xmaniusNativeApp ? "https://xmanius.vercel.app" : "";
+// Point to the deployed production API on Vercel whenever running on local static servers, file://, or mobile
+const isDeployedOnVercel = typeof window !== "undefined" && (window.location.hostname.endsWith(".vercel.app"));
+window.XMANIUS_API_BASE_URL = isDeployedOnVercel ? "" : "https://xmanius.vercel.app";
 

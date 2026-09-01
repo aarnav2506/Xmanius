@@ -375,7 +375,11 @@
   async function updateUserProfile({ displayName, username, avatarUrl }) {
     if (displayName) localStorage.setItem("xmanius-custom-name", displayName);
     if (username) localStorage.setItem("xmanius-custom-username", username.replace(/^@/, ""));
-    if (avatarUrl) localStorage.setItem("xmanius-custom-avatar", avatarUrl);
+    if (avatarUrl) {
+      localStorage.setItem("xmanius-custom-avatar", avatarUrl);
+    } else {
+      localStorage.removeItem("xmanius-custom-avatar");
+    }
 
     const client = getClient();
     if (client && state.user) {
@@ -394,7 +398,7 @@
     updateUI();
   }
 
-  // ─── Edit Profile Modal (Matching Screenshot 3) ───────────────────────────
+  // ─── Edit Profile Modal ───────────────────────────────────────────────────
   let editProfileModalEl = null;
 
   function openEditProfileModal() {
@@ -404,6 +408,10 @@
       openAuthModal("signin");
       return;
     }
+
+    const meta = state.user?.user_metadata || {};
+    const identityMeta = state.user?.identities?.[0]?.identity_data || {};
+    const originalGoogleAvatar = meta.avatar_url || meta.picture || identityMeta.avatar_url || identityMeta.picture || "";
 
     const profile = getUserProfile();
     let tempAvatar = profile.avatarUrl;
@@ -431,6 +439,11 @@
             </button>
           </div>
           <input type="file" id="edit-profile-file-input" accept="image/*" style="display: none;">
+          
+          <div class="edit-profile-photo-buttons" style="display: flex; gap: 8px; margin-top: 10px; justify-content: center;">
+            <button type="button" class="edit-profile-small-btn" id="edit-profile-upload-trigger" style="background: #27272a; border: 1px solid #3f3f46; color: #e4e4e7; border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 500; cursor: pointer;">Upload photo</button>
+            <button type="button" class="edit-profile-small-btn edit-profile-btn-danger" id="edit-profile-delete-avatar-btn" style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #f87171; border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 500; cursor: pointer;">Delete photo</button>
+          </div>
         </div>
 
         <form class="edit-profile-form" id="edit-profile-form">
@@ -457,9 +470,27 @@
 
     const fileInput = modal.querySelector("#edit-profile-file-input");
     const avatarWrap = modal.querySelector("[data-action='pick-avatar']");
-    const avatarPreview = modal.querySelector("#edit-profile-avatar-preview");
+    const uploadTrigger = modal.querySelector("#edit-profile-upload-trigger");
+    const deleteAvatarBtn = modal.querySelector("#edit-profile-delete-avatar-btn");
 
     avatarWrap?.addEventListener("click", () => fileInput?.click());
+    uploadTrigger?.addEventListener("click", () => fileInput?.click());
+
+    deleteAvatarBtn?.addEventListener("click", () => {
+      localStorage.removeItem("xmanius-custom-avatar");
+      tempAvatar = originalGoogleAvatar || "";
+      const currentPreview = modal.querySelector("#edit-profile-avatar-preview");
+      if (tempAvatar && currentPreview) {
+        if (currentPreview.tagName.toLowerCase() === "img") {
+          currentPreview.src = tempAvatar;
+        } else {
+          currentPreview.outerHTML = `<img src="${tempAvatar}" alt="Google Avatar" class="edit-profile-avatar-img" id="edit-profile-avatar-preview">`;
+        }
+      } else if (currentPreview) {
+        const initial = (profile.displayName[0] || "A").toUpperCase();
+        currentPreview.outerHTML = `<div class="edit-profile-avatar-fallback" id="edit-profile-avatar-preview">${initial}</div>`;
+      }
+    });
 
     fileInput?.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
@@ -467,10 +498,13 @@
       const reader = new FileReader();
       reader.onload = () => {
         tempAvatar = String(reader.result || "");
-        if (avatarPreview.tagName.toLowerCase() === "img") {
-          avatarPreview.src = tempAvatar;
-        } else {
-          avatarPreview.outerHTML = `<img src="${tempAvatar}" alt="Preview" class="edit-profile-avatar-img" id="edit-profile-avatar-preview">`;
+        const currentPreview = modal.querySelector("#edit-profile-avatar-preview");
+        if (currentPreview) {
+          if (currentPreview.tagName.toLowerCase() === "img") {
+            currentPreview.src = tempAvatar;
+          } else {
+            currentPreview.outerHTML = `<img src="${tempAvatar}" alt="Preview" class="edit-profile-avatar-img" id="edit-profile-avatar-preview">`;
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -579,7 +613,10 @@
     if (profile.isGuest) {
       if (guestFooter) guestFooter.style.display = "flex";
       if (userBtn) userBtn.style.display = "none";
-      if (headerBrandGuest) headerBrandGuest.style.display = "block";
+      if (headerBrandGuest) {
+        headerBrandGuest.textContent = "XManius Flash";
+        headerBrandGuest.style.display = "inline-flex";
+      }
       if (headerModelBtn) headerModelBtn.style.display = "none";
       document.querySelectorAll(".model-picker-models[data-auth-only]").forEach(el => el.style.display = "none");
     } else {
@@ -600,6 +637,10 @@
         }
       }
     }
+
+    try {
+      window.XmaniusSetSelectedModel?.();
+    } catch {}
   }
 
   // ─── Cloud Sync ───────────────────────────────────────────────────────────

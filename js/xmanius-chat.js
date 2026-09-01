@@ -2084,7 +2084,57 @@
       }
 
       const isCortexMode = selectedModel === "xmanius-4" || selectedModel === "xmanius-7" || selectedModel === "xmanius-8";
-      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, runAsTask: isCortexMode, mode: isCortexMode ? "cortex" : (webSearch ? "research" : (thinkMode ? "deep_research" : "fast")), thinkMode, webSearch, location: userLocation, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500), memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : "" } }), signal: activeRequestController.signal });
+      const requestPayload = {
+        message: requestMessage,
+        model: selectedModel,
+        runAsTask: isCortexMode,
+        mode: isCortexMode ? "cortex" : (webSearch ? "research" : (thinkMode ? "deep_research" : "fast")),
+        thinkMode,
+        webSearch,
+        location: userLocation,
+        history,
+        rethink,
+        attachments: requestAttachments.map(attachmentToRequest),
+        preferences: {
+          ...appSettings,
+          customInstructions: String(appSettings.customInstructions || "").slice(0, 500),
+          memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : ""
+        }
+      };
+
+      const primaryEndpoint = getApiEndpoint();
+      let response;
+      try {
+        response = await fetch(primaryEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestPayload),
+          signal: activeRequestController.signal
+        });
+      } catch (err) {
+        if (err?.name === "AbortError") throw err;
+        response = null;
+      }
+
+      // If local server returned 404/500/network error, fallback to production backend
+      if ((!response || !response.ok) && primaryEndpoint.startsWith("/")) {
+        try {
+          const fallbackRes = await fetch("https://xmanius.vercel.app/api/xmanius-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestPayload),
+            signal: activeRequestController.signal
+          });
+          if (fallbackRes && fallbackRes.ok) {
+            response = fallbackRes;
+          }
+        } catch (_) {}
+      }
+
+      if (!response) {
+        throw new Error("Could not connect to XManius API server. Please check your internet connection and try again.");
+      }
+
       const data = await response.json().catch(() => ({}));
       thinking.remove();
 
@@ -2433,7 +2483,12 @@
     return `${brand} ${modelKey.replace("xmanius-", "")}`;
   };
   const setSelectedModel = (model) => {
-    selectedModel = /^xmanius-[1-9]$/.test(model || "") ? model : "xmanius-1";
+    const isGuest = !window.XmaniusAuth?.getState()?.user;
+    if (isGuest) {
+      selectedModel = "xmanius-2";
+    } else {
+      selectedModel = /^xmanius-[1-9]$/.test(model || "") ? model : (localStorage.getItem("xmanius-selected-model-v1") || "xmanius-1");
+    }
     try { localStorage.setItem("xmanius-selected-model-v1", selectedModel); } catch {}
     modelPicker?.querySelectorAll("[data-model]").forEach((item) => {
       const active = item.dataset.model === selectedModel;
@@ -2444,6 +2499,7 @@
     });
     if (modelName) modelName.innerHTML = `<span data-active-model-name>${getModelDisplayName(selectedModel)}</span> <span class="model-chevron" style="display:inline-block; margin-left:4px; font-size:12px; transform:translateY(1px);">⌵</span>`;
   };
+  window.XmaniusSetSelectedModel = setSelectedModel;
   setSelectedModel(selectedModel);
   modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } if (event.target.closest("[data-more-models]")) { setModelSubmenu(!modelSubmenu?.classList.contains("is-open")); return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
   document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) setModelPicker(false); });
@@ -3134,8 +3190,9 @@
 
   const openSettings = (section = "general") => {
     closeProfileMenu();
-    const isGuest = !window.XmaniusAuth?.getState()?.user;
-    if (isGuest && (section === "personalization" || section === "storage" || section === "account" || section === "voice")) {
+    const profile = window.XmaniusAuth?.getUserProfile?.() || { isGuest: true };
+    const isGuest = Boolean(profile.isGuest);
+    if (isGuest) {
       settingsSection = "general";
     } else {
       settingsSection = section;
@@ -3191,11 +3248,15 @@
               <span>Storage</span>
             </button>
 
-            <button type="button" class="settings-nav-item" data-settings-section="account" data-auth-only>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
-              </svg>
+            <div class="settings-nav-spacer" style="flex: 1;"></div>
+
+            <button type="button" class="settings-nav-item settings-nav-account-item" data-settings-section="account" data-auth-only style="margin-top: auto;">
+              <span class="settings-nav-avatar" data-settings-nav-avatar style="width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; background: #3b82f6;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+                </svg>
+              </span>
               <span>Account</span>
             </button>
           </aside>
@@ -3299,8 +3360,25 @@
 
     // Toggle auth-only tabs in settings
     settingsBackdrop.querySelectorAll("[data-auth-only]").forEach(el => {
-      el.style.display = isGuest ? "none" : "flex";
+      el.style.setProperty("display", isGuest ? "none" : "flex", "important");
     });
+    const spacer = settingsBackdrop.querySelector(".settings-nav-spacer");
+    if (spacer) {
+      spacer.style.setProperty("display", isGuest ? "none" : "block", "important");
+    }
+
+    const avatarEl = settingsBackdrop.querySelector("[data-settings-nav-avatar]");
+    if (avatarEl && !isGuest) {
+      const userProf = window.XmaniusAuth?.getUserProfile?.() || {};
+      if (userProf.avatarUrl) {
+        avatarEl.innerHTML = `<img src="${userProf.avatarUrl}" alt="${userProf.displayName || "Account"}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">`;
+      } else if (userProf.displayName) {
+        const initial = (userProf.displayName || "A").trim()[0].toUpperCase();
+        avatarEl.innerHTML = `<span style="width: 100%; height: 100%; background: #3b82f6; color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; border-radius: 50%;">${initial}</span>`;
+      } else {
+        avatarEl.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>`;
+      }
+    }
 
     settingsBackdrop.classList.add("is-open");
     settingsBackdrop.querySelectorAll("[data-settings-section]").forEach((item) => item.classList.toggle("is-active", item.dataset.settingsSection === settingsSection));
