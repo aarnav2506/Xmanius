@@ -4,13 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#000000">
-  <title>Xmanias Chat</title>
+  <title>Xmanius</title>
   <link rel="icon" type="image/png" href="assets/xmanius-icon.png?v=20260826-logo2">
   <link rel="apple-touch-icon" href="assets/xmanius-icon.png?v=20260826-logo2">
-  <link rel="stylesheet" href="css/xmanius-chat.css?v=20260831-fix4">
-  <link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260831-fix4">
-  <link rel="stylesheet" href="css/center-layout.css?v=20260831-brandrevert">
-  <script src="xmanius-runtime-config.js?v=20260831-fix4" defer></script>
+  <link rel="stylesheet" href="css/xmanius-chat.css?v=20260831-fix-click-v6">
+  <link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260831-fix-click-v6">
+  <link rel="stylesheet" href="css/xmanius-cortex-ui.css?v=20260831-cortex-v1">
+  <link rel="stylesheet" href="css/xmanius-auth-modal.css?v=20260901-auth-v2">
+  <link rel="stylesheet" href="css/xmanius-library.css?v=20260901-lib-v1">
+  <link rel="stylesheet" href="css/center-layout.css?v=20260831-fix-click-v6">
+  <script src="xmanius-runtime-config.js?v=20260831-fix-click-v6" defer></script>
 </head>
 <body>
   <div class="chat-app">
@@ -27,6 +30,15 @@
       <button class="new-chat" type="button" data-new-chat>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h7"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L11 15l-4 1 1-4 8.5-8.5Z"></path></svg>
         <span>New chat</span>
+      </button>
+      <button class="sidebar-library-btn" type="button" data-open-library>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>Media Vault</span>
+        <span class="library-badge" data-library-count>0</span>
       </button>
       <div class="sidebar-recents"><p class="sidebar-label">Recents</p><div class="recent-list" data-recent-list></div></div>
       <button class="sidebar-account" type="button" data-account-button>
@@ -45,7 +57,7 @@
           <button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
-          <button class="model-name" type="button" data-model-menu aria-expanded="false" aria-haspopup="listbox">Xmanias 1 <span class="dropdown-chevron" aria-hidden="true"></span></button>
+          <button class="model-name" type="button" data-model-menu aria-expanded="false" aria-haspopup="listbox">Xmanias 1.5 <span class="dropdown-chevron" aria-hidden="true"></span></button>
         </div>
         <div class="header-tools">
           <button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit"><span class="usage-ring"><span></span></span><span class="usage-details"><span data-usage-label>0%</span><small data-usage-reset>Reset time loading…</small></span></button>
@@ -71,22 +83,29 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
         </button>
         <button class="send-button" type="submit" aria-label="Send message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
-        <div class="dictation-bar" data-dictation-bar aria-hidden="true"><button type="button" class="dictation-cancel" data-dictation-cancel aria-label="Cancel voice input">×</button><span class="dictation-waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button type="button" class="dictation-stop" data-dictation-stop aria-label="Stop recording"><span></span></button><button type="button" class="dictation-send" data-dictation-send aria-label="Send dictated message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button></div>
+        <div class="dictation-bar" data-dictation-bar aria-hidden="true" style="display: none !important;"><button type="button" class="dictation-cancel" data-dictation-cancel aria-label="Cancel voice input">×</button><span class="dictation-waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button type="button" class="dictation-stop" data-dictation-stop aria-label="Stop recording"><span></span></button><button type="button" class="dictation-send" data-dictation-send aria-label="Send dictated message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button></div>
         <div class="model-picker" data-model-picker aria-label="Model selection">
           <span class="model-picker-label">MODEL</span>
-          <div class="model-options-list" role="group" aria-label="Xmanias models"><button type="button" class="model-option is-selected" data-model="xmanius-1" aria-pressed="true"><strong>Xmanias 1</strong><b aria-hidden="true">✓</b></button><button type="button" class="model-option model-more" data-more-models aria-expanded="false"><strong>More models</strong><span aria-hidden="true">›</span></button><div class="model-submenu" data-model-submenu role="menu" aria-label="More Xmanias models"><button type="button" class="model-option" data-model="xmanius-2" aria-pressed="false"><strong>Xmanias 2</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-3" aria-pressed="false"><strong>Xmanias 3</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-4" aria-pressed="false"><strong>Xmanias 4</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-5" aria-pressed="false"><strong>Xmanias 5</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-6" aria-pressed="false"><strong>Xmanias 6</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-7" aria-pressed="false"><strong>Xmanias 7</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-8" aria-pressed="false"><strong>Xmanias 8</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-9" aria-pressed="false"><strong>Xmanias 9</strong><b aria-hidden="true"></b></button></div></div>
+          <div class="model-options-list" role="group" aria-label="Xmanias models"><button type="button" class="model-option is-selected" data-model="xmanius-1" aria-pressed="true"><strong>Xmanias 1.5</strong><b aria-hidden="true">✓</b></button><button type="button" class="model-option" data-model="xmanius-2" aria-pressed="false"><strong>Xmanias Flash</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-3" aria-pressed="false"><strong>Xmanias Pro</strong><b aria-hidden="true"></b></button><button type="button" class="model-option" data-model="xmanius-4" aria-pressed="false"><strong>Xmanias Cortex</strong><b aria-hidden="true"></b></button></div>
           <div class="model-picker-divider" aria-hidden="true"></div>
           <button type="button" class="model-option model-option-attachment" data-attach-files><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 13.5 7a3.5 3.5 0 0 1 5 5l-7.5 7.5a5 5 0 0 1-7-7L11.5 5"></path></svg><span class="attachment-option-copy"><strong>Add photos &amp; files</strong><small>Upload from computer</small></span><b class="shortcut-label">Ctrl + K</b></button>
           <button type="button" class="model-option model-option-attachment" data-attach-camera><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.4-2h7.2l1.4 2h3v10H4z"></path><circle cx="12" cy="13.5" r="3"></circle></svg><span class="attachment-option-copy"><strong>Use camera</strong><small>Capture from device</small></span><b class="shortcut-label">Ctrl + T</b></button>
         </div>
         <div class="usage-notice" data-usage-notice role="status" aria-live="polite"></div>
       </form>
-      <p class="chat-disclaimer">Xmanias can make mistakes. Check important information.</p>
+  <p class="chat-disclaimer">Xmanias can make mistakes. Check important information.</p>
     </div>
   </div>
-  <script src="js/xmanius-stream-client.js?v=20260831-fix4" defer></script>
-  <script src="js/xmanius-chat.js?v=20260831-videothumbfix" defer></script>
-  <script src="js/xmanius-enhancements.js?v=20260831-fix4" defer></script>
-  <script src="js/home-greeting.js" defer></script>
+  
+
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/xmanius-supabase.js?v=20260901-auth-v3"></script>
+  <script src="js/xmanius-library.js?v=20260901-lib-v1"></script>
+  <script src="js/xmanius-stream-client.js?v=20260901-auth-v3" defer></script>
+  <script src="js/xmanius-cortex-ui.js?v=20260901-auth-v3" defer></script>
+  <script src="js/xmanius-chat.js?v=20260901-auth-v3" defer></script>
+  <script src="js/xmanius-enhancements.js?v=20260901-auth-v3" defer></script>
+  <script src="js/home-greeting.js?v=20260901-auth-v3" defer></script>
 </body>
 </html>
