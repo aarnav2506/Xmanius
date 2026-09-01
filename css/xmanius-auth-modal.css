@@ -1397,5 +1397,99 @@ body.xmanius-theme-light .sidebar-guest-card-login-btn:hover {
   background: #1e293b !important;
 }
 
+/* ─── Help & About Modal ─────────────────────────────────────────────────── */
+.about-memory-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 100000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.about-memory-backdrop.is-open {
+  opacity: 1 !important;
+  pointer-events: all !important;
+}
+
+.about-memory-shell {
+  width: 100% !important;
+  max-width: 440px !important;
+  background: #18181b !important;
+  border: 1px solid #27272a !important;
+  border-radius: 20px !important;
+  padding: 24px 26px !important;
+  color: #f4f4f5 !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85) !important;
+}
+
+.about-memory-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding-bottom: 14px !important;
+  border-bottom: 1px solid #27272a !important;
+  margin-bottom: 14px !important;
+}
+
+.about-memory-header h2 {
+  margin: 0 !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #f8fafc !important;
+}
+
+.about-memory-close {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  background: #27272a !important;
+  border: none !important;
+  color: #a1a1aa !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+}
+
+.about-memory-close:hover {
+  background: #3f3f46 !important;
+  color: #ffffff !important;
+}
+
+body.xmanius-theme-light .about-memory-shell {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .about-memory-header {
+  border-bottom-color: #e2e8f0 !important;
+}
+
+body.xmanius-theme-light .about-memory-header h2 {
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .about-memory-close {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+body.xmanius-theme-light .about-memory-btn-gotit {
+  background: #0f172a !important;
+  color: #ffffff !important;
+}
+
+
 
 

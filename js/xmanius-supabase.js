@@ -329,6 +329,12 @@
     if (!client) return;
 
     await client.auth.signOut();
+    
+    // Clear user-specific profile overrides so they don't bleed into the next login
+    localStorage.removeItem("xmanius-custom-avatar");
+    localStorage.removeItem("xmanius-custom-name");
+    localStorage.removeItem("xmanius-custom-username");
+    
     state.user = null;
     state.session = null;
     updateUI();

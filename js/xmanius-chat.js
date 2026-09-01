@@ -2082,7 +2082,7 @@
                 const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
                 resolve(tz ? { timezone: tz } : null);
               },
-              { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
+              { enableHighAccuracy: false, timeout: 400, maximumAge: 300000 }
             );
           });
         } catch {
