@@ -1071,3 +1071,31 @@
   color: #f8fafc !important;
 }
 
+.settings-memory-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 14px 0 !important;
+  border-bottom: 1px solid #27272a !important;
+  gap: 16px !important;
+}
+
+.settings-memory-card strong {
+  display: block !important;
+  color: #f4f4f5 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.settings-memory-card small,
+.settings-memory-card p {
+  color: #a1a1aa !important;
+  font-size: 12.5px !important;
+  margin: 4px 0 0 0 !important;
+}
+
+.settings-memory-card a {
+  color: #38bdf8 !important;
+  text-decoration: underline !important;
+}
+

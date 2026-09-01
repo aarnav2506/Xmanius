@@ -2937,8 +2937,21 @@
     if (settingsSection === "general") {
       title.textContent = "General";
       content.innerHTML = `
-        ${createSettingRow("appearance", "Appearance", "")}
-        ${createSettingRow("language", "Language", "")}
+        ${createSettingRow("appearance", "Appearance", "Choose the interface theme.")}
+        ${createSettingRow("contrast", "Contrast", "Adjust the contrast of the interface.")}
+        ${createSettingRow("language", "Language", "Used for the interface and voice recognition.")}
+        <div class="settings-row settings-toggle-row">
+          <div><strong>Higher intelligence</strong><small>Use Think mode for questions that need deeper analysis.</small></div>
+          <button type="button" class="settings-switch ${thinkMode ? "is-on" : ""}" data-settings-think aria-pressed="${String(thinkMode)}"><span></span></button>
+        </div>
+        <div class="settings-row settings-toggle-row">
+          <div><strong>Enable dictation</strong><small>Allow microphone input in the chat composer.</small></div>
+          <button type="button" class="settings-switch is-on" aria-label="Dictation is available"><span></span></button>
+        </div>
+        <div class="settings-row">
+          <div><strong>Delete all chats</strong><small>Permanently delete all conversation history stored on this device.</small></div>
+          <button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button>
+        </div>
       `;
     } else if (settingsSection === "datacontrols") {
       title.textContent = "Data controls";
@@ -2960,7 +2973,7 @@
       `;
     } else if (settingsSection === "personalization") {
       title.textContent = "Personalization";
-      content.innerHTML = '<div class="settings-intro"><strong>Choose how Xmanius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
+      content.innerHTML = '<div class="settings-intro"><strong>Choose how XManius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
         createSettingRow("baseTone", "Base style and tone", "The overall style of the answer.") +
         createSettingRow("warm", "Warm", "Friendlier and more personable.") +
         createSettingRow("enthusiastic", "Enthusiastic", "How energetic the response sounds.") +
@@ -2972,11 +2985,16 @@
       title.textContent = "Voice";
       content.innerHTML = '<div class="settings-intro"><strong>Customize voice, speech rate, and audio.</strong><small>Select voice character, pitch, speed, and test your voice settings.</small></div>' +
         createSettingRow("voiceCallSound", "Voice character", "Choose from energy, tone, and character options.") +
-        '<div class="settings-voice-preview-card"><div class="voice-preview-info"><span class="voice-preview-icon">🎙</span><div><strong>Voice Preview</strong><small>Test how Xmanius sounds with your selected voice and speed.</small></div></div><button type="button" class="voice-test-play-btn" data-action-test-voice><span>▶ Test Voice</span></button></div>' +
+        '<div class="settings-voice-preview-card"><div class="voice-preview-info"><span class="voice-preview-icon">🎙</span><div><strong>Voice Preview</strong><small>Test how XManius sounds with your selected voice and speed.</small></div></div><button type="button" class="voice-test-play-btn" data-action-test-voice><span>▶ Test Voice</span></button></div>' +
         createSettingRow("voiceSpeed", "Speech speed", "Adjust how fast or slow the voice speaks.") +
         createSettingRow("voicePitch", "Voice pitch", "Adjust the pitch depth of speech.") +
         '<div class="settings-row settings-toggle-row"><div><strong>Auto read aloud</strong><small>Automatically speak AI responses when received.</small></div><button type="button" class="settings-switch ' + (appSettings.autoReadAloud ? "is-on" : "") + '" data-settings-autoread aria-pressed="' + String(appSettings.autoReadAloud) + '"><span></span></button></div>' +
         '<div class="settings-row settings-toggle-row"><div><strong>Hands-free mic</strong><small>Keep microphone active for continuous voice conversation.</small></div><button type="button" class="settings-switch ' + (appSettings.handsFreeMic ? "is-on" : "") + '" data-settings-handsfree aria-pressed="' + String(appSettings.handsFreeMic) + '"><span></span></button></div>';
+    } else if (settingsSection === "memory") {
+      title.textContent = "Memories";
+      content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Let XManius personalize relevant answers from chats saved on this device.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
+        '<div class="settings-memory-card"><div class="settings-memory-card-info"><strong>Memory summary</strong><p>View an overview of what XManius has learned about you. Use <a href="javascript:void(0);" data-open-custom-instructions>custom instructions</a> for information you’d like it to always keep in mind. You can still manage your old <a href="javascript:void(0);" data-manage-memory>saved memories</a>.</p></div><button type="button" class="settings-secondary-btn" data-manage-memory>Manage</button></div>' +
+        '<div class="settings-memory-card"><div><strong>Delete all chats</strong><small>Permanently delete all saved conversation history from this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>';
     } else if (settingsSection === "storage") {
       title.textContent = "Storage";
       content.innerHTML = `
@@ -3172,6 +3190,24 @@
                 <path d="M13.5 15.2 A 3.5 3.5 0 0 0 15.5 12.5"/>
               </svg>
               <span>Personalization</span>
+            </button>
+
+            <button type="button" class="settings-nav-item" data-settings-section="voice" data-auth-only>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              </svg>
+              <span>Voice</span>
+            </button>
+
+            <button type="button" class="settings-nav-item" data-settings-section="memory" data-auth-only>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a5 5 0 0 1 5 5v1a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z"/>
+                <path d="M8 13v2a4 4 0 0 0 8 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
+              </svg>
+              <span>Memories</span>
             </button>
 
             <button type="button" class="settings-nav-item" data-settings-section="storage" data-auth-only>

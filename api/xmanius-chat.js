@@ -173,36 +173,29 @@ export default async function handler(request, response) {
   const selectedModel = /^xmanius-[1-9]$/.test(body.model || "") ? body.model : "xmanius-1";
   const environmentValue = (...names) => names.map((name) => process.env[name]).find((value) => typeof value === "string" && value.trim())?.trim() || "";
   const getChannelApiKeys = (model) => {
-    const slot = Number(model.slice("xmanius-".length)) || 1;
-    let slotKeys = [slot];
-    if (slot === 1) {
-      slotKeys = [1, 4];
-    } else if (slot === 2) {
-      slotKeys = [2, 9];
-    } else if (slot === 3) {
-      slotKeys = [3];
-    } else if (slot === 4 || slot === 7 || slot === 8) {
-      slotKeys = [7, 8, 4];
-    }
     const keys = [];
-    for (const s of slotKeys) {
+    const pushKey = (k) => {
+      if (k && typeof k === "string" && k.trim() && !keys.includes(k.trim())) {
+        keys.push(k.trim());
+      }
+    };
+
+    // Primary slot keys first
+    const slot = Number(model.slice("xmanius-".length)) || 1;
+    const slotSuffix = slot === 1 ? "" : `_${slot}`;
+    pushKey(environmentValue(`XMANIUS_GEMINI_API_KEY${slotSuffix}`, `XMANIUS_GEMINI_API_KEY_${slot}`));
+    pushKey(environmentValue(`XMANIUS_DEMO_API_KEY${slotSuffix}`, `XMANIUS_DEMO_API_KEY_${slot}`));
+
+    // Add all other slot keys as secondary fallback
+    for (let s = 1; s <= 9; s++) {
       const suffix = s === 1 ? "" : `_${s}`;
-      const k = environmentValue(
-        `XMANIUS_GEMINI_API_KEY${suffix}`,
-        `XMANIUS_GEMINI_API_KEY_${s}`,
-        `XMANIUS_DEMO_API_KEY${suffix}`,
-        `XMANIUS_DEMO_API_KEY_${s}`,
-        `XMANTIUS_GEMINI_API_KEY${suffix}`,
-        `XMANTIUS_GEMINI_API_KEY_${s}`,
-        `XMANTIUS_DEMO_API_KEY${suffix}`,
-        `XMANTIUS_DEMO_API_KEY_${s}`,
-      );
-      if (k && !keys.includes(k)) keys.push(k);
+      pushKey(environmentValue(`XMANIUS_GEMINI_API_KEY${suffix}`, `XMANIUS_GEMINI_API_KEY_${s}`));
+      pushKey(environmentValue(`XMANIUS_DEMO_API_KEY${suffix}`, `XMANIUS_DEMO_API_KEY_${s}`));
+      pushKey(environmentValue(`XMANTIUS_GEMINI_API_KEY${suffix}`, `XMANTIUS_GEMINI_API_KEY_${s}`));
+      pushKey(environmentValue(`XMANTIUS_DEMO_API_KEY${suffix}`, `XMANTIUS_DEMO_API_KEY_${s}`));
     }
-    if (!keys.length) {
-      const defaultKey = environmentValue("XMANIUS_GEMINI_API_KEY", "XMANIUS_DEMO_API_KEY", "XMANTIUS_GEMINI_API_KEY");
-      if (defaultKey) keys.push(defaultKey);
-    }
+
+    pushKey(environmentValue("GEMINI_API_KEY", "GOOGLE_API_KEY", "XMANIUS_GEMINI_API_KEY", "XMANIUS_DEMO_API_KEY"));
     return keys;
   };
   const getSlotLabel = (model) => {
