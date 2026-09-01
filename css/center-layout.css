@@ -2,6 +2,74 @@
 
 [hidden] { display: none !important; }
 
+/* Definite clickability & display guards */
+.model-picker:not(.is-open) {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+.model-picker.is-open {
+  display: grid !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+}
+
+.dictation-bar:not(.is-active),
+.dictation-bar[aria-hidden="true"],
+:not(.is-listening) > .dictation-bar {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+.chat-composer.is-listening .dictation-bar {
+  display: flex !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+}
+
+.composer-attachments:empty,
+.composer-attachments:not(.is-visible) {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.usage-notice:empty,
+.usage-notice:not(.is-visible) {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.camera-dialog:not(.is-open) {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Ensure composer elements have positive clickability */
+.chat-composer {
+  z-index: 50 !important;
+  pointer-events: auto !important;
+}
+.chat-composer * {
+  pointer-events: auto;
+}
+.chat-composer input.file-input {
+  display: none !important;
+  pointer-events: none !important;
+}
+.chat-input {
+  cursor: text !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+.composer-icon,
+.composer-tool,
+.send-button,
+.model-option {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
 /* -------------------------------------------------------------
    1. EMPTY STATE CENTERED LAYOUT (DARK & LIGHT THEME)
 ------------------------------------------------------------- */
@@ -25,6 +93,11 @@ body.is-empty-state .chat-content {
   justify-content: center !important;
   align-items: center !important;
   background: transparent !important;
+  pointer-events: none !important;
+}
+
+body.is-empty-state .message-list {
+  pointer-events: none !important;
 }
 
 /* Greeting Message (Clean Gemini-style typography) */
@@ -43,6 +116,7 @@ body.is-empty-state .empty-state {
   justify-content: center !important;
   z-index: 2 !important;
   margin: 0 !important;
+  pointer-events: none !important;
   transition: top 0.28s cubic-bezier(0.25, 1, 0.5, 1) !important;
 }
 
@@ -53,6 +127,7 @@ body.is-empty-state .empty-state h1 {
   letter-spacing: -0.02em !important;
   margin: 0 !important;
   text-align: center !important;
+  pointer-events: none !important;
 }
 
 body.xmanius-theme-light.is-empty-state .empty-state h1 {
@@ -78,7 +153,8 @@ body.is-empty-state .chat-composer {
   border: 1px solid #3c4043 !important;
   margin: 0 !important;
   padding: 8px 14px !important;
-  z-index: 10 !important;
+  z-index: 50 !important;
+  pointer-events: auto !important;
   transition: top 0.28s cubic-bezier(0.25, 1, 0.5, 1) !important;
 }
 
@@ -124,6 +200,8 @@ body.xmanius-theme-light.is-empty-state .chat-composer {
    SEAMLESS VOICE DICTATION (Removes extra layer / double box)
 ------------------------------------------------------------- */
 .dictation-bar {
+  display: none !important;
+  pointer-events: none !important;
   position: absolute !important;
   inset: 0 !important;
   padding: 0 16px !important;
@@ -131,6 +209,12 @@ body.xmanius-theme-light.is-empty-state .chat-composer {
   border: none !important;
   border-radius: inherit !important;
   box-shadow: none !important;
+}
+
+.dictation-bar[aria-hidden="false"],
+.chat-composer.is-listening .dictation-bar {
+  display: flex !important;
+  pointer-events: auto !important;
 }
 
 body.xmanius-theme-light .dictation-bar {
@@ -161,6 +245,7 @@ body.is-empty-state .chat-disclaimer {
   z-index: 5 !important;
   color: #858585 !important;
   font-size: 12px !important;
+  pointer-events: none !important;
 }
 
 body.xmanius-theme-light.is-empty-state .chat-disclaimer {

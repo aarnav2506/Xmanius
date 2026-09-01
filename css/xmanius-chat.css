@@ -242,12 +242,59 @@ body.xmanius-theme-light .composer-mic.active { color:#2563eb !important; filter
 .math-binomial { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; margin:0 .12em; vertical-align:middle; line-height:1; }
 .math-binomial > span:first-child { padding:0 .14em .08em; border-bottom:1px solid currentColor; }
 .math-binomial > span:last-child { padding:.08em .14em 0; }
-.math-root-index { margin-right:-.06em; }
+.math-root-index { margin-right:-.06em; font-size:0.75em; vertical-align:super; }
 .math-overline { border-top:1px solid currentColor; }
 .math-underline { border-bottom:1px solid currentColor; }
 .math-text { font-family:inherit; }
-.math-block sup,.math-inline sup { line-height:0; }
-.math-block sub,.math-inline sub { line-height:0; }
+.math-block sup, .math-inline sup, sup { line-height:0; font-size:0.78em; vertical-align:super; }
+.math-block sub, .math-inline sub, sub { line-height:0; font-size:0.78em; vertical-align:sub; }
+
+/* Fraction rendering */
+.math-fraction { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; margin:0 .18em; vertical-align:middle; line-height:1; font-family:"Times New Roman", Times, Georgia, serif; }
+.math-fraction > span:first-child { padding:0 .2em .08em; border-bottom:1.5px solid currentColor; width:100%; text-align:center; }
+.math-fraction > span:last-child { padding:.08em .2em 0; width:100%; text-align:center; }
+
+/* Radical & Square Root styling with continuous overbar */
+.math-sqrt { display:inline-flex; align-items:stretch; vertical-align:middle; margin:0 .12em; line-height:1.2; font-family:"Times New Roman", Times, Georgia, serif; }
+.math-sqrt > span { border-top:1.5px solid currentColor; padding-top:1px; padding-inline:2px 3px; display:inline-block; }
+
+/* Matrix bracket & grid styling */
+.math-matrix { display:inline-flex; align-items:center; margin:0.3em 0.25em; vertical-align:middle; }
+.math-matrix.math-matrix-round { border-left:2px solid currentColor; border-right:2px solid currentColor; border-radius:12px; padding:2px 6px; }
+.math-matrix.math-matrix-square { border-left:2.5px solid currentColor; border-right:2.5px solid currentColor; border-radius:3px; padding:2px 6px; }
+.math-matrix.math-matrix-single { border-left:1.5px solid currentColor; border-right:1.5px solid currentColor; padding:2px 6px; }
+.math-matrix-grid { display:inline-grid; grid-template-columns:repeat(var(--matrix-cols, 1), auto); gap:4px 12px; text-align:center; align-items:center; font-family:"Times New Roman", Times, Georgia, serif; }
+.math-matrix-cell { padding:2px 4px; }
+
+/* Highlighted Boxed Final Answer matching user screenshot */
+.math-answer-box,
+.math-boxed-answer {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 12px;
+  margin:4px 2px;
+  border:1.5px solid #ffffff;
+  border-radius:4px;
+  background:rgba(255,255,255,0.03);
+  font-weight:600;
+  font-family:"Times New Roman", Times, Georgia, serif;
+  color:#ffffff;
+  box-shadow:0 0 12px rgba(255,255,255,0.12);
+  vertical-align:middle;
+}
+.math-final-bracket {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 10px;
+  border:1.5px solid #ffffff;
+  border-radius:4px;
+  margin:4px 2px;
+  font-family:"Times New Roman", Times, Georgia, serif;
+  color:#ffffff;
+  font-size:1.05em;
+}
 
 body.xmanius-theme-light .model-name .dropdown-chevron,
 body.xmanius-theme-light .settings-value .dropdown-chevron { color:#565961; }
