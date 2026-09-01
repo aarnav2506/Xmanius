@@ -1,4 +1,6 @@
-﻿const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+"use strict";
+
+const requestIdFor = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const environmentValue = (...names) => names.map((name) => process.env[name]).find((value) => typeof value === "string" && value.trim())?.trim() || "";
 
@@ -12,8 +14,10 @@ const apiKeyForModel = (model = "xmanius-1") => {
     `XMANIUS_DEMO_API_KEY_${slot}`,
     `XMANTIUS_GEMINI_API_KEY${suffix}`,
     `XMANTIUS_GEMINI_API_KEY_${slot}`,
-    `XMANTIUS_DEMO_API_KEY${suffix}`,
-    `XMANTIUS_DEMO_API_KEY_${slot}`,
+    "XMANIUS_GEMINI_API_KEY",
+    "XMANIUS_DEMO_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY"
   );
 };
 
@@ -32,12 +36,15 @@ const normalizeMimeType = (mimeType, name = "") => {
   if (mime === "video/quicktime" || ext === "mov") return "video/quicktime";
   if (mime === "video/x-matroska" || ext === "mkv") return "video/x-matroska";
   if (mime === "video/avi" || mime === "video/x-msvideo" || ext === "avi") return "video/avi";
-  if (mime === "image/jpg") return "image/jpeg";
+  if (mime === "image/jpg" || mime === "image/jpeg" || ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (mime === "image/png" || ext === "png") return "image/png";
+  if (mime === "image/webp" || ext === "webp") return "image/webp";
+  if (mime === "image/gif" || ext === "gif") return "image/gif";
   if (mime === "application/pdf" || ext === "pdf") return "application/pdf";
   return mime || "application/octet-stream";
 };
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   const requestId = requestIdFor();
   const applyCorsHeaders = () => {
     const origin = String(request.headers?.origin || "");
@@ -131,3 +138,6 @@ export default async function handler(request, response) {
     });
   }
 }
+
+module.exports = handler;
+module.exports.default = handler;
