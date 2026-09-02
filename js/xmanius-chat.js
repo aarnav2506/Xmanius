@@ -2059,10 +2059,10 @@
     }, thinkMode ? 300000 : 180000);
     setSendingState(true);
     try {
-      if (requestAttachments.some(a => a.rawFile && a.rawFile.size > 25 * 1024 * 1024 && !a.fileUri)) {
+      if (requestAttachments.some(a => a.rawFile && a.rawFile.size > 3 * 1024 * 1024 && !a.fileUri)) {
         const thinkingLabel = thinking.querySelector("span");
         for (const attachment of requestAttachments) {
-          if (attachment.rawFile && attachment.rawFile.size > 25 * 1024 * 1024 && !attachment.fileUri) {
+          if (attachment.rawFile && attachment.rawFile.size > 3 * 1024 * 1024 && !attachment.fileUri) {
             if (thinkingLabel) thinkingLabel.textContent = `Uploading ${attachment.name} (${(attachment.rawFile.size / (1024 * 1024)).toFixed(1)} MB)...`;
             await uploadLargeAttachment(attachment);
           }
