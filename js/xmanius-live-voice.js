@@ -368,7 +368,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: promptMessage,
-          model: 'xmanius-1',
+          model: (() => { try { const v = localStorage.getItem("xmanius-selected-model-v1"); return /^xmanius-[1-9]$/.test(v||"") ? v : "xmanius-1"; } catch { return "xmanius-1"; } })(),
           attachments,
           thinkMode: false,
           webSearch: true,
@@ -387,7 +387,7 @@
         speakText(reply);
       } else {
         showStatus('Could not reach AI. Try again.');
-        speakText("I couldn't complete that request. Please try again.");
+        speakText("Hmm... I couldn't complete that request. Please try again.");
       }
     } catch (err) {
       console.error('[XManius Voice] API error:', err);
