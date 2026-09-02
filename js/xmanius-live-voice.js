@@ -228,7 +228,15 @@
     const selectedVoice = window.localStorage.getItem('xmanius_tts_voice') || 'Aoede';
 
     try {
-      const response = await fetch('/api/xmanius-tts', {
+      let ttsUrl = '/api/xmanius-tts';
+      if (typeof window.XmaniusApiEndpoint === 'function') {
+        const ep = window.XmaniusApiEndpoint();
+        if (ep.includes('/api/xmanius-chat')) {
+          ttsUrl = ep.replace('/api/xmanius-chat', '/api/xmanius-tts');
+        }
+      }
+
+      const response = await fetch(ttsUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: clean, voice: selectedVoice })
