@@ -160,8 +160,15 @@
 
   let voiceHistory = [];
 
+  let currentAiAudio = null;
+
   // ─── AI Speech (Natural Human Conversational Synthesis) ─────────────────────
   function stopAiSpeech() {
+    if (currentAiAudio) {
+      currentAiAudio.pause();
+      currentAiAudio.currentTime = 0;
+      currentAiAudio = null;
+    }
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -211,65 +218,44 @@
     return clean;
   }
 
-  function speakText(rawText) {
-    if (!window.speechSynthesis) return;
+  async function speakText(rawText) {
     stopAiSpeech();
 
     const clean = sanitizeForVoice(rawText);
     if (!clean) return;
+    
+    // Choose voice (Aoede, Charon, Fenrir, Kore, Puck)
+    const selectedVoice = window.localStorage.getItem('xmanius_tts_voice') || 'Aoede';
 
-    // Split text into natural sentence chunks to minimize unnecessary pauses
-    const phrases = clean.match(/[^.!?\n]+[.!?\n]+|\s*[^.!?\n]+$/g) || [clean];
-    let phraseIdx = 0;
-
-    const getBestVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      return voices.find(v =>
-        /Google\s+US\s+English|Google\s+UK\s+English|Microsoft\s+Aria|Microsoft\s+Jenny|Samantha\s+\(Enhanced\)|Samantha|Moira|Karen/i.test(v.name) && v.lang.startsWith('en')
-      ) || voices.find(v => v.lang.startsWith('en-') && !v.localService) || voices.find(v => v.lang.startsWith('en')) || voices[0];
-    };
-
-    const playNextPhrase = () => {
-      if (phraseIdx >= phrases.length) {
-        isAiSpeaking = false;
-        return;
+    try {
+      const response = await fetch('/api/xmanius-tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean, voice: selectedVoice })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.audio) {
+          const audioSrc = `data:${data.mimeType || 'audio/wav'};base64,${data.audio}`;
+          currentAiAudio = new Audio(audioSrc);
+          currentAiAudio.onplay = () => { isAiSpeaking = true; };
+          currentAiAudio.onended = () => { isAiSpeaking = false; };
+          currentAiAudio.onerror = () => { isAiSpeaking = false; };
+          await currentAiAudio.play();
+          return;
+        }
       }
-
-      const phrase = phrases[phraseIdx].trim();
-      phraseIdx += 1;
-
-      if (!phrase) {
-        playNextPhrase();
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(phrase);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-
-      const voice = getBestVoice();
-      if (voice) utterance.voice = voice;
-
-      utterance.onstart = () => { isAiSpeaking = true; };
-      utterance.onend   = () => {
-        // Minimal instant transition between spoken sentences (15ms)
-        setTimeout(() => {
-          playNextPhrase();
-        }, 15);
-      };
-      utterance.onerror = () => { isAiSpeaking = false; };
-
-      window.speechSynthesis.speak(utterance);
-    };
-
-    if (window.speechSynthesis.getVoices().length) {
-      playNextPhrase();
-    } else {
-      window.speechSynthesis.onvoiceschanged = () => {
-        playNextPhrase();
-      };
+    } catch (err) {
+      console.warn("High-quality TTS failed, falling back to basic browser speech.", err);
     }
+    
+    // Fallback to basic browser speech if API fails
+    const fallbackUtterance = new SpeechSynthesisUtterance(clean);
+    fallbackUtterance.rate = 1.05;
+    fallbackUtterance.onstart = () => { isAiSpeaking = true; };
+    fallbackUtterance.onend = () => { isAiSpeaking = false; };
+    window.speechSynthesis.speak(fallbackUtterance);
   }
 
   // ─── Camera Management ──────────────────────────────────────────────────────
@@ -344,9 +330,16 @@
       ? window.XmaniusApiEndpoint()
       : '/api/xmanius-chat';
 
-    // Do NOT capture camera snapshots during voice chat per user request
-    const cameraFrame = null;
+    // Capture camera snapshot to give AI vision context if camera is active
+    const cameraFrame = isCameraActive ? captureCameraFrame() : null;
     const attachments = [...attachedFiles];
+    if (cameraFrame) {
+      attachments.push({
+        name: 'live_camera_view.jpg',
+        mimeType: 'image/jpeg',
+        data: cameraFrame
+      });
+    }
 
     const promptMessage = queryText.trim();
 
@@ -575,6 +568,16 @@
           <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           <span>Toggle Live Camera</span>
         </button>
+        <div class="xmanius-live-menu-item">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          <select id="xmanius-voice-selector" style="background: transparent; border: none; color: inherit; width: 100%; outline: none; margin-left: 10px;">
+            <option value="Aoede">Aoede (Calm, Warm)</option>
+            <option value="Charon">Charon (Deep, Rich)</option>
+            <option value="Fenrir">Fenrir (Strong, Bold)</option>
+            <option value="Kore">Kore (Clear, Professional)</option>
+            <option value="Puck">Puck (Friendly, Enthusiastic)</option>
+          </select>
+        </div>
       </div>
 
       <!-- Attachment Popup matching media_1788282470279.png -->
@@ -720,9 +723,18 @@
     });
 
     document.getElementById('xmanius-btn-camera')?.addEventListener('click', () => {
+      isMenuOpen = false;
+      if (optionsMenu) optionsMenu.style.display = 'none';
       toggleCamera();
-      if (optionsMenu) { optionsMenu.style.display = 'none'; isMenuOpen = false; }
     });
+
+    const voiceSelector = document.getElementById('xmanius-voice-selector');
+    if (voiceSelector) {
+      voiceSelector.value = window.localStorage.getItem('xmanius_tts_voice') || 'Aoede';
+      voiceSelector.addEventListener('change', (e) => {
+        window.localStorage.setItem('xmanius_tts_voice', e.target.value);
+      });
+    }
 
     const micBtn = document.getElementById('xmanius-live-mic-btn');
     micBtn?.addEventListener('click', async () => {
