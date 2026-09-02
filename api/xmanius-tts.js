@@ -79,12 +79,22 @@ export default async function handler(request, response) {
       if (audioBase64) {
          return response.status(200).json({ audio: audioBase64, mimeType: "audio/wav" });
       }
-      
-      return response.status(502).json({ error: "No audio generated." });
     }
-    
   } catch (err) {
-    console.error(err);
+    console.error("Gemini TTS Error:", err);
+  }
+
+  // Robust Fallback: If Gemini audio is restricted on this tier, fall back to a public TTS relay
+  try {
+    const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text.substring(0, 200))}`;
+    const fbRes = await fetch(fallbackUrl);
+    if (fbRes.ok) {
+      const buffer = await fbRes.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      return response.status(200).json({ audio: base64, mimeType: "audio/mp3" });
+    }
+  } catch (e) {
+    console.error("Fallback TTS Error:", e);
   }
 
   return response.status(502).json({ error: "Could not synthesize audio right now." });
