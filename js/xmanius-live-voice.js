@@ -202,9 +202,9 @@
       .replace(/%/g, ' percent')
       .replace(/\+/g, ' plus ')
       .replace(/=/g, ' equals ')
-      // Clean duplicate whitespace and newlines into natural breath pauses
-      .replace(/\n{2,}/g, ', ')
-      .replace(/\n/g, ', ')
+      // Clean duplicate whitespace and newlines
+      .replace(/\n{2,}/g, '. ')
+      .replace(/\n/g, '. ')
       .replace(/\s{2,}/g, ' ')
       .trim();
 
@@ -218,8 +218,8 @@
     const clean = sanitizeForVoice(rawText);
     if (!clean) return;
 
-    // Split text into natural spoken phrases / breath chunks for natural human pacing
-    const phrases = clean.match(/[^.!?,\n]+[.!?,\n]+|\s*[^.!?,\n]+$/g) || [clean];
+    // Split text into natural sentence chunks to minimize unnecessary pauses
+    const phrases = clean.match(/[^.!?\n]+[.!?\n]+|\s*[^.!?\n]+$/g) || [clean];
     let phraseIdx = 0;
 
     const getBestVoice = () => {
@@ -244,8 +244,8 @@
       }
 
       const utterance = new SpeechSynthesisUtterance(phrase);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.02;
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
       const voice = getBestVoice();
@@ -253,10 +253,10 @@
 
       utterance.onstart = () => { isAiSpeaking = true; };
       utterance.onend   = () => {
-        // Natural breath pause between spoken clauses (60ms)
+        // Minimal instant transition between spoken sentences (15ms)
         setTimeout(() => {
           playNextPhrase();
-        }, 60);
+        }, 15);
       };
       utterance.onerror = () => { isAiSpeaking = false; };
 
@@ -344,23 +344,39 @@
       ? window.XmaniusApiEndpoint()
       : '/api/xmanius-chat';
 
-    const cameraFrame = captureCameraFrame();
+    // Do NOT capture camera snapshots during voice chat per user request
+    const cameraFrame = null;
     const attachments = [...attachedFiles];
-    if (cameraFrame) {
-      attachments.push({
-        name: 'live_camera_snapshot.jpg',
-        mimeType: 'image/jpeg',
-        data: cameraFrame,
-        dataUrl: cameraFrame
-      });
-    }
 
-    const promptMessage = (cameraFrame && !queryText.trim())
-      ? 'Look at this live camera view and tell me what you see.'
-      : queryText.trim();
+    const promptMessage = queryText.trim();
 
     // Maintain multi-turn voice context
     voiceHistory.push({ role: 'user', text: promptMessage });
+
+    // Retrieve user's live physical GPS location if available
+    let userLocation = null;
+    if (navigator.geolocation) {
+      try {
+        userLocation = await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
+              resolve({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                timezone: tz
+              });
+            },
+            () => {
+              const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
+              resolve(tz ? { timezone: tz } : null);
+            },
+            { enableHighAccuracy: false, timeout: 500, maximumAge: 300000 }
+          );
+        });
+      } catch {}
+    }
 
     try {
       const res = await fetch(endpoint, {
@@ -371,7 +387,8 @@
           model: (() => { try { const v = localStorage.getItem("xmanius-selected-model-v1"); return /^xmanius-[1-9]$/.test(v||"") ? v : "xmanius-1"; } catch { return "xmanius-1"; } })(),
           attachments,
           thinkMode: false,
-          webSearch: false,
+          webSearch: true,
+          location: userLocation,
           mode: 'live_voice',
           voice: true,
           history: voiceHistory.slice(-8)
