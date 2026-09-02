@@ -36,66 +36,61 @@ export default async function handler(request, response) {
   const apiKey = process.env.XMANIUS_GEMINI_API_KEY || process.env.XMANIUS_GEMINI_API_KEY_1 || process.env.XMANIUS_GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY;
   if (!apiKey) return response.status(503).json({ error: "Server AI credentials not configured." });
 
-  const modelCandidate = "gemini-2.5-flash"; 
+  const ttsCandidates = [
+    { model: "gemini-2.0-flash", apiVer: "v1beta" },
+    { model: "gemini-2.0-flash-exp", apiVer: "v1beta" },
+    { model: "gemini-2.5-flash", apiVer: "v1alpha" },
+    { model: "gemini-2.0-flash", apiVer: "v1alpha" }
+  ];
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1alpha/models/${encodeURIComponent(modelCandidate)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const res = await fetchWithTimeout(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `Read the following text out loud in a natural voice. Text: ${text}` }]
-          }
-        ],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: voiceName
+  for (const item of ttsCandidates) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/${item.apiVer}/models/${encodeURIComponent(item.model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const res = await fetchWithTimeout(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `Read the following text out loud in a natural voice. Text: ${text}` }]
+            }
+          ],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: voiceName
+                }
               }
             }
           }
-        }
-      })
-    }, UPSTREAM_TIMEOUT_MS);
+        })
+      }, 5000);
 
-    if (res.ok) {
-      const data = await res.json().catch(() => ({}));
-      
-      let audioBase64 = null;
-      if (data.candidates?.[0]?.content?.parts) {
-        for (const part of data.candidates[0].content.parts) {
-          if (part.inlineData && (part.inlineData.mimeType.includes('audio'))) {
-            audioBase64 = part.inlineData.data;
-            break;
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        let audioBase64 = null;
+        if (data.candidates?.[0]?.content?.parts) {
+          for (const part of data.candidates[0].content.parts) {
+            if (part.inlineData && (part.inlineData.mimeType?.includes('audio') || part.inlineData.data)) {
+              audioBase64 = part.inlineData.data;
+              break;
+            }
           }
         }
+        
+        if (audioBase64) {
+           return response.status(200).json({ audio: audioBase64, mimeType: "audio/wav" });
+        }
       }
-      
-      if (audioBase64) {
-         return response.status(200).json({ audio: audioBase64, mimeType: "audio/wav" });
-      }
+    } catch (err) {
+      // Try next audio candidate
     }
-  } catch (err) {
-    console.error("Gemini TTS Error:", err);
   }
 
-  // Robust Fallback: If Gemini audio is restricted on this tier, fall back to a public TTS relay
-  try {
-    const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text.substring(0, 200))}`;
-    const fbRes = await fetch(fallbackUrl);
-    if (fbRes.ok) {
-      const buffer = await fbRes.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString('base64');
-      return response.status(200).json({ audio: base64, mimeType: "audio/mp3" });
-    }
-  } catch (e) {
-    console.error("Fallback TTS Error:", e);
-  }
+  return response.status(502).json({ error: "Could not synthesize audio with Gemini models." });
 
   return response.status(502).json({ error: "Could not synthesize audio right now." });
 }

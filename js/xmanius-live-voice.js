@@ -312,12 +312,46 @@
     const fb = new SpeechSynthesisUtterance(phrase);
     fb.rate = 1.05;
     
-    const voices = window.speechSynthesis.getVoices();
-    if (voiceName === "Browser_UK") {
-      fb.voice = voices.find(v => v.lang === 'en-GB' && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('UK'))) || voices.find(v => v.lang === 'en-GB') || null;
-    } else if (voiceName === "Browser_US" || voiceName) {
-      // Default to US for any unknown voice that falls back
-      fb.voice = voices.find(v => v.lang === 'en-US' && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('US'))) || voices.find(v => v.lang === 'en-US') || null;
+    const voices = window.speechSynthesis.getVoices() || [];
+    const isUK = voiceName?.includes('UK');
+    const isMale = voiceName?.includes('Male') || ['Charon', 'Fenrir', 'Puck'].includes(voiceName);
+    const lang = isUK ? 'en-GB' : 'en-US';
+
+    const langVoices = voices.filter(v => v.lang && v.lang.replace('_', '-').toLowerCase().startsWith(lang.toLowerCase()));
+    const pool = langVoices.length ? langVoices : voices;
+
+    const maleKeywords = ['male', 'david', 'mark', 'guy', 'ryan', 'george', 'stefan', 'james', 'richard', 'daniel', 'standard-b', 'standard-c', 'standard-d', 'standard-j'];
+    const femaleKeywords = ['female', 'zira', 'jenny', 'sonia', 'hazel', 'aria', 'susan', 'catherine', 'standard-a', 'standard-e', 'standard-f', 'standard-g'];
+
+    const targetKeywords = isMale ? maleKeywords : femaleKeywords;
+    const avoidKeywords = isMale ? femaleKeywords : maleKeywords;
+
+    let matchedVoice = null;
+    for (const v of pool) {
+      const name = (v.name || "").toLowerCase();
+      if (targetKeywords.some(kw => name.includes(kw)) && !avoidKeywords.some(kw => name.includes(kw))) {
+        matchedVoice = v;
+        break;
+      }
+    }
+
+    if (!matchedVoice) {
+      for (const v of pool) {
+        const name = (v.name || "").toLowerCase();
+        if (targetKeywords.some(kw => name.includes(kw))) {
+          matchedVoice = v;
+          break;
+        }
+      }
+    }
+
+    fb.voice = matchedVoice || pool[0] || null;
+    
+    // Explicitly modulate pitch so Male and Female are distinctly audible on all operating systems
+    if (isMale) {
+      fb.pitch = 0.82; // Lower, deeper pitch for male
+    } else {
+      fb.pitch = 1.15; // Higher, clearer pitch for female
     }
     
     window.speechSynthesis.speak(fb);
@@ -636,13 +670,19 @@
         <div class="xmanius-live-menu-item">
           <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           <select id="xmanius-voice-selector" style="background: #333; border: 1px solid #555; color: #fff; width: 100%; outline: none; margin-left: 10px; padding: 4px; border-radius: 4px;">
-            <option value="Aoede" style="background: #333; color: #fff;">Aoede (Gemini Calm)</option>
-            <option value="Charon" style="background: #333; color: #fff;">Charon (Gemini Deep)</option>
-            <option value="Fenrir" style="background: #333; color: #fff;">Fenrir (Gemini Bold)</option>
-            <option value="Kore" style="background: #333; color: #fff;">Kore (Gemini Professional)</option>
-            <option value="Puck" style="background: #333; color: #fff;">Puck (Gemini Enthusiastic)</option>
-            <option value="Browser_US" style="background: #333; color: #fff;">US Natural (Browser)</option>
-            <option value="Browser_UK" style="background: #333; color: #fff;">UK Natural (Browser)</option>
+            <optgroup label="Gemini AI Voices (Cloud)" style="background: #222; color: #4ade80;">
+              <option value="Aoede" style="background: #333; color: #fff;">Aoede (Female - Calm & Warm)</option>
+              <option value="Kore" style="background: #333; color: #fff;">Kore (Female - Professional)</option>
+              <option value="Charon" style="background: #333; color: #fff;">Charon (Male - Deep & Rich)</option>
+              <option value="Fenrir" style="background: #333; color: #fff;">Fenrir (Male - Bold & Direct)</option>
+              <option value="Puck" style="background: #333; color: #fff;">Puck (Male - Friendly)</option>
+            </optgroup>
+            <optgroup label="Natural System Voices (Offline)" style="background: #222; color: #60a5fa;">
+              <option value="US_Female" style="background: #333; color: #fff;">US English (Female - Natural)</option>
+              <option value="US_Male" style="background: #333; color: #fff;">US English (Male - Natural)</option>
+              <option value="UK_Female" style="background: #333; color: #fff;">UK English (Female - Natural)</option>
+              <option value="UK_Male" style="background: #333; color: #fff;">UK English (Male - Natural)</option>
+            </optgroup>
           </select>
         </div>
       </div>
