@@ -272,6 +272,11 @@
       const phrase = phrases[i].trim();
       if (!phrase) continue;
 
+      if (selectedVoice.startsWith('Browser_')) {
+        playBrowserFallback(phrase, selectedVoice);
+        continue;
+      }
+
       try {
         const response = await fetch(ttsUrl, {
           method: 'POST',
@@ -293,16 +298,29 @@
           }
         } else {
           console.warn("High-quality TTS chunk failed:", await response.text());
-          // Fallback to browser TTS for this specific chunk if API fails
-          const fb = new SpeechSynthesisUtterance(phrase);
-          fb.rate = 1.05;
-          window.speechSynthesis.speak(fb);
+          playBrowserFallback(phrase, selectedVoice);
         }
       } catch (err) {
         if (err.name === 'AbortError') break;
         console.warn("TTS network error:", err);
+        playBrowserFallback(phrase, selectedVoice);
       }
     }
+  }
+
+  function playBrowserFallback(phrase, voiceName) {
+    const fb = new SpeechSynthesisUtterance(phrase);
+    fb.rate = 1.05;
+    
+    const voices = window.speechSynthesis.getVoices();
+    if (voiceName === "Browser_UK") {
+      fb.voice = voices.find(v => v.lang === 'en-GB' && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('UK'))) || voices.find(v => v.lang === 'en-GB') || null;
+    } else if (voiceName === "Browser_US" || voiceName) {
+      // Default to US for any unknown voice that falls back
+      fb.voice = voices.find(v => v.lang === 'en-US' && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('US'))) || voices.find(v => v.lang === 'en-US') || null;
+    }
+    
+    window.speechSynthesis.speak(fb);
   }
 
   // ─── Camera Management ──────────────────────────────────────────────────────
@@ -618,11 +636,13 @@
         <div class="xmanius-live-menu-item">
           <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           <select id="xmanius-voice-selector" style="background: #333; border: 1px solid #555; color: #fff; width: 100%; outline: none; margin-left: 10px; padding: 4px; border-radius: 4px;">
-            <option value="Aoede" style="background: #333; color: #fff;">Aoede (Calm, Warm)</option>
-            <option value="Charon" style="background: #333; color: #fff;">Charon (Deep, Rich)</option>
-            <option value="Fenrir" style="background: #333; color: #fff;">Fenrir (Strong, Bold)</option>
-            <option value="Kore" style="background: #333; color: #fff;">Kore (Clear, Professional)</option>
-            <option value="Puck" style="background: #333; color: #fff;">Puck (Friendly, Enthusiastic)</option>
+            <option value="Aoede" style="background: #333; color: #fff;">Aoede (Gemini Calm)</option>
+            <option value="Charon" style="background: #333; color: #fff;">Charon (Gemini Deep)</option>
+            <option value="Fenrir" style="background: #333; color: #fff;">Fenrir (Gemini Bold)</option>
+            <option value="Kore" style="background: #333; color: #fff;">Kore (Gemini Professional)</option>
+            <option value="Puck" style="background: #333; color: #fff;">Puck (Gemini Enthusiastic)</option>
+            <option value="Browser_US" style="background: #333; color: #fff;">US Natural (Browser)</option>
+            <option value="Browser_UK" style="background: #333; color: #fff;">UK Natural (Browser)</option>
           </select>
         </div>
       </div>
