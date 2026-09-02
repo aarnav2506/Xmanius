@@ -161,9 +161,17 @@
   let voiceHistory = [];
 
   let currentAiAudio = null;
+  let audioQueue = [];
+  let isAudioPlaying = false;
+  let abortController = null;
 
   // ─── AI Speech (Natural Human Conversational Synthesis) ─────────────────────
   function stopAiSpeech() {
+    audioQueue = [];
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
     if (currentAiAudio) {
       currentAiAudio.pause();
       currentAiAudio.currentTime = 0;
@@ -173,29 +181,24 @@
       window.speechSynthesis.cancel();
     }
     isAiSpeaking = false;
+    isAudioPlaying = false;
   }
 
   // Sanitize text so AI talks completely like a real human in conversation
   function sanitizeForVoice(text) {
     if (!text) return '';
     let clean = String(text)
-      // Strip [[ANSWER_SUMMARY]]...[[/ANSWER_SUMMARY]] tags completely
       .replace(/\[\[ANSWER_SUMMARY\]\][\s\S]*?\[\[\/ANSWER_SUMMARY\]\]/gi, '')
       .replace(/\[\[ANSWER_SUMMARY\]\][^\n]*/gi, '')
       .replace(/\[\[\/ANSWER_SUMMARY\]\]/gi, '')
       .replace(/\[\[[\s\S]*?\]\]/g, '')
-      // Strip code blocks and inline code
       .replace(/```[\s\S]*?```/g, '')
       .replace(/`[^`]+`/g, '')
-      // Strip markdown links [label](url) -> label
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/https?:\/\/\S+/gi, '')
-      // Strip markdown headings (e.g. ## Heading -> Heading)
       .replace(/^#{1,6}\s+/gm, '')
-      // Strip bullet points and list numbers at start of lines (e.g. "- item" or "1. item" -> "item")
       .replace(/^[-*•+]\s+/gm, '')
       .replace(/^\d+[\.\)]\s+/gm, '')
-      // Strip bold, italics, strikethrough, blockquotes
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/\*([^*]+)\*/g, '$1')
       .replace(/__([^_]+)__/g, '$1')
@@ -204,18 +207,42 @@
       .replace(/^>\s*/gm, '')
       .replace(/---+/g, '')
       .replace(/===+/g, '')
-      // Replace symbols with natural spoken words
       .replace(/&/g, ' and ')
       .replace(/%/g, ' percent')
       .replace(/\+/g, ' plus ')
       .replace(/=/g, ' equals ')
-      // Clean duplicate whitespace and newlines
       .replace(/\n{2,}/g, '. ')
       .replace(/\n/g, '. ')
       .replace(/\s{2,}/g, ' ')
       .trim();
-
     return clean;
+  }
+
+  async function playNextAudioChunk() {
+    if (audioQueue.length === 0) {
+      isAudioPlaying = false;
+      isAiSpeaking = false;
+      return;
+    }
+    
+    isAudioPlaying = true;
+    isAiSpeaking = true;
+    const audioSrc = audioQueue.shift();
+    
+    currentAiAudio = new Audio(audioSrc);
+    currentAiAudio.onended = () => {
+      // Small pause between sentences
+      setTimeout(playNextAudioChunk, 80);
+    };
+    currentAiAudio.onerror = () => {
+      playNextAudioChunk();
+    };
+    
+    try {
+      await currentAiAudio.play();
+    } catch (e) {
+      playNextAudioChunk();
+    }
   }
 
   async function speakText(rawText) {
@@ -224,46 +251,58 @@
     const clean = sanitizeForVoice(rawText);
     if (!clean) return;
     
-    // Choose voice (Aoede, Charon, Fenrir, Kore, Puck)
     const selectedVoice = window.localStorage.getItem('xmanius_tts_voice') || 'Aoede';
-
-    try {
-      let ttsUrl = '/api/xmanius-tts';
-      if (typeof window.XmaniusApiEndpoint === 'function') {
-        const ep = window.XmaniusApiEndpoint();
-        if (ep.includes('/api/xmanius-chat')) {
-          ttsUrl = ep.replace('/api/xmanius-chat', '/api/xmanius-tts');
-        }
-      }
-
-      const response = await fetch(ttsUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: clean, voice: selectedVoice })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.audio) {
-          const audioSrc = `data:${data.mimeType || 'audio/wav'};base64,${data.audio}`;
-          currentAiAudio = new Audio(audioSrc);
-          currentAiAudio.onplay = () => { isAiSpeaking = true; };
-          currentAiAudio.onended = () => { isAiSpeaking = false; };
-          currentAiAudio.onerror = () => { isAiSpeaking = false; };
-          await currentAiAudio.play();
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn("High-quality TTS failed, falling back to basic browser speech.", err);
-    }
     
-    // Fallback to basic browser speech if API fails
-    const fallbackUtterance = new SpeechSynthesisUtterance(clean);
-    fallbackUtterance.rate = 1.05;
-    fallbackUtterance.onstart = () => { isAiSpeaking = true; };
-    fallbackUtterance.onend = () => { isAiSpeaking = false; };
-    window.speechSynthesis.speak(fallbackUtterance);
+    // Split into sentences so the first audio plays almost instantly
+    const phrases = clean.match(/[^.!?\n]+[.!?\n]+|\s*[^.!?\n]+$/g) || [clean];
+    abortController = new AbortController();
+    const signal = abortController.signal;
+
+    let ttsUrl = '/api/xmanius-tts';
+    if (typeof window.XmaniusApiEndpoint === 'function') {
+      const ep = window.XmaniusApiEndpoint();
+      if (ep.includes('/api/xmanius-chat')) {
+        ttsUrl = ep.replace('/api/xmanius-chat', '/api/xmanius-tts');
+      }
+    }
+
+    // Process phrases sequentially but play them as soon as they are ready
+    for (let i = 0; i < phrases.length; i++) {
+      if (signal.aborted) break;
+      const phrase = phrases[i].trim();
+      if (!phrase) continue;
+
+      try {
+        const response = await fetch(ttsUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: phrase, voice: selectedVoice }),
+          signal
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.audio) {
+            const audioSrc = `data:${data.mimeType || 'audio/wav'};base64,${data.audio}`;
+            audioQueue.push(audioSrc);
+            
+            // Start playback immediately if not already playing
+            if (!isAudioPlaying) {
+              playNextAudioChunk();
+            }
+          }
+        } else {
+          console.warn("High-quality TTS chunk failed:", await response.text());
+          // Fallback to browser TTS for this specific chunk if API fails
+          const fb = new SpeechSynthesisUtterance(phrase);
+          fb.rate = 1.05;
+          window.speechSynthesis.speak(fb);
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') break;
+        console.warn("TTS network error:", err);
+      }
+    }
   }
 
   // ─── Camera Management ──────────────────────────────────────────────────────
@@ -578,12 +617,12 @@
         </button>
         <div class="xmanius-live-menu-item">
           <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          <select id="xmanius-voice-selector" style="background: transparent; border: none; color: inherit; width: 100%; outline: none; margin-left: 10px;">
-            <option value="Aoede">Aoede (Calm, Warm)</option>
-            <option value="Charon">Charon (Deep, Rich)</option>
-            <option value="Fenrir">Fenrir (Strong, Bold)</option>
-            <option value="Kore">Kore (Clear, Professional)</option>
-            <option value="Puck">Puck (Friendly, Enthusiastic)</option>
+          <select id="xmanius-voice-selector" style="background: #333; border: 1px solid #555; color: #fff; width: 100%; outline: none; margin-left: 10px; padding: 4px; border-radius: 4px;">
+            <option value="Aoede" style="background: #333; color: #fff;">Aoede (Calm, Warm)</option>
+            <option value="Charon" style="background: #333; color: #fff;">Charon (Deep, Rich)</option>
+            <option value="Fenrir" style="background: #333; color: #fff;">Fenrir (Strong, Bold)</option>
+            <option value="Kore" style="background: #333; color: #fff;">Kore (Clear, Professional)</option>
+            <option value="Puck" style="background: #333; color: #fff;">Puck (Friendly, Enthusiastic)</option>
           </select>
         </div>
       </div>
