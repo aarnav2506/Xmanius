@@ -371,7 +371,7 @@
           model: (() => { try { const v = localStorage.getItem("xmanius-selected-model-v1"); return /^xmanius-[1-9]$/.test(v||"") ? v : "xmanius-1"; } catch { return "xmanius-1"; } })(),
           attachments,
           thinkMode: false,
-          webSearch: true,
+          webSearch: false,
           mode: 'live_voice',
           voice: true,
           history: voiceHistory.slice(-8)
