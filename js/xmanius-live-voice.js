@@ -353,26 +353,26 @@
     // Maintain multi-turn voice context
     voiceHistory.push({ role: 'user', text: promptMessage });
 
-    // Retrieve user's live physical GPS location if available
+    // Only trigger search engine and GPS location when query actually requires live facts / local search
+    const needsWebSearch = /\b(weather|news|near\s+me|nearby|closest|find|search|dominos?|pizza|restaurant|food|today|current|price|who\s+is|where\s+is|when\s+is|latest|location|salon|store|shop|hospital)\b/i.test(promptMessage);
+
     let userLocation = null;
-    if (navigator.geolocation) {
+    if (needsWebSearch && navigator.geolocation) {
       try {
         userLocation = await new Promise((resolve) => {
+          const t = setTimeout(() => resolve(null), 300);
           navigator.geolocation.getCurrentPosition(
             (pos) => {
+              clearTimeout(t);
               const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
               resolve({
                 latitude: pos.coords.latitude,
                 longitude: pos.coords.longitude,
-                accuracy: pos.coords.accuracy,
                 timezone: tz
               });
             },
-            () => {
-              const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
-              resolve(tz ? { timezone: tz } : null);
-            },
-            { enableHighAccuracy: false, timeout: 500, maximumAge: 300000 }
+            () => { clearTimeout(t); resolve(null); },
+            { enableHighAccuracy: false, timeout: 300, maximumAge: 600000 }
           );
         });
       } catch {}
@@ -387,7 +387,7 @@
           model: (() => { try { const v = localStorage.getItem("xmanius-selected-model-v1"); return /^xmanius-[1-9]$/.test(v||"") ? v : "xmanius-1"; } catch { return "xmanius-1"; } })(),
           attachments,
           thinkMode: false,
-          webSearch: true,
+          webSearch: needsWebSearch,
           location: userLocation,
           mode: 'live_voice',
           voice: true,
