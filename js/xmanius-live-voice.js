@@ -278,15 +278,19 @@
       }
 
       try {
+        const ttsController = new AbortController();
+        const ttsTimer = setTimeout(() => ttsController.abort(), 2200);
+
         const response = await fetch(ttsUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: phrase, voice: selectedVoice }),
-          signal
+          signal: ttsController.signal
         });
+        clearTimeout(ttsTimer);
         
         if (response.ok) {
-          const data = await response.json();
+          const data = await response.json().catch(() => ({}));
           if (data.audio) {
             const audioSrc = `data:${data.mimeType || 'audio/wav'};base64,${data.audio}`;
             audioQueue.push(audioSrc);
@@ -295,14 +299,14 @@
             if (!isAudioPlaying) {
               playNextAudioChunk();
             }
+          } else {
+            playBrowserFallback(phrase, selectedVoice);
           }
         } else {
-          console.warn("High-quality TTS chunk failed:", await response.text());
           playBrowserFallback(phrase, selectedVoice);
         }
       } catch (err) {
-        if (err.name === 'AbortError') break;
-        console.warn("TTS network error:", err);
+        if (signal.aborted) break;
         playBrowserFallback(phrase, selectedVoice);
       }
     }
@@ -346,46 +350,46 @@
 
     fb.voice = matchedVoice || langPool[0] || voices[0] || null;
     
-    // Explicitly modulate pitch and speed per profile so every voice sounds noticeably distinct
+    // Explicitly modulate pitch and speed per profile so every voice sounds noticeably distinct and brisk
     if (voiceName === 'UK_Male') {
-      fb.pitch = 0.76;
-      fb.rate = 0.93;
-    } else if (voiceName === 'UK_Female') {
-      fb.pitch = 1.22;
-      fb.rate = 0.94;
-    } else if (voiceName === 'US_Male') {
-      fb.pitch = 0.84;
-      fb.rate = 0.98;
-    } else if (voiceName === 'US_Female') {
-      fb.pitch = 1.14;
-      fb.rate = 1.00;
-    } else if (voiceName === 'Charon') {
-      fb.pitch = 0.65;
-      fb.rate = 0.88;
-    } else if (voiceName === 'Fenrir') {
-      fb.pitch = 0.82;
-      fb.rate = 1.05;
-    } else if (voiceName === 'Puck') {
-      fb.pitch = 1.08;
-      fb.rate = 1.12;
-    } else if (voiceName === 'Pegasus') {
-      fb.pitch = 0.72;
-      fb.rate = 0.96;
-    } else if (voiceName === 'Aoede') {
-      fb.pitch = 1.18;
-      fb.rate = 1.02;
-    } else if (voiceName === 'Kore') {
-      fb.pitch = 0.94;
-      fb.rate = 0.92;
-    } else if (voiceName === 'Zephyr') {
-      fb.pitch = 1.30;
-      fb.rate = 0.90;
-    } else if (isMale) {
       fb.pitch = 0.80;
-      fb.rate = 0.96;
-    } else {
+      fb.rate = 1.08;
+    } else if (voiceName === 'UK_Female') {
       fb.pitch = 1.15;
-      fb.rate = 1.00;
+      fb.rate = 1.12;
+    } else if (voiceName === 'US_Male') {
+      fb.pitch = 0.95;
+      fb.rate = 1.14;
+    } else if (voiceName === 'US_Female') {
+      fb.pitch = 1.05;
+      fb.rate = 1.12;
+    } else if (voiceName === 'Charon') {
+      fb.pitch = 0.72;
+      fb.rate = 1.08;
+    } else if (voiceName === 'Fenrir') {
+      fb.pitch = 0.86;
+      fb.rate = 1.15;
+    } else if (voiceName === 'Puck') {
+      fb.pitch = 1.05;
+      fb.rate = 1.15;
+    } else if (voiceName === 'Pegasus') {
+      fb.pitch = 0.76;
+      fb.rate = 1.08;
+    } else if (voiceName === 'Aoede') {
+      fb.pitch = 1.14;
+      fb.rate = 1.12;
+    } else if (voiceName === 'Kore') {
+      fb.pitch = 1.00;
+      fb.rate = 1.10;
+    } else if (voiceName === 'Zephyr') {
+      fb.pitch = 1.16;
+      fb.rate = 1.10;
+    } else if (isMale) {
+      fb.pitch = 0.85;
+      fb.rate = 1.10;
+    } else {
+      fb.pitch = 1.05;
+      fb.rate = 1.12;
     }
     
     window.speechSynthesis.speak(fb);

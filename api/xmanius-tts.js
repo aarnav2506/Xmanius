@@ -63,15 +63,12 @@ export default async function handler(request, response) {
   if (!apiKeys.length) return response.status(503).json({ error: "Server AI credentials not configured." });
 
   const ttsCandidates = [
-    { model: "gemini-2.5-flash-native-audio-dialog", apiVer: "v1beta" },
-    { model: "gemini-3-flash-live", apiVer: "v1beta" },
     { model: "gemini-2.0-flash", apiVer: "v1beta" },
-    { model: "gemini-2.0-flash-exp", apiVer: "v1beta" },
-    { model: "gemini-2.5-flash", apiVer: "v1alpha" },
-    { model: "gemini-2.0-flash", apiVer: "v1alpha" }
+    { model: "gemini-2.5-flash", apiVer: "v1beta" },
+    { model: "gemini-2.5-flash-native-audio-dialog", apiVer: "v1beta" }
   ];
 
-  for (const apiKey of apiKeys) {
+  for (const apiKey of apiKeys.slice(0, 3)) {
     for (const item of ttsCandidates) {
       try {
         const url = `https://generativelanguage.googleapis.com/${item.apiVer}/models/${encodeURIComponent(item.model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -80,7 +77,7 @@ export default async function handler(request, response) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: `${profile.instruction} Speak naturally, accurately, and fluently. Output ONLY the spoken audio corresponding to the input text. Do NOT add any introductions, greetings, meta commentary, or extra words.` }]
+              parts: [{ text: `${profile.instruction} Speak at a natural, brisk conversational pace. Output ONLY the spoken audio for this text without extra words.` }]
             },
             contents: [
               {
@@ -99,7 +96,7 @@ export default async function handler(request, response) {
               }
             }
           })
-        }, 5000);
+        }, 2500);
 
         if (res.ok) {
           const data = await res.json().catch(() => ({}));

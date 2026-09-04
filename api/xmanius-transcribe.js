@@ -46,8 +46,8 @@ export default async function handler(request, response) {
   if (!apiKey) return response.status(503).json({ error: "Server AI credentials not configured." });
 
   const fallbackModels = translate
-    ? ["gemini-3.5-live-translate", "gemini-3.5-transcribe-live", "gemini-3-flash-live", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
-    : ["gemini-3.5-transcribe-live", "gemini-3.5-transcribe", "gemini-3-flash-live", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+    ? ["gemini-3.5-live-translate", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3-flash-live"]
+    : ["gemini-3.5-transcribe-live", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3-flash-live"];
 
   const prompt = translate
     ? `Listen to this live audio recording carefully. Translate all spoken words accurately into clean, natural ${targetLanguage} text. Return only the translated text.`

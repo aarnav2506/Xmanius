@@ -459,37 +459,37 @@
     const pickMale = (idx = 0) => maleVoiceList[idx % (maleVoiceList.length || 1)] || maleVoiceList[0] || activePool.find((v) => !femaleVoiceList.includes(v)) || activePool[0];
 
     if (profile === "us-female" || profile === "US_Female") {
-      pitch = 1.14; rate = 1.00;
+      pitch = 1.05; rate = 1.12;
       voice = usPool.find(v => /(?:female|zira|jenny|aria|samantha|eva)/i.test(v.name)) || pickFemale(0);
     } else if (profile === "us-male" || profile === "US_Male" || profile === "google-us") {
-      pitch = 0.84; rate = 0.98;
+      pitch = 0.95; rate = 1.14;
       voice = usPool.find(v => /(?:male|david|mark|guy)/i.test(v.name)) || usPool[0] || pickMale(0);
     } else if (profile === "uk-female" || profile === "UK_Female") {
-      pitch = 1.22; rate = 0.94;
+      pitch = 1.15; rate = 1.12;
       voice = ukPool.find(v => /(?:female|hazel|susan|fiona|victoria)/i.test(v.name)) || ukPool[0] || pickFemale(1);
     } else if (profile === "uk-male" || profile === "UK_Male" || profile === "google-uk") {
-      pitch = 0.76; rate = 0.93;
+      pitch = 0.80; rate = 1.08;
       voice = ukPool.find(v => /(?:male|george|oliver|daniel)/i.test(v.name)) || ukPool[0] || pickMale(1);
     } else if (profile === "puck") {
-      pitch = 1.08; rate = 1.12;
+      pitch = 1.05; rate = 1.15;
       voice = pickMale(0);
     } else if (profile === "charon") {
-      pitch = 0.65; rate = 0.88;
+      pitch = 0.72; rate = 1.08;
       voice = pickMale(1);
     } else if (profile === "aoede") {
-      pitch = 1.18; rate = 1.02;
+      pitch = 1.14; rate = 1.12;
       voice = pickFemale(0);
     } else if (profile === "kore") {
-      pitch = 0.94; rate = 0.92;
+      pitch = 1.00; rate = 1.10;
       voice = pickFemale(1);
     } else if (profile === "fenrir") {
-      pitch = 0.82; rate = 1.05;
+      pitch = 0.86; rate = 1.15;
       voice = pickMale(0);
     } else if (profile === "zephyr") {
-      pitch = 1.30; rate = 0.90;
+      pitch = 1.16; rate = 1.10;
       voice = pickFemale(0);
     } else if (profile === "pegasus") {
-      pitch = 0.72; rate = 0.96;
+      pitch = 0.76; rate = 1.08;
       voice = pickMale(1);
     }
 
