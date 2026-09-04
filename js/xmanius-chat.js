@@ -449,39 +449,48 @@
     const englishPool = pool.filter((v) => v.lang.startsWith("en") || v.lang.startsWith("auto"));
     const activePool = englishPool.length ? englishPool : pool;
 
+    const ukPool = activePool.filter((v) => /en[-_](gb|uk)|united kingdom/i.test(v.lang || "") || /uk|british|english \(united kingdom\)/i.test(v.name || ""));
+    const usPool = activePool.filter((v) => /en[-_]us|united states/i.test(v.lang || "") || /us|united states/i.test(v.name || ""));
+
     const femaleVoiceList = activePool.filter((v) => /(?:female|zira|eva|hazel|susan|catherine|heera|aria|jenny|victoria|samantha|karen|fiona|veena|aoede|kore|zephyr|woman|girl)/i.test(v.name));
-    const maleVoiceList = activePool.filter((v) => /(?:male|david|mark|george|ravi|guy|stefan|puck|charon|fenrir|pegasus|alex|daniel|fred|rishi|man|boy)/i.test(v.name));
+    const maleVoiceList = activePool.filter((v) => /(?:male|david|mark|george|ravi|guy|stefan|puck|charon|fenrir|pegasus|alex|daniel|fred|rishi|man|boy|oliver)/i.test(v.name));
 
     const pickFemale = (idx = 0) => femaleVoiceList[idx % (femaleVoiceList.length || 1)] || femaleVoiceList[0] || activePool.find((v) => !maleVoiceList.includes(v)) || activePool[0];
     const pickMale = (idx = 0) => maleVoiceList[idx % (maleVoiceList.length || 1)] || maleVoiceList[0] || activePool.find((v) => !femaleVoiceList.includes(v)) || activePool[0];
 
-    if (profile === "puck") {
-      pitch = 1.25; rate = 1.10;
+    if (profile === "us-female" || profile === "US_Female") {
+      pitch = 1.14; rate = 1.00;
+      voice = usPool.find(v => /(?:female|zira|jenny|aria|samantha|eva)/i.test(v.name)) || pickFemale(0);
+    } else if (profile === "us-male" || profile === "US_Male" || profile === "google-us") {
+      pitch = 0.84; rate = 0.98;
+      voice = usPool.find(v => /(?:male|david|mark|guy)/i.test(v.name)) || usPool[0] || pickMale(0);
+    } else if (profile === "uk-female" || profile === "UK_Female") {
+      pitch = 1.22; rate = 0.94;
+      voice = ukPool.find(v => /(?:female|hazel|susan|fiona|victoria)/i.test(v.name)) || ukPool[0] || pickFemale(1);
+    } else if (profile === "uk-male" || profile === "UK_Male" || profile === "google-uk") {
+      pitch = 0.76; rate = 0.93;
+      voice = ukPool.find(v => /(?:male|george|oliver|daniel)/i.test(v.name)) || ukPool[0] || pickMale(1);
+    } else if (profile === "puck") {
+      pitch = 1.08; rate = 1.12;
       voice = pickMale(0);
     } else if (profile === "charon") {
-      pitch = 0.55; rate = 0.85;
+      pitch = 0.65; rate = 0.88;
       voice = pickMale(1);
     } else if (profile === "aoede") {
-      pitch = 1.35; rate = 1.05;
+      pitch = 1.18; rate = 1.02;
       voice = pickFemale(0);
     } else if (profile === "kore") {
-      pitch = 0.95; rate = 0.90;
+      pitch = 0.94; rate = 0.92;
       voice = pickFemale(1);
     } else if (profile === "fenrir") {
-      pitch = 0.60; rate = 0.92;
+      pitch = 0.82; rate = 1.05;
       voice = pickMale(0);
     } else if (profile === "zephyr") {
-      pitch = 1.48; rate = 0.88;
+      pitch = 1.30; rate = 0.90;
       voice = pickFemale(0);
     } else if (profile === "pegasus") {
-      pitch = 0.78; rate = 1.00;
+      pitch = 0.72; rate = 0.96;
       voice = pickMale(1);
-    } else if (profile === "google-us") {
-      pitch = 1.0; rate = 1.0;
-      voice = activePool.find((v) => /us/i.test(v.name)) || activePool[0];
-    } else if (profile === "google-uk") {
-      pitch = 1.05; rate = 0.95;
-      voice = activePool.find((v) => /uk|gb/i.test(v.name)) || activePool[0];
     }
 
     if (appSettings.voiceSpeed) {
@@ -1293,6 +1302,48 @@
     }
   });
 
+  const compressImage = (file, maxDimension = 1440, quality = 0.82) => new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (!w || !h) {
+          readAsDataUrl(file).then(d => resolve({ data: d.replace(/^data:[^,]+,/, ""), dataUrl: d })).catch(() => resolve({ data: "", dataUrl: "" }));
+          return;
+        }
+        if (w > maxDimension || h > maxDimension) {
+          if (w > h) {
+            h = Math.round((h * maxDimension) / w);
+            w = maxDimension;
+          } else {
+            w = Math.round((w * maxDimension) / h);
+            h = maxDimension;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve({
+          data: compressedDataUrl.replace(/^data:[^,]+,/, ""),
+          dataUrl: compressedDataUrl
+        });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        readAsDataUrl(file).then(d => resolve({ data: d.replace(/^data:[^,]+,/, ""), dataUrl: d })).catch(() => resolve({ data: "", dataUrl: "" }));
+      };
+      img.src = url;
+    } catch {
+      readAsDataUrl(file).then(d => resolve({ data: d.replace(/^data:[^,]+,/, ""), dataUrl: d })).catch(() => resolve({ data: "", dataUrl: "" }));
+    }
+  });
+
   const prepareAttachment = async (file) => {
     const rawMime = file?.type || "application/octet-stream";
     const mimeType = normalizeMimeType(rawMime, file?.name);
@@ -1316,9 +1367,17 @@
     try { blobUrl = URL.createObjectURL(file); } catch {}
 
     if (isImage) {
-      const dataUrl = await readAsDataUrl(file);
-      data = dataUrl.replace(/^data:[^,]+,/, "");
-      thumbnail = dataUrl;
+      // High-performance image optimization: downscale large camera/gallery photos
+      // for instant sub-second upload and instant preview modal opening with zero browser lag.
+      if (file.size > 200_000) {
+        const compressed = await compressImage(file, 1440, 0.82);
+        data = compressed.data;
+        thumbnail = blobUrl || compressed.dataUrl;
+      } else {
+        const dataUrl = await readAsDataUrl(file);
+        data = dataUrl.replace(/^data:[^,]+,/, "");
+        thumbnail = blobUrl || dataUrl;
+      }
     } else if (isVideo) {
       thumbnail = await generateVideoThumbnail(file);
     }
@@ -1338,7 +1397,7 @@
       name: file.name,
       mimeType,
       data,
-      thumbnail,
+      thumbnail: thumbnail || blobUrl,
       blobUrl,
       rawFile: file
     };
@@ -1390,7 +1449,7 @@
     }
 
     if (isImage) {
-      mediaContentHtml = `<div class="media-preview-body media-preview-image-wrap"><img src="${attachment.thumbnail || mediaSource}" alt="${escapeHtml(attachment.name)}" class="media-preview-full-img" /></div>`;
+      mediaContentHtml = `<div class="media-preview-body media-preview-image-wrap"><img src="${mediaSource || attachment.thumbnail}" alt="${escapeHtml(attachment.name)}" class="media-preview-full-img" /></div>`;
     } else if (isVideo) {
       mediaContentHtml = `
         <div class="media-preview-body media-preview-video-wrap">
@@ -2248,9 +2307,81 @@
   let voiceRestartTimer = 0;
   let voiceStopRequested = false;
   const showVoiceNotice = (message, duration = 4500) => { if (!usageNotice) { console.warn(`[Xmanius voice] ${message}`); return; } window.clearTimeout(voiceNoticeTimer); usageNotice.textContent = message; usageNotice.classList.add("is-visible"); voiceNoticeTimer = window.setTimeout(() => { if (usageNotice.textContent === message) { usageNotice.textContent = ""; usageNotice.classList.remove("is-visible"); } }, duration); };
-  const stopAudioMeter = () => { if (audioFrame) { window.cancelAnimationFrame(audioFrame); audioFrame = 0; } try { audioSource?.disconnect(); } catch {} audioSource = null; audioAnalyser = null; audioStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} }); audioStream = null; const context = audioContext; audioContext = null; if (context && context.state !== "closed") void context.close().catch(() => {}); };
+  let voiceMediaRecorder = null;
+  let voiceAudioChunks = [];
+
+  const transcribeAudioBlob = async (blob) => {
+    try {
+      const reader = new FileReader();
+      const base64Data = await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const res = String(reader.result || "");
+          resolve(res.split(",")[1] || "");
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      if (!base64Data) return;
+
+      let transcribeUrl = "/api/xmanius-transcribe";
+      if (typeof window.XmaniusApiEndpoint === "function") {
+        const ep = window.XmaniusApiEndpoint();
+        if (ep.includes("/api/xmanius-chat")) transcribeUrl = ep.replace("/api/xmanius-chat", "/api/xmanius-transcribe");
+      }
+
+      const res = await fetch(transcribeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio: base64Data, mimeType: blob.type || "audio/webm" })
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.text && typeof data.text === "string" && data.text.trim()) {
+          input.value = data.text.trim();
+        }
+      }
+    } catch (e) {
+      console.warn("[XManius Transcribe Live]", e);
+    }
+  };
+
+  const stopAudioMeter = () => {
+    if (audioFrame) { window.cancelAnimationFrame(audioFrame); audioFrame = 0; }
+    if (voiceMediaRecorder && voiceMediaRecorder.state !== "inactive") {
+      try { voiceMediaRecorder.stop(); } catch {}
+    }
+    try { audioSource?.disconnect(); } catch {}
+    audioSource = null;
+    audioAnalyser = null;
+    audioStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} });
+    audioStream = null;
+    const context = audioContext;
+    audioContext = null;
+    if (context && context.state !== "closed") void context.close().catch(() => {});
+  };
   const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); dictationBar?.style.setProperty("display", active ? "flex" : "none", "important"); if (active) { const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } return; } input.placeholder = "Ask anything"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); };
-  const finishVoiceSession = ({ clearText = false, focus = true, abort = false } = {}) => { voiceStopRequested = true; window.clearTimeout(voiceRestartTimer); voiceRestartTimer = 0; voiceSessionId += 1; const oldRecognition = recognition; recognition = null; listening = false; if (abort) { try { oldRecognition?.abort(); } catch {} } if (clearText) input.value = ""; setDictation(false); input.placeholder = "Ask anything"; if (focus) input.focus(); };
+  const finishVoiceSession = ({ clearText = false, focus = true, abort = false } = {}) => {
+    voiceStopRequested = true;
+    window.clearTimeout(voiceRestartTimer);
+    voiceRestartTimer = 0;
+    voiceSessionId += 1;
+    const oldRecognition = recognition;
+    recognition = null;
+    listening = false;
+    if (abort) { try { oldRecognition?.abort(); } catch {} }
+    if (clearText) input.value = "";
+    
+    const recordedChunks = voiceAudioChunks.slice();
+    voiceAudioChunks = [];
+    if (recordedChunks.length > 0 && !abort && !clearText) {
+      const recordedBlob = new Blob(recordedChunks, { type: voiceMediaRecorder?.mimeType || "audio/webm" });
+      void transcribeAudioBlob(recordedBlob);
+    }
+
+    setDictation(false);
+    input.placeholder = "Ask anything";
+    if (focus) input.focus();
+  };
   const startAudioMeter = async () => {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone metering is unavailable in this browser.");
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -2258,6 +2389,23 @@
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     if (!form.classList.contains("is-listening")) { stream.getTracks().forEach((track) => track.stop()); return; }
     audioStream = stream;
+
+    try {
+      voiceAudioChunks = [];
+      if (typeof MediaRecorder !== "undefined") {
+        const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+        voiceMediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        voiceMediaRecorder.ondataavailable = (ev) => {
+          if (ev.data && ev.data.size > 0) voiceAudioChunks.push(ev.data);
+        };
+        voiceMediaRecorder.start(250);
+      }
+    } catch (recErr) {
+      console.warn("[XManius MediaRecorder]", recErr);
+    }
+
     audioContext = new AudioContextClass();
     await audioContext.resume().catch(() => {});
     audioAnalyser = audioContext.createAnalyser();
@@ -2312,92 +2460,86 @@
   };
   const startVoice = () => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
+    if (!Recognition && typeof MediaRecorder === "undefined") {
       finishVoiceSession({ focus: true });
-      showVoiceNotice("Voice input is not supported here. Try Chrome or Edge over HTTPS, or use the text box.");
+      showVoiceNotice("Voice input is not supported here.");
       return;
     }
     if (recognition || form.classList.contains("is-listening")) return;
 
     voiceStopRequested = false;
     const sessionId = ++voiceSessionId;
-    const instance = new Recognition();
     let finalText = "";
-    recognition = instance;
     listening = false;
     setDictation(true);
-    input.placeholder = "Listening…";
+    input.placeholder = "Listening (Gemini 3.5 Live)…";
     document.querySelector("[data-chat-mic]")?.classList.add("active");
-    instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
-    instance.interimResults = true;
-    instance.continuous = true;
-    instance.maxAlternatives = 3;
-    const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
-    const restart = () => {
-      voiceRestartTimer = 0;
-      if (!isCurrentSession() || voiceStopRequested) return;
-      try {
-        instance.start();
-      } catch (error) {
-        if (error?.name === "InvalidStateError") {
-          voiceRestartTimer = window.setTimeout(restart, 180);
+
+    if (Recognition) {
+      const instance = new Recognition();
+      recognition = instance;
+      instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
+      instance.interimResults = true;
+      instance.continuous = true;
+      instance.maxAlternatives = 3;
+      const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
+      const restart = () => {
+        voiceRestartTimer = 0;
+        if (!isCurrentSession() || voiceStopRequested) return;
+        try {
+          instance.start();
+        } catch (error) {
+          if (error?.name === "InvalidStateError") {
+            voiceRestartTimer = window.setTimeout(restart, 180);
+            return;
+          }
+          finishVoiceSession({ focus: true });
+        }
+      };
+      instance.onstart = () => {
+        if (!isCurrentSession()) return;
+        listening = true;
+        input.placeholder = "Listening…";
+        void startAudioMeter().catch((error) => {
+          if (isCurrentSession()) {
+            stopAudioMeter();
+            console.warn("[Xmanius voice meter]", error);
+          }
+        });
+      };
+      instance.onresult = (event) => {
+        if (!isCurrentSession()) return;
+        let interimText = "";
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const alternatives = [...event.results[index]].filter((alternative) => alternative?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+          const transcript = alternatives[0]?.transcript || "";
+          if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
+          else interimText += transcript;
+        }
+        input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
+      };
+      instance.onerror = (event) => {
+        if (!isCurrentSession()) return;
+        if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
+        finishVoiceSession({ focus: true });
+      };
+      instance.onend = () => {
+        if (!isCurrentSession()) return;
+        listening = false;
+        if (voiceStopRequested) {
+          finishVoiceSession({ focus: true });
           return;
         }
-        finishVoiceSession({ focus: true });
-        showVoiceNotice("Voice input stopped unexpectedly. Try again.");
-      }
-    };
-    instance.onstart = () => {
-      if (!isCurrentSession()) return;
-      listening = true;
-      input.placeholder = "Listening…";
-      void startAudioMeter().catch((error) => {
-        if (isCurrentSession()) {
-          stopAudioMeter();
-          showVoiceNotice("Voice transcription is active, but the waveform is unavailable.");
-          console.warn("[Xmanius voice meter]", error);
-        }
-      });
-    };
-    instance.onresult = (event) => {
-      if (!isCurrentSession()) return;
-      let interimText = "";
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const alternatives = [...event.results[index]].filter((alternative) => alternative?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-        const transcript = alternatives[0]?.transcript || "";
-        if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
-        else interimText += transcript;
-      }
-      input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
-    };
-    instance.onerror = (event) => {
-      if (!isCurrentSession()) return;
-      const messages = {
-        "not-allowed": "Microphone permission was denied. Allow microphone access and try again.",
-        "service-not-allowed": "The browser speech service is unavailable. Try again or use the text box.",
-        "audio-capture": "No working microphone was found. Check your device settings."
+        window.clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = window.setTimeout(restart, 100);
       };
-      if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
-      finishVoiceSession({ focus: true });
-      showVoiceNotice(messages[event.error] || "Voice input stopped unexpectedly. Try again.");
-    };
-    instance.onend = () => {
-      if (!isCurrentSession()) return;
-      listening = false;
-      if (voiceStopRequested) {
-        finishVoiceSession({ focus: true });
-        return;
+      try {
+        instance.start();
+      } catch {
+        void startAudioMeter();
       }
-      window.clearTimeout(voiceRestartTimer);
-      voiceRestartTimer = window.setTimeout(restart, 100);
-    };
-    try {
-      instance.start();
-    } catch {
-      if (isCurrentSession()) {
-        finishVoiceSession({ focus: true });
-        showVoiceNotice("Voice input could not start. Please try again.");
-      }
+    } else {
+      void startAudioMeter();
     }
   };
   attachFilesButton?.addEventListener("click", () => {
@@ -2513,8 +2655,8 @@
     const brand = isAndroid ? "Xmanias" : "Xmanius";
     if (modelKey === "xmanius-1") return `${brand} 1.5`;
     if (modelKey === "xmanius-2") return `${brand} Flash`;
-    if (modelKey === "xmanius-3") return `${brand} Pro`;
-    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `Cortex`;
+    if (modelKey === "xmanius-3") return `${brand} 2 Pro`;
+    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `Cortex (Anti-Gravity)`;
     return `${brand} ${modelKey.replace("xmanius-", "")}`;
   };
   const setSelectedModel = (model) => {
@@ -2636,7 +2778,19 @@
     enthusiastic: { less: "Less", default: "Default", more: "More" },
     headers: { more: "More", default: "Default", less: "Less" },
     emoji: { more: "More", default: "Default", less: "Less" },
-    voiceCallSound: { puck: "Puck (Energetic Male)", charon: "Charon (Deep Male)", aoede: "Aoede (Expressive Female)", kore: "Kore (Warm Female)", fenrir: "Fenrir (Bold Male)", zephyr: "Zephyr (Soft Female)", pegasus: "Pegasus (Rich Male)", "google-us": "US Natural", "google-uk": "UK Natural" },
+    voiceCallSound: {
+      aoede: "Aoede (Expressive Female)",
+      kore: "Kore (Warm Female)",
+      charon: "Charon (Deep Male)",
+      fenrir: "Fenrir (Bold Male)",
+      puck: "Puck (Energetic Male)",
+      zephyr: "Zephyr (Soft Female)",
+      pegasus: "Pegasus (Rich Male)",
+      "us-female": "US Female (Natural)",
+      "us-male": "US Male (Natural)",
+      "uk-female": "UK Female (Natural British)",
+      "uk-male": "UK Male (Natural British)"
+    },
     voiceSpeed: { "0.75": "0.75x (Slower)", "0.9": "0.9x (Normal)", "1.0": "1.0x (Standard)", "1.25": "1.25x (Faster)", "1.5": "1.5x (Fast)" },
     voicePitch: { low: "Lower pitch", normal: "Normal pitch", high: "Higher pitch" }
   };
@@ -2649,7 +2803,19 @@
     enthusiastic: [["less", "Less"], ["default", "Default"], ["more", "More"]],
     headers: [["more", "More"], ["default", "Default"], ["less", "Less"]],
     emoji: [["more", "More"], ["default", "Default"], ["less", "Less"]],
-    voiceCallSound: [["puck", "Puck (Energetic Male)"], ["charon", "Charon (Deep Male)"], ["aoede", "Aoede (Expressive Female)"], ["kore", "Kore (Warm Female)"], ["fenrir", "Fenrir (Bold Male)"], ["zephyr", "Zephyr (Soft Female)"], ["pegasus", "Pegasus (Rich Male)"], ["google-us", "US Natural"], ["google-uk", "UK Natural"]],
+    voiceCallSound: [
+      ["aoede", "Aoede (Expressive Female)"],
+      ["kore", "Kore (Warm Female)"],
+      ["charon", "Charon (Deep Male)"],
+      ["fenrir", "Fenrir (Bold Male)"],
+      ["puck", "Puck (Energetic Male)"],
+      ["zephyr", "Zephyr (Soft Female)"],
+      ["pegasus", "Pegasus (Rich Male)"],
+      ["us-female", "US Female (Natural)"],
+      ["us-male", "US Male (Natural)"],
+      ["uk-female", "UK Female (Natural British)"],
+      ["uk-male", "UK Male (Natural British)"]
+    ],
     voiceSpeed: [["0.75", "0.75x (Slower)"], ["0.9", "0.9x (Normal)"], ["1.0", "1.0x (Standard)"], ["1.25", "1.25x (Faster)"], ["1.5", "1.5x (Fast)"]],
     voicePitch: [["low", "Lower pitch"], ["normal", "Normal pitch"], ["high", "Higher pitch"]]
   };

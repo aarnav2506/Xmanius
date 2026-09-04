@@ -28,65 +28,98 @@ export default async function handler(request, response) {
   }
 
   const text = typeof body.text === "string" ? body.text.trim() : "";
-  const voiceName = typeof body.voice === "string" ? body.voice : "Aoede"; 
-
   if (!text) return response.status(400).json({ error: "Text data is required." });
   if (text.length > MAX_TEXT_BYTES) return response.status(413).json({ error: "Text data exceeds maximum size limit." });
 
-  const apiKey = process.env.XMANIUS_GEMINI_API_KEY || process.env.XMANIUS_GEMINI_API_KEY_1 || process.env.XMANIUS_GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY;
-  if (!apiKey) return response.status(503).json({ error: "Server AI credentials not configured." });
+  const rawVoiceKey = String(body.voice || "Aoede").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const VOICE_PROFILES = {
+    ukmale: { voiceName: "Charon", instruction: "You are a distinguished British male voice with a clear, refined UK accent and articulate, formal cadence." },
+    ukfemale: { voiceName: "Aoede", instruction: "You are a refined British female voice with a clear, melodic, eloquent UK accent." },
+    usmale: { voiceName: "Puck", instruction: "You are a friendly, natural American male voice with a clear, conversational US accent." },
+    usfemale: { voiceName: "Kore", instruction: "You are a calm, professional American female voice with a warm, clear US accent." },
+    charon: { voiceName: "Charon", instruction: "You are Charon: a deep, authoritative baritone male voice with resonant bass tone." },
+    fenrir: { voiceName: "Fenrir", instruction: "You are Fenrir: a bold, direct, confident, energetic male voice." },
+    puck: { voiceName: "Puck", instruction: "You are Puck: an upbeat, bright, expressive, youthful male voice." },
+    pegasus: { voiceName: "Pegasus", instruction: "You are Pegasus: a mature, rich, steady, commanding male voice." },
+    aoede: { voiceName: "Aoede", instruction: "You are Aoede: a warm, expressive, lyrical, natural storytelling female voice." },
+    kore: { voiceName: "Kore", instruction: "You are Kore: a soothing, serene, calm, balanced, professional female voice." },
+    zephyr: { voiceName: "Zephyr", instruction: "You are Zephyr: a soft, airy, gentle, compassionate female voice." }
+  };
+
+  const profile = VOICE_PROFILES[rawVoiceKey] || { voiceName: "Aoede", instruction: "You are a natural, expressive voice." };
+
+  const apiKeys = [
+    process.env.XMANIUS_GEMINI_API_KEY_LIVE,
+    process.env.XMANIUS_GEMINI_API_KEY_2,
+    process.env.XMANIUS_GEMINI_API_KEY,
+    process.env.XMANIUS_GEMINI_API_KEY_1,
+    process.env.XMANIUS_GEMINI_API_KEY_3,
+    process.env.XMANIUS_GEMINI_API_KEY_4,
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_API_KEY
+  ].filter(Boolean);
+
+  if (!apiKeys.length) return response.status(503).json({ error: "Server AI credentials not configured." });
 
   const ttsCandidates = [
+    { model: "gemini-2.5-flash-native-audio-dialog", apiVer: "v1beta" },
+    { model: "gemini-3-flash-live", apiVer: "v1beta" },
     { model: "gemini-2.0-flash", apiVer: "v1beta" },
     { model: "gemini-2.0-flash-exp", apiVer: "v1beta" },
     { model: "gemini-2.5-flash", apiVer: "v1alpha" },
     { model: "gemini-2.0-flash", apiVer: "v1alpha" }
   ];
 
-  for (const item of ttsCandidates) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/${item.apiVer}/models/${encodeURIComponent(item.model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const res = await fetchWithTimeout(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: `Read the following text out loud in a natural voice. Text: ${text}` }]
-            }
-          ],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: voiceName
+  for (const apiKey of apiKeys) {
+    for (const item of ttsCandidates) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${item.apiVer}/models/${encodeURIComponent(item.model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const res = await fetchWithTimeout(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: `${profile.instruction} Speak naturally, accurately, and fluently. Output ONLY the spoken audio corresponding to the input text. Do NOT add any introductions, greetings, meta commentary, or extra words.` }]
+            },
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: text }]
+              }
+            ],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: profile.voiceName
+                  }
                 }
               }
             }
-          }
-        })
-      }, 5000);
+          })
+        }, 5000);
 
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        let audioBase64 = null;
-        if (data.candidates?.[0]?.content?.parts) {
-          for (const part of data.candidates[0].content.parts) {
-            if (part.inlineData && (part.inlineData.mimeType?.includes('audio') || part.inlineData.data)) {
-              audioBase64 = part.inlineData.data;
-              break;
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          let audioBase64 = null;
+          if (data.candidates?.[0]?.content?.parts) {
+            for (const part of data.candidates[0].content.parts) {
+              if (part.inlineData && (part.inlineData.mimeType?.includes('audio') || part.inlineData.data)) {
+                audioBase64 = part.inlineData.data;
+                break;
+              }
             }
           }
+          
+          if (audioBase64) {
+             return response.status(200).json({ audio: audioBase64, mimeType: "audio/wav", voice: profile.voiceName });
+          }
         }
-        
-        if (audioBase64) {
-           return response.status(200).json({ audio: audioBase64, mimeType: "audio/wav" });
-        }
+      } catch (err) {
+        // Try next candidate
       }
-    } catch (err) {
-      // Try next audio candidate
     }
   }
 

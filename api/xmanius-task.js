@@ -261,10 +261,10 @@ function runAutonomousTask(task, body) {
           { name: "Square root: sqrt(81) = 9", code: "assertEquals(Calculator.squareRoot(81), 9);" },
         ];
       } else {
-        mainCode = "console.log('Task executed'); var results = { status: 'success' }; if (typeof module !== 'undefined') module.exports = results;";
+        mainCode = "console.log('Task executed for: " + escapeHtmlStr(objective).replace(/'/g, "\\'") + "'); var results = { status: 'success', objective: " + JSON.stringify(objective) + " }; if (typeof module !== 'undefined') module.exports = results;";
         files = [
           { name: "app.js", content: mainCode, folder: "src" },
-          { name: "index.html", content: "<h1>" + objective + "</h1>", folder: "src" },
+          { name: "index.html", content: "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Cortex Deliverable</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:32px;}</style></head><body><h1>" + escapeHtmlStr(objective) + "</h1><p>Autonomous task executed by XManius Cortex (Anti-Gravity).</p></body></html>", folder: "src" },
         ];
         testCases = [
           { name: "Base execution test", code: "assert(true, 'Task script loaded');" },

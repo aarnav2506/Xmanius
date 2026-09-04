@@ -310,24 +310,23 @@
 
   function playBrowserFallback(phrase, voiceName) {
     const fb = new SpeechSynthesisUtterance(phrase);
-    fb.rate = 1.05;
     
     const voices = window.speechSynthesis.getVoices() || [];
-    const isUK = voiceName?.includes('UK');
-    const isMale = voiceName?.includes('Male') || ['Charon', 'Fenrir', 'Puck'].includes(voiceName);
-    const lang = isUK ? 'en-GB' : 'en-US';
+    const isUK = /UK/i.test(voiceName);
+    const isMale = /Male/i.test(voiceName) || ['Charon', 'Fenrir', 'Puck', 'Pegasus'].includes(voiceName);
 
-    const langVoices = voices.filter(v => v.lang && v.lang.replace('_', '-').toLowerCase().startsWith(lang.toLowerCase()));
-    const pool = langVoices.length ? langVoices : voices;
+    const ukPool = voices.filter(v => v.lang && (/en[-_](gb|uk)|united kingdom/i.test(v.lang) || /uk|british|english \(united kingdom\)/i.test(v.name || "")));
+    const usPool = voices.filter(v => v.lang && (/en[-_]us|united states/i.test(v.lang) || /us|united states/i.test(v.name || "")));
+    const langPool = isUK ? (ukPool.length ? ukPool : voices) : (usPool.length ? usPool : voices);
 
-    const maleKeywords = ['male', 'david', 'mark', 'guy', 'ryan', 'george', 'stefan', 'james', 'richard', 'daniel', 'standard-b', 'standard-c', 'standard-d', 'standard-j'];
-    const femaleKeywords = ['female', 'zira', 'jenny', 'sonia', 'hazel', 'aria', 'susan', 'catherine', 'standard-a', 'standard-e', 'standard-f', 'standard-g'];
+    const maleKeywords = ['male', 'george', 'oliver', 'david', 'mark', 'guy', 'ryan', 'stefan', 'james', 'richard', 'daniel', 'standard-b', 'standard-c', 'standard-d', 'standard-j'];
+    const femaleKeywords = ['female', 'hazel', 'susan', 'zira', 'jenny', 'sonia', 'aria', 'catherine', 'standard-a', 'standard-e', 'standard-f', 'standard-g'];
 
     const targetKeywords = isMale ? maleKeywords : femaleKeywords;
     const avoidKeywords = isMale ? femaleKeywords : maleKeywords;
 
     let matchedVoice = null;
-    for (const v of pool) {
+    for (const v of langPool) {
       const name = (v.name || "").toLowerCase();
       if (targetKeywords.some(kw => name.includes(kw)) && !avoidKeywords.some(kw => name.includes(kw))) {
         matchedVoice = v;
@@ -336,7 +335,7 @@
     }
 
     if (!matchedVoice) {
-      for (const v of pool) {
+      for (const v of langPool) {
         const name = (v.name || "").toLowerCase();
         if (targetKeywords.some(kw => name.includes(kw))) {
           matchedVoice = v;
@@ -345,13 +344,48 @@
       }
     }
 
-    fb.voice = matchedVoice || pool[0] || null;
+    fb.voice = matchedVoice || langPool[0] || voices[0] || null;
     
-    // Explicitly modulate pitch so Male and Female are distinctly audible on all operating systems
-    if (isMale) {
-      fb.pitch = 0.82; // Lower, deeper pitch for male
+    // Explicitly modulate pitch and speed per profile so every voice sounds noticeably distinct
+    if (voiceName === 'UK_Male') {
+      fb.pitch = 0.76;
+      fb.rate = 0.93;
+    } else if (voiceName === 'UK_Female') {
+      fb.pitch = 1.22;
+      fb.rate = 0.94;
+    } else if (voiceName === 'US_Male') {
+      fb.pitch = 0.84;
+      fb.rate = 0.98;
+    } else if (voiceName === 'US_Female') {
+      fb.pitch = 1.14;
+      fb.rate = 1.00;
+    } else if (voiceName === 'Charon') {
+      fb.pitch = 0.65;
+      fb.rate = 0.88;
+    } else if (voiceName === 'Fenrir') {
+      fb.pitch = 0.82;
+      fb.rate = 1.05;
+    } else if (voiceName === 'Puck') {
+      fb.pitch = 1.08;
+      fb.rate = 1.12;
+    } else if (voiceName === 'Pegasus') {
+      fb.pitch = 0.72;
+      fb.rate = 0.96;
+    } else if (voiceName === 'Aoede') {
+      fb.pitch = 1.18;
+      fb.rate = 1.02;
+    } else if (voiceName === 'Kore') {
+      fb.pitch = 0.94;
+      fb.rate = 0.92;
+    } else if (voiceName === 'Zephyr') {
+      fb.pitch = 1.30;
+      fb.rate = 0.90;
+    } else if (isMale) {
+      fb.pitch = 0.80;
+      fb.rate = 0.96;
     } else {
-      fb.pitch = 1.15; // Higher, clearer pitch for female
+      fb.pitch = 1.15;
+      fb.rate = 1.00;
     }
     
     window.speechSynthesis.speak(fb);
@@ -390,11 +424,23 @@
     if (!videoEl || !isCameraActive || !videoStream) return null;
     try {
       const snap = document.createElement('canvas');
-      snap.width  = videoEl.videoWidth  || 640;
-      snap.height = videoEl.videoHeight || 480;
+      const maxDim = 640;
+      let w = videoEl.videoWidth || 640;
+      let h = videoEl.videoHeight || 480;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      snap.width = w;
+      snap.height = h;
       const ctx = snap.getContext('2d');
-      ctx.drawImage(videoEl, 0, 0, snap.width, snap.height);
-      return snap.toDataURL('image/jpeg', 0.85);
+      ctx.drawImage(videoEl, 0, 0, w, h);
+      return snap.toDataURL('image/jpeg', 0.72);
     } catch (e) {
       console.warn('Frame capture error:', e);
       return null;
@@ -476,7 +522,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: promptMessage,
-          model: (() => { try { const v = localStorage.getItem("xmanius-selected-model-v1"); return /^xmanius-[1-9]$/.test(v||"") ? v : "xmanius-1"; } catch { return "xmanius-1"; } })(),
+          model: "xmanius-2",
           attachments,
           thinkMode: false,
           webSearch: needsWebSearch,
