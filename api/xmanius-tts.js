@@ -80,8 +80,9 @@ export default async function handler(request, response) {
 
   const ttsCandidates = [
     { model: "gemini-2.0-flash", apiVer: "v1beta" },
-    { model: "gemini-2.5-flash", apiVer: "v1beta" },
+    { model: "gemini-3-flash-live", apiVer: "v1beta" },
     { model: "gemini-2.5-flash-native-audio-dialog", apiVer: "v1beta" },
+    { model: "gemini-2.5-flash", apiVer: "v1beta" },
     { model: "gemini-2.0-flash-exp", apiVer: "v1beta" }
   ];
 
