@@ -55,19 +55,19 @@ export default async function handler(request, response) {
   if (!audioData) return response.status(400).json({ error: "Audio data is required." });
   if (audioData.length > MAX_AUDIO_BYTES) return response.status(413).json({ error: "Audio data exceeds maximum size limit." });
 
-  // Dedicated Live key allocation (Key LIVE or Key 2 has its own quota pool)
-  const rawKey = process.env.XMANIUS_GEMINI_API_KEY_LIVE ||
-                 process.env.XMANIUS_GEMINI_API_KEY_2 ||
+  // Key 8 is preserved exclusively for Voice & Audio (TTS, Transcribe, Translate)
+  const rawKey = process.env.XMANIUS_GEMINI_API_KEY_8 ||
+                 process.env.XMANIUS_GEMINI_API_KEY_LIVE ||
+                 process.env.XMANIUS_GEMINI_API_KEY_8_LIVE ||
                  process.env.XMANIUS_GEMINI_API_KEY ||
-                 process.env.XMANIUS_GEMINI_API_KEY_1 ||
                  process.env.GEMINI_API_KEY ||
                  process.env.GOOGLE_API_KEY;
   const apiKey = String(rawKey || "").trim().replace(/^["']|["']$/g, "");
   if (!apiKey) return response.status(503).json({ error: "Server AI credentials not configured." });
 
   const fallbackModels = translate
-    ? ["gemini-3.5-live-translate", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3-flash-live"]
-    : ["gemini-3.5-transcribe-live", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3-flash-live"];
+    ? ["gemini-3.5-live-translate", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+    : ["gemini-3.5-transcribe-live", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
 
   const prompt = translate
     ? `Listen to this live audio recording carefully. Translate all spoken words accurately into clean, natural ${targetLanguage} text. Return only the translated text.`
@@ -95,7 +95,7 @@ export default async function handler(request, response) {
           ],
           generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
         })
-      }, UPSTREAM_TIMEOUT_MS);
+      }, 3000);
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));

@@ -230,6 +230,8 @@
     const audioSrc = audioQueue.shift();
     
     currentAiAudio = new Audio(audioSrc);
+    currentAiAudio.playbackRate = 1.08;
+    currentAiAudio.defaultPlaybackRate = 1.08;
     currentAiAudio.onended = () => {
       // Small pause between sentences
       setTimeout(playNextAudioChunk, 80);

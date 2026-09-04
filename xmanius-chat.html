@@ -116,34 +116,114 @@
         <div class="dictation-bar" data-dictation-bar aria-hidden="true" style="display: none !important;"><button type="button" class="dictation-cancel" data-dictation-cancel aria-label="Cancel voice input">×</button><span class="dictation-waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button type="button" class="dictation-stop" data-dictation-stop aria-label="Stop recording"><span></span></button><button type="button" class="dictation-send" data-dictation-send aria-label="Send dictated message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button></div>
         <div class="model-picker" data-model-picker aria-label="Choose model and attachments">
           <div class="model-picker-models" data-auth-only style="display: none;">
-            <button class="model-option is-selected" type="button" data-model="xmanius-1">
-              <div class="model-option-text">
-                <strong>XManius 1.5</strong>
-                <small>Gemini 3.5 Flash Lite • Fast multi-modal AI &amp; tools</small>
+            <!-- Slot 1: XManius 1.5 -->
+            <div class="model-slot-row" data-slot="xmanius-1">
+              <button class="model-option is-selected" type="button" data-model="xmanius-1">
+                <div class="model-option-text">
+                  <div class="model-option-header">
+                    <strong>XManius 1.5</strong>
+                    <span class="model-key-badge" data-key-badge="xmanius-1">Key 1 ▾</span>
+                  </div>
+                  <small>Gemini 3.5 Flash Lite • Fast multi-modal AI &amp; tools</small>
+                </div>
+                <b>✓</b>
+              </button>
+              <div class="model-key-dropdown" data-key-menu="xmanius-1">
+                <div class="model-key-dropdown-title">Select API Key for XManius 1.5</div>
+                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-1" data-key="1">⚡ Key 1 (Primary)</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="2">⚡ Key 2</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="3">⚡ Key 3</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="4">⚡ Key 4</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="5">⚡ Key 5</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="6">⚡ Key 6</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="7">⚡ Key 7</button>
+                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+                <div class="model-key-divider"></div>
+                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-1" data-key="auto">🔄 Auto Key</button>
               </div>
-              <b>✓</b>
-            </button>
-            <button class="model-option" type="button" data-model="xmanius-2">
-              <div class="model-option-text">
-                <strong>XManius Flash</strong>
-                <small>Gemini 3.1 Flash Lite • Sub-second ultra-low latency</small>
+            </div>
+
+            <!-- Slot 2: XManius Flash -->
+            <div class="model-slot-row" data-slot="xmanius-2">
+              <button class="model-option" type="button" data-model="xmanius-2">
+                <div class="model-option-text">
+                  <div class="model-option-header">
+                    <strong>XManius Flash</strong>
+                    <span class="model-key-badge" data-key-badge="xmanius-2">Key 2 ▾</span>
+                  </div>
+                  <small>Gemini 3.1 Flash Lite • Sub-second ultra-low latency</small>
+                </div>
+                <b></b>
+              </button>
+              <div class="model-key-dropdown" data-key-menu="xmanius-2">
+                <div class="model-key-dropdown-title">Select API Key for XManius Flash</div>
+                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="1">⚡ Key 1</button>
+                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-2" data-key="2">⚡ Key 2 (Primary)</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="3">⚡ Key 3</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="4">⚡ Key 4</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="5">⚡ Key 5</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="6">⚡ Key 6</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="7">⚡ Key 7</button>
+                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+                <div class="model-key-divider"></div>
+                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-2" data-key="auto">🔄 Auto Key</button>
               </div>
-              <b></b>
-            </button>
-            <button class="model-option" type="button" data-model="xmanius-3">
-              <div class="model-option-text">
-                <strong>XManius 2 Pro</strong>
-                <small>Gemini 3.8 Flash • Advanced reasoning &amp; multi-tool STEM</small>
+            </div>
+
+            <!-- Slot 3: XManius 2 Pro -->
+            <div class="model-slot-row" data-slot="xmanius-3">
+              <button class="model-option" type="button" data-model="xmanius-3">
+                <div class="model-option-text">
+                  <div class="model-option-header">
+                    <strong>XManius 2 Pro</strong>
+                    <span class="model-key-badge" data-key-badge="xmanius-3">Key 3 ▾</span>
+                  </div>
+                  <small>Gemini 3.8 Flash • Advanced reasoning &amp; multi-tool STEM</small>
+                </div>
+                <b></b>
+              </button>
+              <div class="model-key-dropdown" data-key-menu="xmanius-3">
+                <div class="model-key-dropdown-title">Select API Key for XManius 2 Pro</div>
+                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="1">⚡ Key 1</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="2">⚡ Key 2</button>
+                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-3" data-key="3">⚡ Key 3 (Primary)</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="4">⚡ Key 4</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="5">⚡ Key 5</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="6">⚡ Key 6</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="7">⚡ Key 7</button>
+                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+                <div class="model-key-divider"></div>
+                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-3" data-key="auto">🔄 Auto Key</button>
               </div>
-              <b></b>
-            </button>
-            <button class="model-option" type="button" data-model="xmanius-4">
-              <div class="model-option-text">
-                <strong>XManius Cortex</strong>
-                <small>Anti-Gravity • Autonomous agent execution &amp; problem solving</small>
+            </div>
+
+            <!-- Slot 4: XManius Cortex -->
+            <div class="model-slot-row" data-slot="xmanius-4">
+              <button class="model-option" type="button" data-model="xmanius-4">
+                <div class="model-option-text">
+                  <div class="model-option-header">
+                    <strong>XManius Cortex</strong>
+                    <span class="model-key-badge" data-key-badge="xmanius-4">Key 4 ▾</span>
+                  </div>
+                  <small>Anti-Gravity • Autonomous agent execution &amp; problem solving</small>
+                </div>
+                <b></b>
+              </button>
+              <div class="model-key-dropdown" data-key-menu="xmanius-4">
+                <div class="model-key-dropdown-title">Select API Key for XManius Cortex</div>
+                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="1">⚡ Key 1</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="2">⚡ Key 2</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="3">⚡ Key 3</button>
+                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-4" data-key="4">⚡ Key 4 (Primary)</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="5">⚡ Key 5</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="6">⚡ Key 6</button>
+                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="7">⚡ Key 7</button>
+                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+                <div class="model-key-divider"></div>
+                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-4" data-key="auto">🔄 Auto Key</button>
               </div>
-              <b></b>
-            </button>
+            </div>
+
             <div class="model-picker-divider"></div>
           </div>
           <button type="button" class="model-option model-option-attachment" data-attach-files><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 13.5 7a3.5 3.5 0 0 1 5 5l-7.5 7.5a5 5 0 0 1-7-7L11.5 5"></path></svg><span class="attachment-option-copy"><strong>Add photos &amp; files</strong><small>Upload from computer</small></span><b class="shortcut-label">Ctrl + K</b></button>

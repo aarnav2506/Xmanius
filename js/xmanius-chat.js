@@ -2158,9 +2158,11 @@
       const profile = window.XmaniusAuth?.getUserProfile?.() || {};
       const userName = (!profile.isGuest && profile.displayName && profile.displayName !== "Guest User") ? profile.displayName.trim() : "";
       const isCortexMode = selectedModel === "xmanius-4" || selectedModel === "xmanius-7" || selectedModel === "xmanius-8";
+      const slotActiveKey = (typeof getSelectedKeyForSlot === "function") ? getSelectedKeyForSlot(selectedModel) : (localStorage.getItem(`xmanius-slot-key-${selectedModel}`) || "auto");
       const requestPayload = {
         message: requestMessage,
         model: selectedModel,
+        selectedKey: slotActiveKey,
         runAsTask: isCortexMode,
         mode: isCortexMode ? "cortex" : (webSearch ? "research" : (thinkMode ? "deep_research" : "fast")),
         thinkMode,
@@ -2676,10 +2678,108 @@
     });
     if (modelName) modelName.innerHTML = `<span data-active-model-name>${getModelDisplayName(selectedModel)}</span> <span class="model-chevron" style="display:inline-block; margin-left:4px; font-size:12px; transform:translateY(1px);">⌵</span>`;
   };
+  const getDefaultKeyForSlot = (slot) => {
+    if (slot === "xmanius-1") return "1";
+    if (slot === "xmanius-2") return "2";
+    if (slot === "xmanius-3") return "3";
+    if (slot === "xmanius-4") return "4";
+    return "auto";
+  };
+
+  const getSelectedKeyForSlot = (slot) => {
+    try {
+      const saved = localStorage.getItem(`xmanius-slot-key-${slot}`);
+      if (saved && (/^[1-7]$/.test(saved) || saved === "auto")) return saved;
+    } catch {}
+    return getDefaultKeyForSlot(slot);
+  };
+
+  const setSelectedKeyForSlot = (slot, key) => {
+    try {
+      localStorage.setItem(`xmanius-slot-key-${slot}`, key);
+    } catch {}
+    const badge = modelPicker?.querySelector(`[data-key-badge="${slot}"]`);
+    if (badge) {
+      badge.textContent = key === "auto" ? "Auto ▾" : `Key ${key} ▾`;
+    }
+    const menu = modelPicker?.querySelector(`[data-key-menu="${slot}"]`);
+    if (menu) {
+      menu.querySelectorAll(".model-key-opt").forEach((opt) => {
+        opt.classList.toggle("is-selected", opt.dataset.key === key);
+      });
+    }
+  };
+
+  window.XmaniusGetSlotKey = getSelectedKeyForSlot;
+  window.XmaniusSetSlotKey = setSelectedKeyForSlot;
+
+  // Initialize key badges & dropdown active states
+  ["xmanius-1", "xmanius-2", "xmanius-3", "xmanius-4"].forEach((slot) => {
+    setSelectedKeyForSlot(slot, getSelectedKeyForSlot(slot));
+  });
+
   window.XmaniusSetSelectedModel = setSelectedModel;
   setSelectedModel(selectedModel);
-  modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } if (event.target.closest("[data-more-models]")) { setModelSubmenu(!modelSubmenu?.classList.contains("is-open")); return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
-  document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) setModelPicker(false); });
+
+  modelPicker?.addEventListener("click", (event) => {
+    const keyOpt = event.target.closest(".model-key-opt");
+    if (keyOpt) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!keyOpt.classList.contains("is-reserved")) {
+        const slot = keyOpt.dataset.slot;
+        const key = keyOpt.dataset.key;
+        if (slot && key) {
+          setSelectedKeyForSlot(slot, key);
+          setSelectedModel(slot);
+        }
+      }
+      return;
+    }
+
+    const keyBadge = event.target.closest(".model-key-badge");
+    if (keyBadge) {
+      event.preventDefault();
+      event.stopPropagation();
+      const slot = keyBadge.dataset.keyBadge;
+      const menu = modelPicker?.querySelector(`[data-key-menu="${slot}"]`);
+      if (menu) {
+        const wasOpen = menu.classList.contains("is-open");
+        modelPicker?.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+        if (!wasOpen) menu.classList.add("is-open");
+      }
+      return;
+    }
+
+    if (event.target.closest(".model-key-dropdown")) {
+      event.stopPropagation();
+      return;
+    }
+
+    if (event.target.closest("[data-voice-chat]")) {
+      setModelPicker(false);
+      input.placeholder = "Voice chat is ready";
+      return;
+    }
+    if (event.target.closest("[data-more-models]")) {
+      setModelSubmenu(!modelSubmenu?.classList.contains("is-open"));
+      return;
+    }
+    const option = event.target.closest("[data-model]");
+    if (option) {
+      setSelectedModel(option.dataset.model);
+      setModelPicker(false);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".model-slot-row")) {
+      document.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+    }
+    if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) {
+      setModelPicker(false);
+    }
+  });
   const reset = () => { saveCurrentChat(); currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; document.body.classList.add("is-empty-state"); input.value = ""; input.focus(); };
   document.querySelectorAll("[data-new-chat]").forEach((button) => button.addEventListener("click", reset));
   document.addEventListener("click", (event) => {

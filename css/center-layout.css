@@ -1367,3 +1367,193 @@ body.xmanius-theme-light .memory-delete-btn:hover {
   background: #fee2e2 !important;
   color: #dc2626 !important;
 }
+
+/* -------------------------------------------------------------
+   MANUAL API KEY HOVER SELECTION DROPDOWN PER SLOT (KEYS 1 TO 8)
+------------------------------------------------------------- */
+.model-picker,
+.model-picker-models {
+  overflow: visible !important;
+}
+
+.model-slot-row {
+  position: relative !important;
+  width: 100% !important;
+}
+
+.model-slot-row .model-option {
+  width: 100% !important;
+}
+
+.model-option-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.model-key-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.28) !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+}
+
+.model-key-badge:hover {
+  background: rgba(56, 189, 248, 0.25) !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  color: #7dd3fc !important;
+}
+
+.model-key-dropdown {
+  display: none;
+  position: absolute !important;
+  left: 100% !important;
+  top: 0 !important;
+  margin-left: 8px !important;
+  width: 215px !important;
+  padding: 8px !important;
+  background: #18191e !important;
+  border: 1px solid #333742 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  z-index: 400 !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+/* Continuous hover bridge */
+.model-key-dropdown::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: -12px !important;
+  width: 14px !important;
+  background: transparent !important;
+}
+
+.model-slot-row:hover .model-key-dropdown,
+.model-key-dropdown.is-open {
+  display: flex !important;
+}
+
+.model-key-dropdown-title {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: #94a3b8 !important;
+  padding: 4px 8px 6px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  margin-bottom: 4px !important;
+}
+
+.model-key-opt {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #cbd5e1 !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: all 0.12s ease !important;
+  box-sizing: border-box !important;
+}
+
+.model-key-opt:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.model-key-opt.is-selected {
+  background: rgba(59, 130, 246, 0.22) !important;
+  color: #60a5fa !important;
+  font-weight: 700 !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+.model-key-opt.is-reserved {
+  font-size: 10.5px !important;
+  color: #94a3b8 !important;
+  opacity: 0.75 !important;
+  cursor: not-allowed !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.12) !important;
+  padding: 5px 8px !important;
+}
+
+.model-key-divider {
+  height: 1px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  margin: 4px 0 !important;
+}
+
+.model-key-auto {
+  color: #38bdf8 !important;
+}
+
+/* Light Mode Support */
+body.xmanius-theme-light .model-key-badge {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0284c7 !important;
+  border-color: rgba(14, 165, 233, 0.3) !important;
+}
+
+body.xmanius-theme-light .model-key-badge:hover {
+  background: rgba(14, 165, 233, 0.2) !important;
+  color: #0369a1 !important;
+}
+
+body.xmanius-theme-light .model-key-dropdown {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.xmanius-theme-light .model-key-dropdown-title {
+  color: #64748b !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+body.xmanius-theme-light .model-key-opt {
+  color: #334155 !important;
+}
+
+body.xmanius-theme-light .model-key-opt:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.xmanius-theme-light .model-key-opt.is-selected {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border-color: #bfdbfe !important;
+}
+
+body.xmanius-theme-light .model-key-opt.is-reserved {
+  color: #64748b !important;
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.xmanius-theme-light .model-key-divider {
+  background: #e2e8f0 !important;
+}
+

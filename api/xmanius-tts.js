@@ -66,13 +66,12 @@ export default async function handler(request, response) {
 
   const profile = VOICE_PROFILES[rawVoiceKey] || { voiceName: "Aoede", instruction: "You are a natural, expressive voice." };
 
+  // Key 8 is preserved exclusively for Voice (TTS, Transcribe, Translate)
   const apiKeys = [
+    process.env.XMANIUS_GEMINI_API_KEY_8,
     process.env.XMANIUS_GEMINI_API_KEY_LIVE,
-    process.env.XMANIUS_GEMINI_API_KEY_2,
+    process.env.XMANIUS_GEMINI_API_KEY_8_LIVE,
     process.env.XMANIUS_GEMINI_API_KEY,
-    process.env.XMANIUS_GEMINI_API_KEY_1,
-    process.env.XMANIUS_GEMINI_API_KEY_3,
-    process.env.XMANIUS_GEMINI_API_KEY_4,
     process.env.GEMINI_API_KEY,
     process.env.GOOGLE_API_KEY
   ].filter(Boolean);
@@ -86,7 +85,7 @@ export default async function handler(request, response) {
     { model: "gemini-2.0-flash-exp", apiVer: "v1beta" }
   ];
 
-  for (const rawApiKey of apiKeys.slice(0, 4)) {
+  for (const rawApiKey of apiKeys.slice(0, 3)) {
     const apiKey = String(rawApiKey || "").trim().replace(/^["']|["']$/g, "");
     if (!apiKey) continue;
     for (const item of ttsCandidates) {
@@ -98,7 +97,7 @@ export default async function handler(request, response) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: `${profile.instruction} Speak at a natural, brisk conversational pace. Output ONLY the spoken audio for this text without extra words.` }]
+              parts: [{ text: `${profile.instruction} Speak at an energetic, crisp, natural conversational pace without any slow pauses or drawn-out words. Output ONLY the spoken audio for this text without extra words.` }]
             },
             contents: [
               {
