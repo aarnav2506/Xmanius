@@ -1,3 +1,20 @@
+import fs from "fs";
+import path from "path";
+
+// Auto-load local .env if present
+try {
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (fs.existsSync(envPath)) {
+    const envData = fs.readFileSync(envPath, "utf8");
+    for (const line of envData.split("\n")) {
+      const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)?\s*$/);
+      if (m && !process.env[m[1]]) {
+        process.env[m[1]] = (m[2] || "").trim().replace(/^["']|["']$/g, "");
+      }
+    }
+  }
+} catch (_) {}
+
 const MAX_AUDIO_BYTES = 50000000;
 const UPSTREAM_TIMEOUT_MS = 15000;
 
@@ -39,15 +56,18 @@ export default async function handler(request, response) {
   if (audioData.length > MAX_AUDIO_BYTES) return response.status(413).json({ error: "Audio data exceeds maximum size limit." });
 
   // Dedicated Live key allocation (Key LIVE or Key 2 has its own quota pool)
-  const apiKey = process.env.XMANIUS_GEMINI_API_KEY_LIVE ||
+  const rawKey = process.env.XMANIUS_GEMINI_API_KEY_LIVE ||
                  process.env.XMANIUS_GEMINI_API_KEY_2 ||
                  process.env.XMANIUS_GEMINI_API_KEY ||
-                 process.env.XMANIUS_GEMINI_API_KEY_1;
+                 process.env.XMANIUS_GEMINI_API_KEY_1 ||
+                 process.env.GEMINI_API_KEY ||
+                 process.env.GOOGLE_API_KEY;
+  const apiKey = String(rawKey || "").trim().replace(/^["']|["']$/g, "");
   if (!apiKey) return response.status(503).json({ error: "Server AI credentials not configured." });
 
   const fallbackModels = translate
-    ? ["gemini-3.5-live-translate", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3-flash-live"]
-    : ["gemini-3.5-transcribe-live", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3-flash-live"];
+    ? ["gemini-3.5-live-translate", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3-flash-live"]
+    : ["gemini-3.5-transcribe-live", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3-flash-live"];
 
   const prompt = translate
     ? `Listen to this live audio recording carefully. Translate all spoken words accurately into clean, natural ${targetLanguage} text. Return only the translated text.`

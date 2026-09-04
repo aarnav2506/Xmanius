@@ -493,7 +493,7 @@
       voice = pickMale(1);
     }
 
-    if (appSettings.voiceSpeed) {
+    if (appSettings.voiceSpeed && appSettings.voiceSpeed !== "1.0") {
       rate = Number(appSettings.voiceSpeed) || rate;
     }
     if (appSettings.voicePitch === "low") {

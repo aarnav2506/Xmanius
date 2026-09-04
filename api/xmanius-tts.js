@@ -1,3 +1,20 @@
+import fs from "fs";
+import path from "path";
+
+// Auto-load local .env if present
+try {
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (fs.existsSync(envPath)) {
+    const envData = fs.readFileSync(envPath, "utf8");
+    for (const line of envData.split("\n")) {
+      const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)?\s*$/);
+      if (m && !process.env[m[1]]) {
+        process.env[m[1]] = (m[2] || "").trim().replace(/^["']|["']$/g, "");
+      }
+    }
+  }
+} catch (_) {}
+
 const MAX_TEXT_BYTES = 50000;
 const UPSTREAM_TIMEOUT_MS = 15000;
 
@@ -65,13 +82,17 @@ export default async function handler(request, response) {
   const ttsCandidates = [
     { model: "gemini-2.0-flash", apiVer: "v1beta" },
     { model: "gemini-2.5-flash", apiVer: "v1beta" },
-    { model: "gemini-2.5-flash-native-audio-dialog", apiVer: "v1beta" }
+    { model: "gemini-2.5-flash-native-audio-dialog", apiVer: "v1beta" },
+    { model: "gemini-2.0-flash-exp", apiVer: "v1beta" }
   ];
 
-  for (const apiKey of apiKeys.slice(0, 3)) {
+  for (const rawApiKey of apiKeys.slice(0, 4)) {
+    const apiKey = String(rawApiKey || "").trim().replace(/^["']|["']$/g, "");
+    if (!apiKey) continue;
     for (const item of ttsCandidates) {
       try {
-        const url = `https://generativelanguage.googleapis.com/${item.apiVer}/models/${encodeURIComponent(item.model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const cleanModel = String(item.model || "").trim().replace(/^models\//i, "");
+        const url = `https://generativelanguage.googleapis.com/${item.apiVer}/models/${encodeURIComponent(cleanModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
         const res = await fetchWithTimeout(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -119,8 +140,6 @@ export default async function handler(request, response) {
       }
     }
   }
-
-  return response.status(502).json({ error: "Could not synthesize audio with Gemini models." });
 
   return response.status(502).json({ error: "Could not synthesize audio right now." });
 }
