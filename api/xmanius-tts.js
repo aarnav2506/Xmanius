@@ -66,11 +66,15 @@ export default async function handler(request, response) {
 
   const profile = VOICE_PROFILES[rawVoiceKey] || { voiceName: "Aoede", instruction: "You are a natural, expressive voice." };
 
-  // Key 8 is preserved exclusively for Voice (TTS, Transcribe, Translate)
+  // Prioritize Key 8 for voice, but fall back gracefully across other available keys
+  // so audio never fails with 502 if Key 8 is missing, restricted, or exhausted
   const apiKeys = [
     process.env.XMANIUS_GEMINI_API_KEY_8,
     process.env.XMANIUS_GEMINI_API_KEY_LIVE,
     process.env.XMANIUS_GEMINI_API_KEY_8_LIVE,
+    process.env.XMANIUS_GEMINI_API_KEY_2,
+    process.env.XMANIUS_GEMINI_API_KEY_1,
+    process.env.XMANIUS_GEMINI_API_KEY_3,
     process.env.XMANIUS_GEMINI_API_KEY,
     process.env.GEMINI_API_KEY,
     process.env.GOOGLE_API_KEY
@@ -79,14 +83,13 @@ export default async function handler(request, response) {
   if (!apiKeys.length) return response.status(503).json({ error: "Server AI credentials not configured." });
 
   const ttsCandidates = [
-    { model: "gemini-2.0-flash", apiVer: "v1beta" },
-    { model: "gemini-3-flash-live", apiVer: "v1beta" },
     { model: "gemini-2.5-flash-native-audio-dialog", apiVer: "v1beta" },
+    { model: "gemini-3-flash-live", apiVer: "v1beta" },
     { model: "gemini-2.5-flash", apiVer: "v1beta" },
-    { model: "gemini-2.0-flash-exp", apiVer: "v1beta" }
+    { model: "gemini-3.5-flash-lite", apiVer: "v1beta" }
   ];
 
-  for (const rawApiKey of apiKeys.slice(0, 3)) {
+  for (const rawApiKey of apiKeys.slice(0, 4)) {
     const apiKey = String(rawApiKey || "").trim().replace(/^["']|["']$/g, "");
     if (!apiKey) continue;
     for (const item of ttsCandidates) {
@@ -117,7 +120,7 @@ export default async function handler(request, response) {
               }
             }
           })
-        }, 2500);
+        }, 4000);
 
         if (res.ok) {
           const data = await res.json().catch(() => ({}));

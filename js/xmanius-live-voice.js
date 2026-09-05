@@ -268,20 +268,22 @@
       }
     }
 
+    let ttsFailedForSession = false;
+
     // Process phrases sequentially but play them as soon as they are ready
     for (let i = 0; i < phrases.length; i++) {
       if (signal.aborted) break;
       const phrase = phrases[i].trim();
       if (!phrase) continue;
 
-      if (selectedVoice.startsWith('Browser_')) {
+      if (ttsFailedForSession || selectedVoice.startsWith('Browser_') || /^(US|UK)_(Female|Male)$/i.test(selectedVoice)) {
         playBrowserFallback(phrase, selectedVoice);
         continue;
       }
 
       try {
         const ttsController = new AbortController();
-        const ttsTimer = setTimeout(() => ttsController.abort(), 2200);
+        const ttsTimer = setTimeout(() => ttsController.abort(), 2500);
 
         const response = await fetch(ttsUrl, {
           method: 'POST',
@@ -302,13 +304,16 @@
               playNextAudioChunk();
             }
           } else {
+            ttsFailedForSession = true;
             playBrowserFallback(phrase, selectedVoice);
           }
         } else {
+          ttsFailedForSession = true;
           playBrowserFallback(phrase, selectedVoice);
         }
       } catch (err) {
         if (signal.aborted) break;
+        ttsFailedForSession = true;
         playBrowserFallback(phrase, selectedVoice);
       }
     }
@@ -498,7 +503,7 @@
     voiceHistory.push({ role: 'user', text: promptMessage });
 
     // Only trigger search engine and GPS location when query actually requires live facts / local search
-    const needsWebSearch = /\b(weather|news|near\s+me|nearby|closest|find|search|dominos?|pizza|restaurant|food|today|current|price|who\s+is|where\s+is|when\s+is|latest|location|salon|store|shop|hospital)\b/i.test(promptMessage);
+    const needsWebSearch = /\b(weather\s+(today|now|here)|live\s+news|near\s+me|nearby|closest|restaurants?\s+near|food\s+near|salon\s+near|hospital\s+near|store\s+near|current\s+stock\s+price)\b/i.test(promptMessage);
 
     let userLocation = null;
     if (needsWebSearch && navigator.geolocation) {

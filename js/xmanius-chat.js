@@ -1537,9 +1537,9 @@
     const mime = (attachment?.mimeType || "").toLowerCase();
     const ext = (attachment?.name?.split(".").pop() || "").toLowerCase();
 
-    if (attachment?.thumbnail || (attachment?.data && /^image\//i.test(mime))) {
+    if (attachment?.blobUrl || attachment?.thumbnail || (attachment?.data && /^image\//i.test(mime))) {
       const image = document.createElement("img");
-      image.src = attachment.thumbnail || ("data:" + mime + ";base64," + attachment.data);
+      image.src = attachment.blobUrl || attachment.thumbnail || ("data:" + mime + ";base64," + attachment.data);
       image.alt = "Preview of " + attachment.name;
       card.append(image);
     } else if (/^video\//i.test(mime) || /^(mp4|webm|mov|mkv|avi)$/i.test(ext)) {
@@ -2090,7 +2090,7 @@
     }
     addMessage(q || "Please analyze the attached file(s).", "user", { attachmentNames: requestAttachments.map((attachment) => attachment.name) });
     renderMessageAttachmentPreviews(list.lastElementChild, requestAttachments);
-    await persistAttachmentPayloads(requestAttachments);
+    persistAttachmentPayloads(requestAttachments).catch(() => {});
     const sentMessage = list.lastElementChild;
     if (sentMessage && requestAttachments.length) sentMessage.dataset.attachmentRefs = JSON.stringify(requestAttachments.map(attachmentReference));
     saveCurrentChat();
