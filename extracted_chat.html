@@ -1,0 +1,146 @@
+# Gemini AI UI Alignment Implementation Plan
+
+This plan details the technical changes required to accurately match the UI and UX shown in the 5 provided Gemini AI screenshots.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Key UI/UX Decisions to Confirm:**
+> 1. **Composer Pill vs. Rounded Rectangle**: In the default/empty state, the composer is a 54px high pill with completely rounded half-circle ends (`border-radius: 9999px`). When images or files are uploaded, it transforms into an expanded rectangular card with smooth corners (`border-radius: 24px`), displaying the image thumbnail at the top-left, the prompt input directly below it (smaller 15px font), and bottom controls with `+` on the left and `[Flash ⌵] [Mic] [Send]` on the right.
+> 2. **Composer Controls & Dropdown**: The standalone "Think" and "Search" buttons are removed from the composer bar. Instead, the model dropdown button (`Flash ⌵`) opens a Gemini-style menu containing:
+>    - **XManius Flash** (*Fastest answers*)
+>    - **XManius 1.5** (*All-around help* — without Gemini symbols)
+>    - **XManius 2 Pro** (*Advanced reasoning*)
+>    - Divider
+>    - **Extended thinking** (*Complex problem solving* — toggles Think mode)
+>    - **Search mode** (*Search the web* — toggles Web search)
+> 3. **Temporary Chat Icon**: The `＋` icon in the top-right header tools is replaced with the circular dashed incognito/temporary chat icon matching Screenshot 2.
+> 4. **Sidebar Redesign**:
+>    - Sidebar background changed from `#090909` to Gemini's grayish dark `#1e1f20`, with width increased to ~272px.
+>    - Top brand logo resized to neatly fit the header row just like Gemini (icon + wordmark/text ~22px high).
+>    - Segmented slider added below the logo: `[ Chat | Cortex BETA ]`, allowing one-click toggle between standard chat and Cortex mode.
+>    - Navigation items streamlined to exactly three: **New chat**, **Search chats**, and **Library**, followed by the Recents list.
+> 5. **Multi-platform Consistency**: Changes will be applied to the root files and synced to `mobile_app/` and `www/`.
+
+---
+
+## Proposed Changes
+
+### Component 1: Header & Temporary Chat Icon
+
+#### [MODIFY] [xmanius-chat.html](file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html)
+- Replace the top-right `＋` button (`data-new-chat` in `.header-tools`) with the **Temporary Chat** icon button (`data-temporary-chat`), rendering the dashed circular perimeter with angled capsule/lens icon as shown in Screenshot 2.
+- Provide accessible label and click toggle state for Temporary Chat.
+
+---
+
+### Component 2: Sidebar (Color, Width, Logo, Slider, Navigation)
+
+#### [MODIFY] [xmanius-chat.html](file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html)
+- **Logo area**: Replace oversized brand banner with proportional logo (XManius icon + clean "Xmanias" / "XManius" text, sized to ~22px height) matching Screenshot 5.
+- **Slider**: Add the segmented pill switch container between Logo and Navigation:
+  - `Chat` tab (active by default).
+  - `Cortex` `BETA` tab (with badge).
+- **Navigation**: Render exactly 3 items:
+  1. `New chat` (with pen/edit icon)
+  2. `Search chats` (with magnifying glass icon)
+  3. `Library` (with 4-square grid icon)
+- Retain the `Recent` section and bottom user profile (`Aarnav Thakur` / `Pro` / gear settings).
+
+#### [MODIFY] [css/xmanius-chat.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/xmanius-chat.css) & [css/center-layout.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/center-layout.css)
+- Set sidebar background color to Gemini grayish `#1e1f20` (border `#2a2b2e`).
+- Set main chat background to deep dark `#131314`.
+- Increase desktop sidebar width to `272px`.
+- Add styling for the `[ Chat | Cortex BETA ]` slider capsule:
+  - Container: dark pill `#131314`, padding 4px.
+  - Active tab: `#282a2c` background with crisp white text.
+  - Beta badge: subtle blue-tint pill (`#8ab4f8` on dark translucent blue).
+- Style the 3 navigation items (`.sidebar-nav-item`) with rounded pill hover effects matching Screenshot 5.
+
+#### [MODIFY] [js/xmanius-chat.js](file:///g:/Aarnav/CODING%202026/Xmanius/js/xmanius-chat.js)
+- Wire the sidebar slider tabs:
+  - Clicking `Chat`: sets regular chat mode (restores selected standard model).
+  - Clicking `Cortex BETA`: selects model `xmanius-4` (Cortex) and updates UI state.
+- Wire `New chat` button to start a fresh chat.
+- Wire `Library` button to toggle the existing Library drawer.
+- Add handler for `Search chats` placeholder action.
+
+---
+
+### Component 3: Chat Composer & Attachment Layout
+
+#### [MODIFY] [xmanius-chat.html](file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html)
+- Restructure the composer form `.chat-composer`:
+  - `+` button on the left (triggers attachment options / file upload).
+  - `.composer-attachments` container for inside-the-box thumbnails.
+  - `.chat-input` with placeholder `"Ask Gemini"` or `"Ask XManius"`.
+  - Remove standalone `think-composer` and `search-composer` buttons.
+  - Right controls group:
+    - Model dropdown trigger button: `<button class="composer-model-pill" data-model-dropdown-btn><span data-composer-model-label>Flash</span> <span class="model-chevron">⌵</span></button>`.
+    - Microphone icon button `data-chat-mic`.
+    - Circular blue send button `send-button` with upward arrow `↑`.
+  - Include the Gemini-style dropdown `.gemini-model-dropdown` anchored to the model button:
+    - `XManius Flash` — *Fastest answers*
+    - `XManius 1.5` — *All-around help*
+    - `XManius 2 Pro` — *Advanced reasoning*
+    - Divider
+    - `Extended thinking` — *Complex problem solving*
+    - `Search mode` — *Search the web*
+
+#### [MODIFY] [css/center-layout.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/center-layout.css) & [css/xmanius-enhancements.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/xmanius-enhancements.css)
+- **Empty / Default State (Screenshot 1)**:
+  - Single-line pill: `border-radius: 9999px !important; min-height: 54px; height: 54px; padding: 6px 14px 6px 16px;`.
+  - Horizontal flex layout with `+` on left, input in center, `[Flash ⌵] [Mic] [Send]` on right.
+- **Picture / Attachment Uploaded State (Screenshot 4)**:
+  - Smooth rounded rectangle: `border-radius: 24px !important; min-height: 140px; padding: 14px 16px 10px;`.
+  - Grid layout:
+    - Top row: `.composer-attachments` displaying the uploaded image thumbnail as a 68×68px rounded card (`border-radius: 14px; object-fit: cover;`), hiding text captions.
+    - Middle row: `.chat-input` directly below the thumbnail, font-size reduced to `15px`, line-height `20px`.
+    - Bottom row: `+` button aligned left; `[Flash ⌵] [Mic] [Send]` aligned right.
+- **Model Dropdown Styling (Screenshot 3)**:
+  - Dark container `#1e1f20`, border `1px solid #3c4043`, `border-radius: 18px`, `box-shadow: 0 8px 32px rgba(0,0,0,0.5)`.
+  - Checkmark `✓` in blue `#8ab4f8` on the left of the active model.
+  - Subtitles in `#9aa0a6`, titles in `#f1f3f4`.
+- **Send Button Styling**:
+  - Circular blue background (`#1a73e8`), crisp white `↑` arrow, size 32×32px.
+
+#### [MODIFY] [js/xmanius-chat.js](file:///g:/Aarnav/CODING%202026/Xmanius/js/xmanius-chat.js)
+- Wire the model dropdown:
+  - Clicking model options updates `selectedModel` (`xmanius-2` for Flash, `xmanius-1` for 1.5, `xmanius-3` for 2 Pro).
+  - Updates the composer pill button text (`Flash ⌵`, `1.5 ⌵`, `2 Pro ⌵`).
+  - Toggling `Extended thinking` toggles `thinkMode` boolean and updates checkmark state.
+  - Toggling `Search mode` toggles `webSearch` boolean and updates checkmark state.
+- Wire `+` button to open attachment file selector (or camera/voice options).
+- On file selection, add thumbnail to `.composer-attachments`, add `.has-attachments` class to `.chat-composer` to smoothly morph the pill into the rounded rectangle.
+
+---
+
+### Component 4: Synchronization to `mobile_app/` and `www/`
+
+- Mirror updated `xmanius-chat.html`, CSS, and JS files to `mobile_app/` and `www/` so desktop, Android, and web builds stay completely unified.
+
+---
+
+## Verification Plan
+
+### Manual Verification
+1. **Pill-to-Rectangle Verification**:
+   - Inspect home screen in browser: verify composer is completely half-circular (`border-radius: 9999px`) with `+`, "Ask XManius", `Flash ⌵`, and mic icon.
+   - Upload an image: verify composer morphs into a rounded rectangle (`border-radius: 24px`), image thumbnail appears at top left inside the box without bulky captions, input text moves below thumbnail with 15px font, and bottom controls are aligned (`+` on left, `[Flash ⌵] [Mic] [Send]` on right).
+2. **Model Dropdown Verification**:
+   - Click `Flash ⌵`: verify menu opens as in Screenshot 3 with:
+     - `XManius Flash` (*Fastest answers*)
+     - `XManius 1.5` (*All-around help*)
+     - `XManius 2 Pro` (*Advanced reasoning*)
+     - Divider
+     - `Extended thinking` (*Complex problem solving*)
+     - `Search mode` (*Search the web*)
+   - Select different models and verify model switch and label update.
+   - Toggle Extended thinking and Search mode; verify checkmarks and runtime state update.
+3. **Sidebar Verification**:
+   - Check sidebar background color (grayish `#1e1f20`) and width (~272px).
+   - Check logo size (scaled cleanly to ~22px).
+   - Test slider `[ Chat | Cortex BETA ]`: verify clicking Cortex switches to Cortex mode, clicking Chat switches back.
+   - Verify the 3 items: `New chat`, `Search chats`, and `Library`.
+4. **Temporary Chat Icon Verification**:
+   - Verify top-right header `＋` is replaced with the dashed circular incognito icon matching Screenshot 2.

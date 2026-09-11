@@ -1,0 +1,160 @@
+# Gemini AI Full UI Alignment & Feature Implementation Plan
+
+This updated implementation plan integrates all 10 provided screenshots, incorporating the chat context menu, right-side files slider drawer, minimalist scrollbar, composer upload popover, and the full Temporary Chat incognito mode.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Summary of Key Additions from New Screenshots:**
+> 1. **3-Dots Chat Menu**: Only 5 options:
+>    - **Share conversation** (copies chat text or opens native share)
+>    - **Files in this chat** (opens the right-side files drawer slider)
+>    - **Pin** / **Unpin** (pins chat to top with indicator)
+>    - **Rename** (allows renaming chat title)
+>    - **Delete** (deletes chat from recents and storage)
+> 2. **Files in this Chat Right-Side Slider**:
+>    - Slides in from the right as an overlay rectangular box (`width: min(380px, 85vw)`).
+>    - Lists all media, documents, images, and attachments from the selected chat with previews and download/view options.
+>    - Displays a clean empty state if no files exist.
+> 3. **Minimalist Scrollbar**:
+>    - Transparent track (`background: transparent; no gutter/track background`).
+>    - Sleek 5px rounded pill slider thumb (`#444746`) matching Screenshot 1.
+> 4. **Composer Plus (`+`) Upload Popover**:
+>    - Clicking `+` opens a Gemini-style popover menu (Screenshot 4) with:
+>      - **Upload files** (paperclip icon)
+>      - **Use camera** (camera icon)
+>      - **Live Voice & Vision** (microphone/waveform icon)
+> 5. **Temporary Chat Incognito Mode**:
+>    - Clicking the dashed circular temporary chat icon activates Temporary Chat mode (Screenshot 5):
+>      - Centered dashed circular incognito icon
+>      - Title: `Just stopping by?`
+>      - Subtitle: `Temporary chats don't appear in recent chats and aren't used to improve Xmanius AI. Stored for 72 hours for safety.` (with dotted underlines on key phrases)
+>      - Centered pill typebar
+>      - Top-right `✕` close button to exit temporary chat and return to normal mode
+>      - **Functionality**: Messages in temporary chat are strictly in-memory and NOT persisted to recent chats or local storage.
+> 6. **Composer Transitions & Model Dropdown**:
+>    - Pill (`border-radius: 9999px`) by default; morphs into rounded rectangle (`border-radius: 24px`) when images/files are attached, with thumbnail at top-left, 15px font input below, and bottom-aligned controls.
+>    - Model dropdown (`Flash ⌵`) with **XManius Flash** (*Fastest answers*), **XManius 1.5** (*All-around help*), **XManius 2 Pro** (*Advanced reasoning*), divider, **Extended thinking** (*Complex problem solving*), and **Search mode** (*Search the web*).
+> 7. **Sidebar**:
+>    - Grayish `#1e1f20` background, width ~272px.
+>    - Proportionate resized logo (~22px height).
+>    - Slider: `[ Chat | Cortex BETA ]`.
+>    - 3 Navigation items: **New chat**, **Search chats**, **Library**.
+
+---
+
+## Proposed Changes
+
+### Component 1: Scrollbar & Sidebar 3-Dots Menu
+
+#### [MODIFY] [css/xmanius-chat.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/xmanius-chat.css) & [css/center-layout.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/center-layout.css)
+- Implement transparent scrollbar track with thin floating pill thumb (`5px`, `#444746`, `border-radius: 9999px`) across the recent list and chat content.
+- Style conversation row 3-dots button (`⋮`) without background box, clean vertical dots, showing on hover or active.
+- Style the conversation context menu pop-up:
+  - Dark container `#1e1f20`, `border: 1px solid #3c4043`, `border-radius: 16px`, `box-shadow: 0 10px 30px rgba(0,0,0,0.5)`, `padding: 6px`.
+  - Icon + label for each of the 5 options: Share conversation, Files in this chat, Pin, Rename, Delete.
+
+#### [MODIFY] [js/xmanius-chat.js](file:///g:/Aarnav/CODING%202026/js/xmanius-chat.js)
+- Update `conversation-menu` template to contain only the 5 required items.
+- Implement actions:
+  - `share`: Copies chat text or invokes native share with feedback toast.
+  - `files`: Queries chat attachments and opens the right-side Files Slider Drawer.
+  - `pin`: Toggles `chat.pinned`, sorts pinned to top, updates UI.
+  - `rename`: Prompts user or renders an inline rename input to update `chat.title`.
+  - `delete`: Deletes chat, resets screen if active.
+
+---
+
+### Component 2: Files in this Chat Right-Side Slider Drawer
+
+#### [NEW UI / JS] [xmanius-chat.html](file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html) & [js/xmanius-chat.js](file:///g:/Aarnav/CODING%202026/Xmanius/js/xmanius-chat.js)
+- Add the right-side drawer overlay `<div class="chat-files-drawer" id="chat-files-drawer">`:
+  - Header: "Files in this chat" and `✕` close button.
+  - Content: Grid/list of files with thumbnail/icon, filename, date, and preview/download action.
+  - Empty state with clean messaging when no files are in the chat.
+- Add CSS in `center-layout.css` for smooth slide-in from right (`transform: translateX(100%)` to `translateX(0)`), dark `#1e1f20` styling, and overlay backdrop.
+
+---
+
+### Component 3: Composer Upload Popover & Pill/Rectangle Dynamics
+
+#### [MODIFY] [xmanius-chat.html](file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html)
+- Replace old attachments markup with the Gemini `+` upload popover:
+  - `Upload files` (`📎`)
+  - `Use camera` (`📷`)
+  - `Live Voice & Vision` (`🎙️`)
+- Model dropdown anchored to `[Flash ⌵]` button on the right with:
+  - XManius Flash (*Fastest answers*)
+  - XManius 1.5 (*All-around help*)
+  - XManius 2 Pro (*Advanced reasoning*)
+  - Divider
+  - Extended thinking (*Complex problem solving*)
+  - Search mode (*Search the web*)
+- Remove standalone Search and Think buttons from composer bar.
+
+#### [MODIFY] [css/center-layout.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/center-layout.css) & [css/xmanius-chat.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/xmanius-chat.css)
+- Empty state composer: Pill shape (`border-radius: 9999px !important; min-height: 54px;`).
+- With attachments: Smooth rounded rectangle (`border-radius: 24px !important; min-height: 140px;`).
+  - Thumbnail at top-left inside composer box (68×68px rounded card, captions hidden).
+  - Input below thumbnail, font-size `15px`, line-height `20px`.
+  - Bottom controls: `+` on left, `[Flash ⌵] [Mic] [Send]` on right.
+
+---
+
+### Component 4: Temporary Chat Incognito Mode
+
+#### [MODIFY] [xmanius-chat.html](file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html)
+- Top-right header tools: replace `＋` with the circular dashed incognito icon button.
+- Add Temporary Chat view `<section class="temporary-chat-view" id="temporary-chat-view">`:
+  - Close button `✕` at top right.
+  - Dashed circular incognito icon at center.
+  - `<h1>Just stopping by?</h1>`
+  - Subtitle: `Temporary chats don't appear in recent chats and aren't used to improve Xmanius AI. Stored for 72 hours for safety.` (with dotted underlines).
+
+#### [MODIFY] [js/xmanius-chat.js](file:///g:/Aarnav/CODING%202026/Xmanius/js/xmanius-chat.js)
+- Add `isTemporaryChat` state flag:
+  - When active, chats are in-memory only. `saveChats()` skips persisting temporary messages to localStorage and `recent-list`.
+  - Clicking `✕` exits Temporary Chat mode and restores normal chat state.
+  - Clicking the header temporary chat icon enters Temporary Chat mode.
+
+---
+
+### Component 5: Sidebar Redesign
+
+#### [MODIFY] [xmanius-chat.html](file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html) & [css/xmanius-chat.css](file:///g:/Aarnav/CODING%202026/Xmanius/css/xmanius-chat.css)
+- Background `#1e1f20`, width `272px`.
+- Proportionate resized brand logo.
+- `[ Chat | Cortex BETA ]` segmented pill slider.
+- 3 Navigation items: **New chat**, **Search chats**, **Library**.
+
+---
+
+### Component 6: Sync to `mobile_app/` and `www/`
+- Mirror all changes to `mobile_app/` and `www/` for full ecosystem parity.
+
+---
+
+## Verification Plan
+
+### Manual Verification
+1. **Chat 3-Dots Menu & Files Drawer**:
+   - Hover over recent chat, click `⋮`: verify popover shows exactly Delete, Rename, Pin, Files in this chat, Share conversation.
+   - Click "Rename": verify rename prompt updates chat title.
+   - Click "Pin": verify chat is pinned to top with pin indicator.
+   - Click "Files in this chat": verify right-side slider opens, lists files/attachments or shows friendly empty state, and closes with `✕`.
+   - Click "Share conversation": verify text copied to clipboard with confirmation.
+2. **Scrollbar**:
+   - Inspect sidebar recent list and chat content: verify transparent track with 5px floating pill slider thumb.
+3. **Plus (`+`) Upload Popover**:
+   - Click `+` in composer: verify popover appears with Upload files, Use camera, and Live Voice & Vision.
+   - Select an image file: verify composer smoothly transforms into a rounded rectangle (`border-radius: 24px`), image thumbnail appears at top-left inside the box, input text moves below with 15px font, and bottom controls align properly.
+4. **Model Dropdown**:
+   - Click `Flash ⌵`: verify menu matches Screenshot 3, model selection works, Extended thinking toggles Think mode, and Search mode toggles Web search.
+5. **Temporary Chat**:
+   - Click header temporary chat icon: verify "Just stopping by?" screen renders with dashed icon and safety disclaimer.
+   - Send messages in temporary chat: verify messages do NOT save to recents list.
+   - Click `✕` in top right: verify screen exits back to normal chat.
+6. **Sidebar**:
+   - Verify `#1e1f20` color, 272px width, resized logo, `[ Chat | Cortex BETA ]` slider, and the 3 items (New chat, Search chats, Library).

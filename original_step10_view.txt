@@ -1,0 +1,260 @@
+Created At: 2026-09-10T22:26:24+05:30
+Completed At: 2026-09-10T22:26:24+05:30
+File Path: `file:///g:/Aarnav/CODING%202026/Xmanius/xmanius-chat.html`
+Total Lines: 252
+Total Bytes: 20736
+Showing lines 1 to 252
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: <!doctype html>
+2: <html lang="en">
+3: <head>
+4:   <meta charset="utf-8">
+5:   <meta name="viewport" content="width=device-width,initial-scale=1">
+6:   <meta name="theme-color" content="#000000">
+7:   <title>Xmanius</title>
+8:   <link rel="icon" type="image/png" href="assets/xmanius-icon.png?v=20260826-logo2">
+9:   <link rel="apple-touch-icon" href="assets/xmanius-icon.png?v=20260826-logo2">
+10:   <link rel="stylesheet" href="css/xmanius-chat.css?v=20260901-live-v6">
+11:   <link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260831-fix-click-v6">
+12:   <link rel="stylesheet" href="css/xmanius-cortex-ui.css?v=20260831-cortex-v1">
+13:   <link rel="stylesheet" href="css/xmanius-auth-modal.css?v=20260901-auth-v2">
+14:   <link rel="stylesheet" href="css/xmanius-library.css?v=20260901-lib-v1">
+15:   <link rel="stylesheet" href="css/center-layout.css?v=20260831-fix-click-v6">
+16:   <script src="xmanius-runtime-config.js?v=20260831-fix-click-v6" defer></script>
+17: </head>
+18: <body>
+19:   <div class="chat-app">
+20:     <aside class="chat-sidebar" id="sidebar">
+21:       <div class="sidebar-top">
+22:         <a class="chat-logo" href="xmanius-ai.html" aria-label="Xmanias home">
+23:           <img class="chat-logo-full" src="assets/xmanius-wordmark.png?v=20260826-brand2" alt="Xmanias">
+24:           <span class="chat-logo-icon" role="img" aria-label="Xmanias icon"><img src="assets/xmanius-icon.png?v=20260826-brand2" alt=""></span>
+25:         </a>
+26:         <button class="icon-button sidebar-panel-button" type="button" data-close-sidebar aria-label="Collapse sidebar">
+27:           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg>
+28:         </button>
+29:       </div>
+30:       <button class="new-chat" type="button" data-new-chat>
+31:         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h7"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L11 15l-4 1 1-4 8.5-8.5Z"></path></svg>
+32:         <span>New chat</span>
+33:       </button>
+34:       <div class="sidebar-recents"><p class="sidebar-label">Recents</p><div class="recent-list" data-recent-list></div></div>
+35:       
+36:       <!-- Guest Footer (Screenshot 2) -->
+37:       <div class="sidebar-guest-footer" id="sidebar-guest-footer">
+38:         <button type="button" class="sidebar-guest-menu-btn" data-open-settings>
+39:           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+40:             <circle cx="12" cy="12" r="3"/>
+41:             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+42:           </svg>
+43:           <span>Settings</span>
+44:         </button>
+45:         <button type="button" class="sidebar-guest-menu-btn" data-open-help>
+46:           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+47:             <circle cx="12" cy="12" r="10"></circle>
+48:             <circle cx="12" cy="12" r="4"></circle>
+49:             <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+50:             <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+51:             <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+52:             <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+53:           </svg>
+54:           <span>Help</span>
+55:         </button>
+56:         <div class="sidebar-guest-card">
+57:           <div class="sidebar-guest-card-title">Get responses tailored to you</div>
+58:           <div class="sidebar-guest-card-sub">Log in to get answers based on saved chats, plus create images and upload files.</div>
+59:           <button type="button" class="sidebar-guest-card-login-btn" data-action-open-auth>
+60:             <svg viewBox="0 0 24 24" width="18" height="18" style="margin-right: 8px; flex-shrink: 0;" aria-hidden="true">
+61:               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+62:               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+63:               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+64:               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+65:             </svg>
+66:             <span>Log in with Google</span>
+67:           </button>
+68:         </div>
+69:       </div>
+70: 
+71:       <!-- Logged-in User Account Button -->
+72:       <button class="sidebar-account" type="button" data-account-button id="sidebar-user-account-btn" style="display: none;" aria-label="Account and Profile Settings">
+73:         <span class="avatar"></span>
+74:         <span><b data-account-name></b><small data-account-status></small></span>
+75:         <span class="account-more">•••</span>
+76:       </button>
+77:     </aside>
+78:     <div class="chat-main">
+79:       <header class="chat-header">
+80:         <div class="header-left-group">
+81:           <button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar">
+82:             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+83:           </button>
+84:           <!-- Static Brand for Guest Users -->
+85:           <div class="header-brand-title" id="header-brand-guest" style="font-size: 16px; font-weight: 600; color: #f1f5f9; letter-spacing: -0.2px;">XManius Flash</div>
+86:           <!-- Interactive Model Button with Chevron for Connected/Logged-in Users -->
+87:           <button class="model-name" id="header-model-btn" type="button" data-model-toggle aria-haspopup="menu" aria-expanded="false" style="display: none;">
+88:             <span data-active-model-name>XManius 1.5</span>
+89:             <span class="model-chevron" style="display: inline-block; margin-left: 4px; font-size: 12px; transform: translateY(1px);">⌵</span>
+90:           </button>
+91:         </div>
+92:         <div class="header-tools">
+93:           <button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit"><span class="usage-ring"><span></span></span><span class="usage-details"><span data-usage-label>0%</span><small data-usage-reset>Reset time loading…</small></span></button>
+94:           <button class="icon-button" type="button" aria-label="New conversation" data-new-chat>＋</button>
+95:         </div>
+96:       </header>
+97:       <main class="chat-content" id="chat-content">
+98:         <section class="empty-state" data-empty-state>
+99:           <h1>Where should we begin?</h1>
+100:           <p>Ask XManius anything.</p>
+101:         </section>
+102:         <section class="message-list" data-message-list aria-live="polite"></section>
+103:       </main>
+104:       <form class="chat-composer" data-chat-form>
+105:         <button class="composer-icon composer-plus" type="button" data-model-toggle aria-expanded="false" aria-label="Attachments">+</button>
+106:         <div class="composer-attachments" data-attachments aria-live="polite"></div>
+107:         <input class="chat-input" data-chat-input type="text" maxlength="1000" autocomplete="off" placeholder="Ask anything" aria-label="Ask XManius anything">
+108:         <input class="file-input" data-file-input type="file" accept="image/*,audio/*,video/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.webm,.mov,.mkv,.avi,.pdf,.txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.doc,.docx,.ppt,.pptx,.xls,.xlsx" multiple>
+109:         <input class="file-input" data-camera-input type="file" accept="image/*" capture="environment">
+110:         <button class="composer-tool think-composer" type="button" data-think-toggle aria-pressed="false" aria-label="Toggle Think mode" title="Think"><img class="think-icon" src="assets/xmanius-think.png?v=20260826-brand" alt=""><span>Think</span></button>
+111:         <button class="composer-tool search-composer" type="button" data-web-search aria-pressed="false" aria-label="Toggle web search" title="Search the web"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.8 2.7 2.8 14.3 0 17M12 3.5c-2.8 2.7-2.8 14.3 0 17"></path></svg></button>
+112:         <button class="composer-icon composer-mic" type="button" data-chat-mic aria-label="Use voice input">
+113:           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
+114:         </button>
+115:         <button class="send-button" type="submit" aria-label="Send message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+116:         <div class="dictation-bar" data-dictation-bar aria-hidden="true" style="display: none !important;"><button type="button" class="dictation-cancel" data-dictation-cancel aria-label="Cancel voice input">×</button><span class="dictation-waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button type="button" class="dictation-stop" data-dictation-stop aria-label="Stop recording"><span></span></button><button type="button" class="dictation-send" data-dictation-send aria-label="Send dictated message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button></div>
+117:         <div class="model-picker" data-model-picker aria-label="Choose model and attachments">
+118:           <div class="model-picker-models" data-auth-only style="display: none;">
+119:             <!-- Slot 1: XManius 1.5 -->
+120:             <div class="model-slot-row" data-slot="xmanius-1">
+121:               <button class="model-option is-selected" type="button" data-model="xmanius-1">
+122:                 <div class="model-option-text">
+123:                   <div class="model-option-header">
+124:                     <strong>XManius 1.5</strong>
+125:                     <span class="model-key-badge" data-key-badge="xmanius-1">Key 1 ▾</span>
+126:                   </div>
+127:                   <small>Gemini 3.5 Flash Lite • Fast multi-modal AI &amp; tools</small>
+128:                 </div>
+129:                 <b>✓</b>
+130:               </button>
+131:               <div class="model-key-dropdown" data-key-menu="xmanius-1">
+132:                 <div class="model-key-dropdown-title">Select API Key for XManius 1.5</div>
+133:                 <button type="button" class="model-key-opt is-selected" data-slot="xmanius-1" data-key="1">⚡ Key 1 (Primary)</button>
+134:                 <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="2">⚡ Key 2</button>
+135:                 <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="3">⚡ Key 3</button>
+136:                 <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="4">⚡ Key 4</button>
+137:                 <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="5">⚡ Key 5</button>
+138:                 <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="6">⚡ Key 6</button>
+139:                 <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="7">⚡ Key 7</button>
+140:                 <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+141:                 <div class="model-key-divider"></div>
+142:                 <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-1" data-key="auto">🔄 Auto Key</button>
+143:               </div>
+144:             </div>
+145: 
+146:             <!-- Slot 2: XManius Flash -->
+147:             <div class="model-slot-row" data-slot="xmanius-2">
+148:               <button class="model-option" type="button" data-model="xmanius-2">
+149:                 <div class="model-option-text">
+150:                   <div class="model-option-header">
+151:                     <strong>XManius Flash</strong>
+152:                     <span class="model-key-badge" data-key-badge="xmanius-2">Key 2 ▾</span>
+153:                   </div>
+154:                   <small>Gemini 3.1 Flash Lite • Sub-second ultra-low latency</small>
+155:                 </div>
+156:                 <b></b>
+157:               </button>
+158:               <div class="model-key-dropdown" data-key-menu="xmanius-2">
+159:                 <div class="model-key-dropdown-title">Select API Key for XManius Flash</div>
+160:                 <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="1">⚡ Key 1</button>
+161:                 <button type="button" class="model-key-opt is-selected" data-slot="xmanius-2" data-key="2">⚡ Key 2 (Primary)</button>
+162:                 <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="3">⚡ Key 3</button>
+163:                 <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="4">⚡ Key 4</button>
+164:                 <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="5">⚡ Key 5</button>
+165:                 <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="6">⚡ Key 6</button>
+166:                 <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="7">⚡ Key 7</button>
+167:                 <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+168:                 <div class="model-key-divider"></div>
+169:                 <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-2" data-key="auto">🔄 Auto Key</button>
+170:               </div>
+171:             </div>
+172: 
+173:             <!-- Slot 3: XManius 2 Pro -->
+174:             <div class="model-slot-row" data-slot="xmanius-3">
+175:               <button class="model-option" type="button" data-model="xmanius-3">
+176:                 <div class="model-option-text">
+177:                   <div class="model-option-header">
+178:                     <strong>XManius 2 Pro</strong>
+179:                     <span class="model-key-badge" data-key-badge="xmanius-3">Key 3 ▾</span>
+180:                   </div>
+181:                   <small>Gemini 3.8 Flash • Advanced reasoning &amp; multi-tool STEM</small>
+182:                 </div>
+183:                 <b></b>
+184:               </button>
+185:               <div class="model-key-dropdown" data-key-menu="xmanius-3">
+186:                 <div class="model-key-dropdown-title">Select API Key for XManius 2 Pro</div>
+187:                 <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="1">⚡ Key 1</button>
+188:                 <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="2">⚡ Key 2</button>
+189:                 <button type="button" class="model-key-opt is-selected" data-slot="xmanius-3" data-key="3">⚡ Key 3 (Primary)</button>
+190:                 <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="4">⚡ Key 4</button>
+191:                 <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="5">⚡ Key 5</button>
+192:                 <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="6">⚡ Key 6</button>
+193:                 <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="7">⚡ Key 7</button>
+194:                 <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+195:                 <div class="model-key-divider"></div>
+196:                 <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-3" data-key="auto">🔄 Auto Key</button>
+197:               </div>
+198:             </div>
+199: 
+200:             <!-- Slot 4: XManius Cortex -->
+201:             <div class="model-slot-row" data-slot="xmanius-4">
+202:               <button class="model-option" type="button" data-model="xmanius-4">
+203:                 <div class="model-option-text">
+204:                   <div class="model-option-header">
+205:                     <strong>XManius Cortex</strong>
+206:                     <span class="model-key-badge" data-key-badge="xmanius-4">Key 4 ▾</span>
+207:                   </div>
+208:                   <small>Anti-Gravity • Autonomous agent execution &amp; problem solving</small>
+209:                 </div>
+210:                 <b></b>
+211:               </button>
+212:               <div class="model-key-dropdown" data-key-menu="xmanius-4">
+213:                 <div class="model-key-dropdown-title">Select API Key for XManius Cortex</div>
+214:                 <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="1">⚡ Key 1</button>
+215:                 <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="2">⚡ Key 2</button>
+216:                 <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="3">⚡ Key 3</button>
+217:                 <button type="button" class="model-key-opt is-selected" data-slot="xmanius-4" data-key="4">⚡ Key 4 (Primary)</button>
+218:                 <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="5">⚡ Key 5</button>
+219:                 <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="6">⚡ Key 6</button>
+220:                 <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="7">⚡ Key 7</button>
+221:                 <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
+222:                 <div class="model-key-divider"></div>
+223:                 <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-4" data-key="auto">🔄 Auto Key</button>
+224:               </div>
+225:             </div>
+226: 
+227:             <div class="model-picker-divider"></div>
+228:           </div>
+229:           <button type="button" class="model-option model-option-attachment" data-attach-files><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 13.5 7a3.5 3.5 0 0 1 5 5l-7.5 7.5a5 5 0 0 1-7-7L11.5 5"></path></svg><span class="attachment-option-copy"><strong>Add photos &amp; files</strong><small>Upload from computer</small></span><b class="shortcut-label">Ctrl + K</b></button>
+230:           <button type="button" class="model-option model-option-attachment" data-attach-camera><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.4-2h7.2l1.4 2h3v10H4z"></path><circle cx="12" cy="13.5" r="3"></circle></svg><span class="attachment-option-copy"><strong>Use camera</strong><small>Capture from device</small></span><b class="shortcut-label">Ctrl + T</b></button>
+231:           <button type="button" class="model-option model-option-attachment" data-attach-live-voice><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line><line x1="9" y1="21" x2="15" y2="21"></line></svg><span class="attachment-option-copy"><strong>Live Voice &amp; Camera</strong><small>Interactive voice &amp; live vision feed</small></span><b class="shortcut-label">Ctrl + V</b></button>
+232:         </div>
+233:         <div class="usage-notice" data-usage-notice role="status" aria-live="polite"></div>
+234:       </form>
+235:   <p class="chat-disclaimer">XManius can make mistakes. Check important information.</p>
+236:     </div>
+237:   </div>
+238:   
+239: 
+240:   <script src="xmanius-runtime-config.js?v=20260901-live-v1"></script>
+241:   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+242:   <script src="js/xmanius-supabase.js?v=20260901-auth-v3"></script>
+243:   <script src="js/xmanius-library.js?v=20260901-lib-v1"></script>
+244:   <script src="js/xmanius-stream-client.js?v=20260901-auth-v3" defer></script>
+245:   <script src="js/xmanius-cortex-ui.js?v=20260901-auth-v3" defer></script>
+246:   <script src="js/xmanius-chat.js?v=20260901-cortex-v7" defer></script>
+247:   <script src="js/xmanius-live-voice.js?v=20260901-live-voice-v14" defer></script>
+248:   <script src="js/xmanius-enhancements.js?v=20260901-auth-v3" defer></script>
+249:   <script src="js/home-greeting.js?v=20260901-auth-v3" defer></script>
+250: </body>
+251: </html>
+252: 
+The above content shows the entire, complete file contents of the requested file.

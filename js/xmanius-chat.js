@@ -96,6 +96,7 @@
   const showAttachmentNotice = (message, duration = 4200) => { if (!usageNotice) return; window.clearTimeout(attachmentNoticeTimer); usageNotice.textContent = message; usageNotice.classList.add("is-visible"); attachmentNoticeTimer = window.setTimeout(() => { if (usageNotice.textContent === message) { usageNotice.textContent = ""; usageNotice.classList.remove("is-visible"); } }, duration); };
   const chatsKey = "xmanius-chats-v1";
   let currentChatId = crypto.randomUUID?.() || String(Date.now());
+  let isTemporaryChatMode = false;
   const saveChats = (chats) => {
     localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
     if (window.XmaniusAuth?.getState()?.user) {
@@ -307,6 +308,7 @@
     document.documentElement.lang = appSettings.language === "auto" ? (navigator.language || "en") : appSettings.language;
   };
   const saveCurrentChat = () => {
+    if (isTemporaryChatMode) return;
     // Memory is opt-in. When it is off, do not create or update a stored
     // conversation, including during reset, send, or navigation.
     if (!appSettings.memoryEnabled) return;
@@ -396,13 +398,70 @@
     positionChatMenu(menu, button);
     menu.classList.add("is-visible");
   };
-  const renderRecents = () => { closeChatMenu(); if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => { const row = document.createElement("div"); row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`; row.dataset.chatId = chat.id; const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; button.title = chat.title; const more = document.createElement("button"); more.className = "conversation-more"; more.type = "button"; more.dataset.chatMenu = chat.id; more.setAttribute("aria-label", `Options for ${chat.title}`); more.title = "Chat options"; more.textContent = "•••"; const menu = document.createElement("div"); menu.className = "conversation-menu"; menu.innerHTML = `<button type="button" data-chat-action="pin">${chat.pinned ? "Unpin" : "Pin"} chat</button><button type="button" data-chat-action="share">Share</button><button type="button" data-chat-action="delete">Delete</button>`; row.append(button, more, menu); recent.append(row); }); };
+  const renderRecents = () => {
+    closeChatMenu();
+    if (!recent) return;
+    recent.replaceChildren();
+    readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => {
+      const row = document.createElement("div");
+      row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`;
+      row.dataset.chatId = chat.id;
+      const button = document.createElement("button");
+      button.className = "conversation";
+      button.type = "button";
+      button.dataset.chatId = chat.id;
+      button.textContent = chat.title;
+      button.title = chat.title;
+      const more = document.createElement("button");
+      more.className = "conversation-more";
+      more.type = "button";
+      more.dataset.chatMenu = chat.id;
+      more.setAttribute("aria-label", `Options for ${chat.title}`);
+      more.title = "Chat options";
+      more.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>`;
+      const menu = document.createElement("div");
+      menu.className = "conversation-menu";
+      menu.innerHTML = `
+        <button type="button" data-chat-action="share">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Share conversation</span>
+        </button>
+        <button type="button" data-chat-action="files">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span>Files in this chat</span>
+        </button>
+        <button type="button" data-chat-action="pin">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-2-7V4h1V2H6v2h1v6l-2 7z"/></svg>
+          <span>${chat.pinned ? "Unpin" : "Pin"}</span>
+        </button>
+        <button type="button" data-chat-action="rename">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Rename</span>
+        </button>
+        <button type="button" data-chat-action="delete" style="color: #ff6b6b;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Delete</span>
+        </button>
+      `;
+      row.append(button, more, menu);
+      recent.append(row);
+    });
+  };
+  let closeHeaderChatMenu = () => {};
+
   const loadChat = async (chatId) => {
     const chat = readChats().find((item) => item.id === chatId);
     if (!chat) return;
     list.replaceChildren();
     empty.hidden = true;
+    document.body.classList.remove("is-empty-state");
     currentChatId = chat.id;
+    document.querySelectorAll("[data-new-chat], .is-new-chat, .new-chat").forEach((btn) => btn.classList.remove("is-active"));
+    document.querySelectorAll(".conversation-row").forEach((row) => {
+      const active = row.dataset.chatId === chatId;
+      row.classList.toggle("is-active", active);
+      row.classList.toggle("is-selected", active);
+    });
     for (const message of chat.messages) {
       const refs = Array.isArray(message.attachments) ? message.attachments : [];
       addMessage(message.text, message.type, { animate: false, persist: false, attachmentNames: refs.map((attachment) => attachment.name), reasoningSummary: message.reasoningSummary || "", reasoningSeconds: message.reasoningSeconds || 0, sources: Array.isArray(message.sources) ? message.sources : [] });
@@ -415,6 +474,76 @@
     }
     scrollChatToBottom({ force: true });
   };
+
+  const startNewChat = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (activeRequestController) {
+      try { activeRequestController.abort(); } catch {}
+      activeRequestController = null;
+    }
+    if (isSpeaking) {
+      try { window.speechSynthesis?.cancel(); } catch {}
+      isSpeaking = false;
+    }
+    currentChatId = crypto.randomUUID?.() || String(Date.now());
+    list.replaceChildren();
+    if (empty) {
+      empty.hidden = false;
+      empty.style.display = "";
+    }
+    document.body.classList.add("is-empty-state");
+    if (isTemporaryChatMode) {
+      isTemporaryChatMode = false;
+      document.body.classList.remove("is-temporary-chat-mode");
+      tempChatBtn?.classList.remove("is-active");
+      const exitBtn = document.getElementById("temp-chat-exit-btn");
+      if (exitBtn) exitBtn.style.display = "none";
+      const tempHero = document.getElementById("temporary-chat-hero");
+      if (tempHero) tempHero.style.display = "none";
+      const normalHero = document.getElementById("normal-chat-hero");
+      if (normalHero) normalHero.style.display = "";
+      const greetingText = document.querySelector(".greeting-text");
+      if (greetingText) greetingText.style.display = "";
+    }
+    if (input) {
+      input.value = "";
+      input.style.height = "";
+      input.focus();
+    }
+    pendingAttachments = [];
+    if (attachments) attachments.replaceChildren();
+    app?.classList.remove("has-attachments");
+    document.querySelectorAll(".conversation-row").forEach((row) => {
+      row.classList.remove("is-selected", "is-active");
+    });
+    document.querySelectorAll("[data-new-chat], .is-new-chat, .new-chat").forEach((btn) => {
+      btn.classList.add("is-active");
+    });
+    if (typeof window.XmaniusRandomizeGreeting === "function") {
+      window.XmaniusRandomizeGreeting();
+    }
+    closeChatMenu();
+    closeHeaderChatMenu();
+    if (app && app.classList.contains("sidebar-visible")) {
+      app.classList.remove("sidebar-visible");
+    }
+  };
+  window.XmaniusStartNewChat = startNewChat;
+  const reset = startNewChat;
+
+  document.querySelectorAll("[data-new-chat], .is-new-chat, .new-chat").forEach((btn) => {
+    btn.addEventListener("click", startNewChat);
+  });
+  document.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-new-chat], .is-new-chat, .new-chat");
+    if (btn) {
+      startNewChat(event);
+    }
+  });
+
   const localAnswer = (question) => {
     const q = question.toLowerCase();
     const brand = isAndroid ? "Xmanias" : "Xmanius";
@@ -1620,8 +1749,10 @@
   const renderPendingAttachments = () => {
     if (!attachments) return;
     attachments.replaceChildren();
-    attachments.classList.toggle("is-visible", pendingAttachments.length > 0);
-    document.body.classList.toggle("has-attachments", pendingAttachments.length > 0);
+    const hasFiles = pendingAttachments.length > 0;
+    attachments.classList.toggle("is-visible", hasFiles);
+    document.body.classList.toggle("has-attachments", hasFiles);
+    form?.classList.toggle("has-attachments", hasFiles);
     if (!pendingAttachments.length) return;
     const strip = document.createElement("div");
     strip.className = "attachment-preview-strip";
@@ -2093,7 +2224,15 @@
     persistAttachmentPayloads(requestAttachments).catch(() => {});
     const sentMessage = list.lastElementChild;
     if (sentMessage && requestAttachments.length) sentMessage.dataset.attachmentRefs = JSON.stringify(requestAttachments.map(attachmentReference));
-    saveCurrentChat();
+    if (isTemporaryChatMode) {
+      const tempView = document.getElementById("temporary-chat-view");
+      if (tempView) {
+        tempView.style.display = "none";
+        tempView.setAttribute("aria-hidden", "true");
+      }
+    } else {
+      saveCurrentChat();
+    }
     input.value = "";
     pendingAttachments = [];
     renderPendingAttachments();
@@ -2562,7 +2701,12 @@
   });
   fileInput?.addEventListener("change", handleAttachmentSelection);
   cameraInput?.addEventListener("change", handleAttachmentSelection);
-  attachments?.addEventListener("click", (event) => { const remove = event.target.closest("[data-remove-attachment]"); if (!remove) return; pendingAttachments.splice(Number(remove.dataset.removeAttachment), 1); renderPendingAttachments(); });
+  attachments?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-attachment]");
+    if (!remove) return;
+    pendingAttachments.splice(Number(remove.dataset.removeAttachment), 1);
+    renderPendingAttachments();
+  });
   document.addEventListener("keydown", (event) => {
     if (!event.ctrlKey || event.altKey || event.metaKey) return;
     const key = event.key.toLowerCase();
@@ -2577,10 +2721,20 @@
       void openCamera();
     }
   });
-  document.addEventListener("paste", (event) => { const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean); if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); } });
+  document.addEventListener("paste", (event) => {
+    const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean);
+    if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); }
+  });
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
-  sendButton?.addEventListener("click", (event) => { if (!activeRequestController) return; event.preventDefault(); activeRequestStopReason = "user"; activeRequestController.abort(); });
+  input.addEventListener("input", () => form.classList.toggle("has-text", Boolean(input.value.trim())));
+  sendButton?.addEventListener("click", (event) => {
+    if (!activeRequestController) return;
+    event.preventDefault();
+    activeRequestStopReason = "user";
+    activeRequestController.abort();
+  });
   document.querySelector("[data-chat-mic]")?.addEventListener("click", startVoice);
+
   const handleDictationSend = () => {
     const textToSend = input.value.trim();
     voiceStopRequested = true;
@@ -2593,14 +2747,21 @@
     }
   };
 
-  dictationSend?.setAttribute("aria-label", "Send message");
-  dictationSend?.setAttribute("title", "Send message directly");
   dictationSend?.addEventListener("click", (event) => {
     event.preventDefault();
     handleDictationSend();
   });
   dictationCancel?.addEventListener("click", () => finishVoiceSession({ clearText: true, focus: true, abort: true }));
-  dictationStop?.addEventListener("click", () => { voiceStopRequested = true; if (!recognition) { finishVoiceSession({ focus: true }); return; } try { recognition.stop(); } catch { finishVoiceSession({ focus: true, abort: true }); } });
+  dictationStop?.addEventListener("click", () => {
+    voiceStopRequested = true;
+    if (!recognition) {
+      finishVoiceSession({ focus: true });
+      return;
+    }
+    try { recognition.stop(); } catch {
+      finishVoiceSession({ focus: true, abort: true });
+    }
+  });
   document.addEventListener("visibilitychange", () => { if (document.hidden && (recognition || form.classList.contains("is-listening"))) finishVoiceSession({ focus: false, abort: true }); });
   window.addEventListener("pagehide", () => finishVoiceSession({ focus: false, abort: true }));
 
@@ -2661,12 +2822,50 @@
     if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `Cortex (Anti-Gravity)`;
     return `${brand} ${modelKey.replace("xmanius-", "")}`;
   };
+
+  const updateGeminiDropdownState = () => {
+    const pillText = document.querySelector("[data-active-model-pill-text]");
+    if (pillText) {
+      if (selectedModel === "xmanius-2") pillText.textContent = "Flash";
+      else if (selectedModel === "xmanius-1") pillText.textContent = "1.5";
+      else if (selectedModel === "xmanius-3") pillText.textContent = "2 Pro";
+      else pillText.textContent = "Flash";
+    }
+
+    const brandHeader = document.getElementById("header-brand-guest");
+    if (brandHeader) {
+      brandHeader.textContent = getModelDisplayName(selectedModel);
+    }
+
+    const geminiDropdown = document.getElementById("gemini-model-dropdown");
+    if (geminiDropdown) {
+      geminiDropdown.querySelectorAll("[data-model-choice]").forEach((btn) => {
+        const isSel = btn.dataset.modelChoice === selectedModel;
+        btn.classList.toggle("is-selected", isSel);
+        const check = btn.querySelector(".gemini-check");
+        if (check) check.textContent = isSel ? "✓" : "";
+      });
+
+      const thinkCheck = geminiDropdown.querySelector("[data-check-think]");
+      if (thinkCheck) thinkCheck.textContent = thinkMode ? "✓" : "";
+      geminiDropdown.querySelector("[data-toggle-extended-thinking]")?.classList.toggle("is-selected", thinkMode);
+
+      const searchCheck = geminiDropdown.querySelector("[data-check-search]");
+      if (searchCheck) searchCheck.textContent = webSearch ? "✓" : "";
+      geminiDropdown.querySelector("[data-toggle-search-mode]")?.classList.toggle("is-selected", webSearch);
+    }
+
+    const modeChat = document.querySelector('[data-sidebar-mode="chat"]');
+    const modeCortex = document.querySelector('[data-sidebar-mode="cortex"]');
+    const isCortex = selectedModel === "xmanius-4" || selectedModel === "xmanius-7" || selectedModel === "xmanius-8";
+    modeChat?.classList.toggle("is-active", !isCortex);
+  };
+
   const setSelectedModel = (model) => {
-    const isGuest = !window.XmaniusAuth?.getState()?.user;
-    if (isGuest) {
-      selectedModel = "xmanius-2";
+    if (/^xmanius-[1-9]$/.test(model || "")) {
+      selectedModel = model;
     } else {
-      selectedModel = /^xmanius-[1-9]$/.test(model || "") ? model : (localStorage.getItem("xmanius-selected-model-v1") || "xmanius-1");
+      selectedModel = localStorage.getItem("xmanius-selected-model-v1") || "xmanius-2";
     }
     try { localStorage.setItem("xmanius-selected-model-v1", selectedModel); } catch {}
     modelPicker?.querySelectorAll("[data-model]").forEach((item) => {
@@ -2677,7 +2876,9 @@
       if (check) check.textContent = active ? "✓" : "";
     });
     if (modelName) modelName.innerHTML = `<span data-active-model-name>${getModelDisplayName(selectedModel)}</span> <span class="model-chevron" style="display:inline-block; margin-left:4px; font-size:12px; transform:translateY(1px);">⌵</span>`;
+    updateGeminiDropdownState();
   };
+
   const getDefaultKeyForSlot = (slot) => {
     if (slot === "xmanius-1") return "1";
     if (slot === "xmanius-2") return "2";
@@ -2698,11 +2899,11 @@
     try {
       localStorage.setItem(`xmanius-slot-key-${slot}`, key);
     } catch {}
-    const badge = modelPicker?.querySelector(`[data-key-badge="${slot}"]`);
+    const badge = document.querySelector(`[data-key-badge="${slot}"]`);
     if (badge) {
       badge.textContent = key === "auto" ? "Auto ▾" : `Key ${key} ▾`;
     }
-    const menu = modelPicker?.querySelector(`[data-key-menu="${slot}"]`);
+    const menu = document.querySelector(`[data-key-menu="${slot}"]`);
     if (menu) {
       menu.querySelectorAll(".model-key-opt").forEach((opt) => {
         opt.classList.toggle("is-selected", opt.dataset.key === key);
@@ -2720,6 +2921,43 @@
 
   window.XmaniusSetSelectedModel = setSelectedModel;
   setSelectedModel(selectedModel);
+
+  let positionKeyDropdown = (menu) => {
+    if (!menu) return;
+    if (window.innerWidth <= 640) {
+      menu.classList.remove("flip-left");
+      menu.style.top = "";
+      return;
+    }
+    menu.classList.remove("flip-left");
+    menu.style.top = "0px";
+    const parentRow = menu.closest(".model-slot-row");
+    const parentRect = parentRow ? parentRow.getBoundingClientRect() : menu.parentElement.getBoundingClientRect();
+    if (parentRect.right + 235 > window.innerWidth) {
+      menu.classList.add("flip-left");
+    }
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.bottom > window.innerHeight - 10) {
+      const overflow = menuRect.bottom - (window.innerHeight - 10);
+      let newTop = -overflow;
+      if (parentRect.top + newTop < 10) {
+        newTop = 10 - parentRect.top;
+      }
+      menu.style.top = `${newTop}px`;
+    }
+  };
+
+  modelPicker?.querySelectorAll(".model-slot-row").forEach((row) => {
+    row.addEventListener("mouseenter", () => {
+      const menu = row.querySelector(".model-key-dropdown");
+      if (menu) positionKeyDropdown(menu);
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    const openMenu = modelPicker?.querySelector(".model-key-dropdown.is-open");
+    if (openMenu) positionKeyDropdown(openMenu);
+  });
 
   modelPicker?.addEventListener("click", (event) => {
     const keyOpt = event.target.closest(".model-key-opt");
@@ -2742,11 +2980,11 @@
       event.preventDefault();
       event.stopPropagation();
       const slot = keyBadge.dataset.keyBadge;
-      const menu = modelPicker?.querySelector(`[data-key-menu="${slot}"]`);
+      const menu = document.querySelector(`[data-key-menu="${slot}"]`);
       if (menu) {
         const wasOpen = menu.classList.contains("is-open");
         modelPicker?.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
-        if (!wasOpen) menu.classList.add("is-open");
+        if (!wasOpen) { menu.classList.add("is-open"); positionKeyDropdown(menu); }
       }
       return;
     }
@@ -2772,28 +3010,123 @@
     }
   });
 
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest(".model-slot-row")) {
-      document.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+
+  const openFilesDrawerForChat = async (chat) => {
+    const drawer = document.getElementById("chat-files-drawer");
+    const listEl = document.getElementById("files-drawer-list");
+    const emptyEl = document.getElementById("files-drawer-empty");
+    if (!drawer || !listEl) return;
+
+    listEl.replaceChildren();
+
+    const allAttachments = [];
+    const seenIds = new Set();
+    if (chat && Array.isArray(chat.messages)) {
+      chat.messages.forEach((msg) => {
+        if (Array.isArray(msg.attachments)) {
+          msg.attachments.forEach((att) => {
+            if (att && att.id && !seenIds.has(att.id)) {
+              seenIds.add(att.id);
+              allAttachments.push(att);
+            } else if (att && !att.id) {
+              allAttachments.push(att);
+            }
+          });
+        }
+      });
     }
-    if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) {
-      setModelPicker(false);
+
+    if (!allAttachments.length) {
+      if (emptyEl) emptyEl.style.display = "flex";
+    } else {
+      if (emptyEl) emptyEl.style.display = "none";
+      for (const ref of allAttachments) {
+        let full = ref;
+        if (!full.data && full.id) {
+          try {
+            const saved = await attachmentDb.get(full.id);
+            if (saved) full = saved;
+          } catch (_) {}
+        }
+
+        const item = document.createElement("div");
+        item.className = "files-drawer-item";
+
+        const iconBox = document.createElement("div");
+        iconBox.className = "files-drawer-icon-box";
+
+        const isImg = full.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(full.name || "");
+        const isPdf = full.mimeType === "application/pdf" || /\.pdf$/i.test(full.name || "");
+
+        if (isImg) {
+          iconBox.style.background = "#c5221f";
+          iconBox.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`;
+        } else if (isPdf) {
+          iconBox.style.background = "#ea4335";
+          iconBox.textContent = "PDF";
+        } else {
+          iconBox.style.background = "#5f6368";
+          const ext = (full.name || "").split(".").pop()?.toUpperCase() || "DOC";
+          iconBox.textContent = ext.slice(0, 4);
+        }
+
+        const info = document.createElement("div");
+        info.className = "files-drawer-item-info";
+
+        const title = document.createElement("div");
+        title.className = "files-drawer-item-title";
+        title.textContent = full.name || "Untitled attachment";
+        title.title = full.name || "";
+
+        const ext = document.createElement("div");
+        ext.className = "files-drawer-item-ext";
+        const extText = (full.name || "").split(".").pop()?.toUpperCase() || (isPdf ? "PDF" : "FILE");
+        ext.textContent = extText;
+
+        info.appendChild(title);
+        info.appendChild(ext);
+        item.appendChild(iconBox);
+        item.appendChild(info);
+
+        item.addEventListener("click", () => {
+          openMediaPreviewModal(full);
+        });
+
+        listEl.appendChild(item);
+      }
     }
-  });
-  const reset = () => { saveCurrentChat(); currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; document.body.classList.add("is-empty-state"); input.value = ""; input.focus(); };
-  document.querySelectorAll("[data-new-chat]").forEach((button) => button.addEventListener("click", reset));
-  document.addEventListener("click", (event) => {
-    const chip = event.target.closest("[data-suggestion]");
-    if (chip && input) {
-      input.value = chip.dataset.suggestion;
-      input.focus();
-    }
-  });
+
+    drawer.classList.add("is-open");
+    drawer.setAttribute("aria-hidden", "false");
+  };
   const handleChatAction = async (action, chatId) => {
     const chats = readChats();
     const chat = chats.find((item) => item.id === chatId);
     if (!chat) { closeChatMenu(); return; }
-    if (action.dataset.chatAction === "pin") chat.pinned = !chat.pinned;
+    if (action.dataset.chatAction === "files") {
+      closeChatMenu();
+      openFilesDrawerForChat(chat);
+      return;
+    }
+    if (action.dataset.chatAction === "pin") {
+      chat.pinned = !chat.pinned;
+      saveChats(chats);
+      closeChatMenu();
+      renderRecents();
+      return;
+    }
+    if (action.dataset.chatAction === "rename") {
+      closeChatMenu();
+      const newTitle = window.prompt("Rename chat:", chat.title);
+      if (newTitle && newTitle.trim()) {
+        chat.title = newTitle.trim();
+        chat.titleGenerated = true;
+        saveChats(chats);
+        renderRecents();
+      }
+      return;
+    }
+
     if (action.dataset.chatAction === "delete") {
       saveChats(chats.filter((item) => item.id !== chat.id));
       if (chat.id === currentChatId) {
@@ -3935,7 +4268,373 @@
     recognitionInstance.onend = () => { mic.classList.remove("is-active"); };
     recognitionInstance.start();
   };
+  // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // GEMINI AI UI SUITE - COMPLETE INTERACTIVE CONTROLLERS
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  // 1. Temporary Chat (Incognito) Controller
+  const tempChatView = document.getElementById("temporary-chat-view");
+  const tempChatBtn = document.querySelector("[data-temporary-chat]");
+
+  const setTemporaryChatMode = (enable) => {
+    isTemporaryChatMode = Boolean(enable);
+    document.body.classList.toggle("is-temporary-chat-mode", isTemporaryChatMode);
+    if (tempChatBtn) {
+      tempChatBtn.classList.toggle("is-active", isTemporaryChatMode);
+      tempChatBtn.setAttribute("aria-pressed", String(isTemporaryChatMode));
+    }
+    const exitBtn = document.getElementById("temp-chat-exit-btn");
+    if (exitBtn) {
+      exitBtn.style.display = isTemporaryChatMode ? "grid" : "none";
+    }
+    const tempHero = document.getElementById("temporary-chat-hero");
+    if (tempHero) {
+      tempHero.style.display = isTemporaryChatMode ? "flex" : "none";
+    }
+    const normalHero = document.getElementById("normal-chat-hero");
+    if (normalHero) {
+      normalHero.style.display = isTemporaryChatMode ? "none" : "";
+    }
+    const greetingText = document.querySelector(".greeting-text");
+    if (greetingText) {
+      greetingText.style.display = isTemporaryChatMode ? "none" : "";
+    }
+    if (isTemporaryChatMode) {
+      currentChatId = "temp-" + Date.now();
+      list.replaceChildren();
+      empty.hidden = false;
+      document.body.classList.add("is-empty-state");
+      input.value = "";
+      input.focus();
+    } else {
+      reset();
+    }
+  };
+
+  tempChatBtn?.addEventListener("click", () => {
+    setTemporaryChatMode(!isTemporaryChatMode);
+  });
+
+  document.querySelectorAll("[data-close-temp-chat]").forEach((btn) => {
+    btn.addEventListener("click", () => setTemporaryChatMode(false));
+  });
+
+  // 2. Dynamic Composer Plus Button & Upload Popover
+  const composerPlusBtn = document.querySelector("[data-composer-plus]");
+  const uploadPopover = document.getElementById("composer-upload-popover");
+
+  const setUploadPopover = (open) => {
+    if (!uploadPopover) return;
+    const shouldOpen = typeof open === "boolean" ? open : uploadPopover.hasAttribute("hidden");
+    if (shouldOpen) {
+      uploadPopover.removeAttribute("hidden");
+      uploadPopover.classList.add("is-open");
+      uploadPopover.setAttribute("aria-hidden", "false");
+      composerPlusBtn?.setAttribute("aria-expanded", "true");
+      if (composerPlusBtn) composerPlusBtn.textContent = "×";
+    } else {
+      uploadPopover.setAttribute("hidden", "");
+      uploadPopover.classList.remove("is-open");
+      uploadPopover.setAttribute("aria-hidden", "true");
+      composerPlusBtn?.setAttribute("aria-expanded", "false");
+      if (composerPlusBtn) composerPlusBtn.textContent = "+";
+    }
+  };
+
+  composerPlusBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setUploadPopover();
+  });
+
+  uploadPopover?.querySelector("[data-popover-upload-files]")?.addEventListener("click", () => {
+    setUploadPopover(false);
+    fileInput?.click();
+  });
+
+  uploadPopover?.querySelector("[data-popover-camera]")?.addEventListener("click", () => {
+    setUploadPopover(false);
+    cameraInput?.click();
+  });
+
+  uploadPopover?.querySelector("[data-popover-live-voice]")?.addEventListener("click", () => {
+    setUploadPopover(false);
+    if (window.XmaniusLiveVoice?.open) {
+      window.XmaniusLiveVoice.open();
+    } else {
+      openGeneralVoice();
+    }
+  });
+
+  // 3. Composer Model Pill & Dropdown with Key Selection
+  const modelDropdownBtn = document.querySelector("[data-model-dropdown-btn]");
+  const geminiModelDropdown = document.getElementById("gemini-model-dropdown");
+
+  const setGeminiModelDropdown = (open) => {
+    if (!geminiModelDropdown) return;
+    const shouldOpen = typeof open === "boolean" ? open : geminiModelDropdown.hasAttribute("hidden");
+    if (shouldOpen) {
+      geminiModelDropdown.removeAttribute("hidden");
+      geminiModelDropdown.classList.add("is-open");
+      geminiModelDropdown.setAttribute("aria-hidden", "false");
+      modelDropdownBtn?.setAttribute("aria-expanded", "true");
+      updateGeminiDropdownState();
+    } else {
+      geminiModelDropdown.setAttribute("hidden", "");
+      geminiModelDropdown.classList.remove("is-open");
+      geminiModelDropdown.setAttribute("aria-hidden", "true");
+      modelDropdownBtn?.setAttribute("aria-expanded", "false");
+      document.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+    }
+  };
+
+  modelDropdownBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setGeminiModelDropdown();
+  });
+
+  geminiModelDropdown?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-model-choice]");
+    if (btn) {
+      e.stopPropagation();
+      const model = btn.dataset.modelChoice;
+      if (model) {
+        setSelectedModel(model);
+        setGeminiModelDropdown(false);
+      }
+      return;
+    }
+  });
+
+  geminiModelDropdown?.querySelector("[data-toggle-extended-thinking]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    thinkMode = !thinkMode;
+    thinkToggle?.classList.toggle("active", thinkMode);
+    thinkToggle?.setAttribute("aria-pressed", String(thinkMode));
+    updateGeminiDropdownState();
+  });
+
+  geminiModelDropdown?.querySelector("[data-toggle-search-mode]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    webSearch = !webSearch;
+    webSearchToggle?.classList.toggle("active", webSearch);
+    webSearchToggle?.setAttribute("aria-pressed", String(webSearch));
+    updateGeminiDropdownState();
+  });
+
+  // 4. API Key Selection & Viewport Boundary Collision Guard
+  positionKeyDropdown = (menu) => {
+    if (!menu) return;
+    if (window.innerWidth <= 640) {
+      menu.classList.remove("flip-left");
+      menu.style.top = "";
+      return;
+    }
+    menu.classList.remove("flip-left");
+    menu.style.top = "0px";
+    const parentRow = menu.closest(".gemini-model-row") || menu.closest(".model-slot-row");
+    const parentRect = parentRow ? parentRow.getBoundingClientRect() : menu.parentElement.getBoundingClientRect();
+    if (parentRect.right + 225 > window.innerWidth) {
+      menu.classList.add("flip-left");
+    }
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.bottom > window.innerHeight - 10) {
+      const overflow = menuRect.bottom - (window.innerHeight - 10);
+      let newTop = -overflow;
+      if (parentRect.top + newTop < 10) {
+        newTop = 10 - parentRect.top;
+      }
+      menu.style.top = `${newTop}px`;
+    }
+  };
+
+  document.querySelectorAll(".gemini-model-row, .model-slot-row").forEach((row) => {
+    row.addEventListener("mouseenter", () => {
+      const menu = row.querySelector(".model-key-dropdown");
+      if (menu) positionKeyDropdown(menu);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    const keyOpt = event.target.closest(".model-key-opt");
+    if (keyOpt) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!keyOpt.classList.contains("is-reserved")) {
+        const slot = keyOpt.dataset.slot;
+        const key = keyOpt.dataset.key;
+        if (slot && key) {
+          setSelectedKeyForSlot(slot, key);
+          setSelectedModel(slot);
+        }
+      }
+      return;
+    }
+
+    const keyBadge = event.target.closest(".model-key-badge");
+    if (keyBadge) {
+      event.preventDefault();
+      event.stopPropagation();
+      const slot = keyBadge.dataset.keyBadge;
+      const menu = document.querySelector(`[data-key-menu="${slot}"]`);
+      if (menu) {
+        const wasOpen = menu.classList.contains("is-open");
+        document.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+        if (!wasOpen) {
+          menu.classList.add("is-open");
+          positionKeyDropdown(menu);
+        }
+      }
+      return;
+    }
+
+    if (uploadPopover && !uploadPopover.hasAttribute("hidden") && !event.target.closest("#composer-upload-popover, [data-composer-plus]")) {
+      setUploadPopover(false);
+    }
+    if (geminiModelDropdown && !geminiModelDropdown.hasAttribute("hidden") && !event.target.closest("#gemini-model-dropdown, [data-model-dropdown-btn]")) {
+      setGeminiModelDropdown(false);
+    }
+  });
+
+
+  window.addEventListener("resize", () => {
+    const openMenu = document.querySelector(".model-key-dropdown.is-open");
+    if (openMenu) positionKeyDropdown(openMenu);
+  });
+
+  // 5. Files Drawer Handlers
+  document.querySelector("[data-close-files-drawer]")?.addEventListener("click", () => {
+    const drawer = document.getElementById("chat-files-drawer");
+    if (drawer) {
+      drawer.classList.remove("is-open");
+      drawer.setAttribute("aria-hidden", "true");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    const drawer = document.getElementById("chat-files-drawer");
+    if (drawer && drawer.classList.contains("is-open")) {
+      if (!e.target.closest("#chat-files-drawer, [data-chat-action='files']")) {
+        drawer.classList.remove("is-open");
+        drawer.setAttribute("aria-hidden", "true");
+      }
+    }
+  });
+
+  // 6. Sidebar Mode Switcher [ Chat | Cortex BETA ]
+  document.querySelector('[data-sidebar-mode="chat"]')?.addEventListener("click", () => {
+    setSelectedModel("xmanius-2");
+  });
+
+  document.querySelector('[data-sidebar-mode="cortex"]')?.addEventListener("click", () => {
+    setSelectedModel("xmanius-4");
+  });
+
+  // 7. Sidebar Navigation Items
+  document.querySelector("[data-open-library]")?.addEventListener("click", () => {
+    if (window.XmaniusLibrary?.open) {
+      window.XmaniusLibrary.open();
+    }
+  });
+
+  document.querySelector("[data-search-chats]")?.addEventListener("click", () => {
+    const query = window.prompt("Search chats by title:");
+    if (query !== null) {
+      const term = query.trim().toLowerCase();
+      const rows = recent?.querySelectorAll(".conversation-row");
+      rows?.forEach((row) => {
+        const title = row.querySelector(".conversation")?.textContent?.toLowerCase() || "";
+        row.style.display = !term || title.includes(term) ? "" : "none";
+      });
+    }
+  });
+
+  // 8. Header Chat 3-Dots Menu
+  const headerChatMenuBtn = document.getElementById("header-chat-menu-btn");
+  const headerChatMenuDropdown = document.getElementById("header-chat-menu-dropdown");
+
+  closeHeaderChatMenu = () => {
+    if (headerChatMenuDropdown) {
+      headerChatMenuDropdown.setAttribute("hidden", "");
+      headerChatMenuDropdown.classList.remove("is-visible");
+      headerChatMenuBtn?.setAttribute("aria-expanded", "false");
+    }
+  };
+
+  headerChatMenuBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!headerChatMenuDropdown) return;
+    const isHidden = headerChatMenuDropdown.hasAttribute("hidden") || !headerChatMenuDropdown.classList.contains("is-visible");
+    if (isHidden) {
+      closeChatMenu();
+      const chats = readChats();
+      const currentChat = chats.find((c) => c.id === currentChatId);
+      const pinLabel = headerChatMenuDropdown.querySelector("[data-header-pin-label]");
+      if (pinLabel) pinLabel.textContent = currentChat?.pinned ? "Unpin" : "Pin";
+
+      headerChatMenuDropdown.removeAttribute("hidden");
+      headerChatMenuDropdown.classList.add("is-visible");
+      headerChatMenuBtn?.setAttribute("aria-expanded", "true");
+    } else {
+      closeHeaderChatMenu();
+    }
+  });
+
+  headerChatMenuDropdown?.addEventListener("click", async (e) => {
+    const actionBtn = e.target.closest("[data-header-chat-action]");
+    if (!actionBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeHeaderChatMenu();
+
+    const action = actionBtn.dataset.headerChatAction;
+    const chats = readChats();
+    let currentChat = chats.find((c) => c.id === currentChatId);
+
+    if (action === "files") {
+      openFilesDrawerForChat(currentChat || { id: currentChatId, title: "Current chat", messages: [] });
+      return;
+    }
+
+    if (!currentChat) {
+      if (action === "delete") {
+        startNewChat();
+      } else if (action === "share") {
+        if (navigator.clipboard) await navigator.clipboard.writeText("XManius AI: New conversation").catch(() => {});
+      }
+      return;
+    }
+
+    if (action === "pin") {
+      currentChat.pinned = !currentChat.pinned;
+      saveChats(chats);
+      renderRecents();
+    } else if (action === "rename") {
+      const newTitle = window.prompt("Rename chat:", currentChat.title);
+      if (newTitle && newTitle.trim()) {
+        currentChat.title = newTitle.trim();
+        currentChat.titleGenerated = true;
+        saveChats(chats);
+        renderRecents();
+      }
+    } else if (action === "delete") {
+      saveChats(chats.filter((item) => item.id !== currentChat.id));
+      startNewChat();
+      renderRecents();
+    } else if (action === "share") {
+      const shareText = `${currentChat.title}\n\n${currentChat.messages.map((item) => `${item.type === "user" ? "You" : (isAndroid ? "Xmanias" : "Xmanius")}: ${item.text}`).join("\n\n")}`;
+      if (navigator.share) await navigator.share({ title: currentChat.title, text: shareText }).catch(() => {});
+      else await navigator.clipboard?.writeText(shareText);
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#header-chat-menu-btn, #header-chat-menu-dropdown")) {
+      closeHeaderChatMenu();
+    }
+  });
+
   window.__openXmaniusVoice = openGeneralVoice;
   document.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) openGeneralVoice(); });
 })();
-

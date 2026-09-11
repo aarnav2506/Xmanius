@@ -1,251 +1,334 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#000000">
-  <title>Xmanius</title>
-  <link rel="icon" type="image/png" href="assets/xmanius-icon.png?v=20260826-logo2">
-  <link rel="apple-touch-icon" href="assets/xmanius-icon.png?v=20260826-logo2">
-  <link rel="stylesheet" href="css/xmanius-chat.css?v=20260901-live-v6">
-  <link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260831-fix-click-v6">
-  <link rel="stylesheet" href="css/xmanius-cortex-ui.css?v=20260831-cortex-v1">
-  <link rel="stylesheet" href="css/xmanius-auth-modal.css?v=20260901-auth-v2">
-  <link rel="stylesheet" href="css/xmanius-library.css?v=20260901-lib-v1">
-  <link rel="stylesheet" href="css/center-layout.css?v=20260831-fix-click-v6">
-  <script src="xmanius-runtime-config.js?v=20260831-fix-click-v6" defer></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#131314">
+<title>XManius</title>
+<link rel="icon" type="image/png" href="assets/xmanius-icon.png?v=20260826-logo2">
+<link rel="apple-touch-icon" href="assets/xmanius-icon.png?v=20260826-logo2">
+<link rel="stylesheet" href="css/xmanius-chat.css?v=20260901-live-v6">
+<link rel="stylesheet" href="css/xmanius-enhancements.css?v=20260831-fix-click-v6">
+<link rel="stylesheet" href="css/xmanius-cortex-ui.css?v=20260831-cortex-v1">
+<link rel="stylesheet" href="css/xmanius-auth-modal.css?v=20260901-auth-v2">
+<link rel="stylesheet" href="css/xmanius-library.css?v=20260901-lib-v1">
+<link rel="stylesheet" href="https://fonts.cdnfonts.com/css/google-sans">
+<link rel="stylesheet" href="css/center-layout.css?v=20260911-precise-v4">
+<script src="xmanius-runtime-config.js?v=20260901-live-v1" defer></script>
 </head>
 <body>
-  <div class="chat-app">
-    <aside class="chat-sidebar" id="sidebar">
-      <div class="sidebar-top">
-        <a class="chat-logo" href="xmanius-ai.html" aria-label="Xmanias home">
-          <img class="chat-logo-full" src="assets/xmanius-wordmark.png?v=20260826-brand2" alt="Xmanias">
-          <span class="chat-logo-icon" role="img" aria-label="Xmanias icon"><img src="assets/xmanius-icon.png?v=20260826-brand2" alt=""></span>
-        </a>
-        <button class="icon-button sidebar-panel-button" type="button" data-close-sidebar aria-label="Collapse sidebar">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 4v16"></path></svg>
+<div class="chat-app">
+  <aside class="chat-sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <a class="chat-logo" href="xmanius-ai.html" aria-label="XManius home">
+        <img class="chat-logo-full" src="assets/xmanius-wordmark-trimmed.png?v=20260911-brand2" alt="XManius">
+        <span class="chat-logo-icon" role="img" aria-label="XManius icon"><img src="assets/xmanius-icon.png?v=20260826-brand2" alt="XManius icon"></span>
+      </a>
+      <button class="icon-button sidebar-panel-button" type="button" data-close-sidebar aria-label="Toggle sidebar" title="Toggle sidebar">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="4"></rect>
+          <path d="M9 3v18"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="sidebar-mode-switcher" id="sidebar-mode-switcher">
+      <button type="button" class="mode-tab is-active" data-sidebar-mode="chat">Chat</button>
+      <button type="button" class="mode-tab" data-sidebar-mode="cortex">
+        <span>Cortex</span>
+        <span class="mode-beta-badge">BETA</span>
+      </button>
+    </div>
+
+    <nav class="sidebar-primary-nav" aria-label="Primary Navigation">
+      <button class="sidebar-nav-item is-new-chat is-active" type="button" data-new-chat title="New chat">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+        </svg>
+        <span class="nav-item-label">New chat</span>
+      </button>
+      <button class="sidebar-nav-item" type="button" data-search-chats title="Search chats">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span class="nav-item-label">Search chats</span>
+      </button>
+      <button class="sidebar-nav-item" type="button" data-open-library title="Library">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="2"></rect>
+          <rect x="14" y="3" width="7" height="7" rx="2"></rect>
+          <rect x="14" y="14" width="7" height="7" rx="2"></rect>
+          <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+        </svg>
+        <span class="nav-item-label">Library</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-recents">
+      <p class="sidebar-label">RECENT</p>
+      <div class="recent-list" data-recent-list></div>
+    </div>
+
+    <div class="sidebar-guest-footer" id="sidebar-guest-footer">
+      <button type="button" class="sidebar-guest-menu-btn" data-open-settings>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </button>
+      <button type="button" class="sidebar-guest-menu-btn" data-open-help>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        <span>Help</span>
+      </button>
+      <div class="sidebar-guest-card"></div>
+    </div>
+
+    <button class="sidebar-account" type="button" data-account-button id="sidebar-user-account-btn" style="display: none;" aria-label="Account">
+      <span class="avatar"></span>
+      <span class="sidebar-account-info"><b data-account-name></b><small data-account-status></small></span>
+      <span class="account-more" data-open-settings title="Settings">&#8943;</span>
+    </button>
+
+    <div class="sidebar-collapsed-footer">
+      <button type="button" class="sidebar-collapsed-gear-btn" data-open-settings aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="chat-main">
+    <header class="chat-header">
+      <div class="header-left-group">
+        <button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="header-brand-title" id="header-brand-guest" style="font-size: 16px; font-weight: 600; color: #f1f5f9; letter-spacing: -0.2px;">XManius Flash</div>
+        <button class="model-name" id="header-model-btn" type="button" data-model-toggle aria-haspopup="menu" aria-expanded="false" style="display: none;">
+          <span data-active-model-name>XManius Flash</span>
+          <span class="model-chevron" style="display: inline-block; margin-left: 4px; font-size: 11px;">&#9662;</span>
         </button>
       </div>
-      <button class="new-chat" type="button" data-new-chat>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h7"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L11 15l-4 1 1-4 8.5-8.5Z"></path></svg>
-        <span>New chat</span>
-      </button>
-      <div class="sidebar-recents"><p class="sidebar-label">Recents</p><div class="recent-list" data-recent-list></div></div>
-      
-      <!-- Guest Footer (Screenshot 2) -->
-      <div class="sidebar-guest-footer" id="sidebar-guest-footer">
-        <button type="button" class="sidebar-guest-menu-btn" data-open-settings>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          <span>Settings</span>
+      <div class="header-tools">
+        <button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit">
+          <span class="usage-ring"><span></span></span>
+          <span class="usage-details"><span data-usage-label>0%</span><small data-usage-reset>Reset time loading&hellip;</small></span>
         </button>
-        <button type="button" class="sidebar-guest-menu-btn" data-open-help>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <circle cx="12" cy="12" r="4"></circle>
-            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
-            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
-            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
-            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+        <button class="icon-button gemini-incognito-btn" type="button" aria-label="Temporary chat" data-temporary-chat title="Temporary chat">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.5" stroke-dasharray="2.5 2.5"/>
+            <path d="M12 7v5l3 2" stroke-dasharray="none" stroke-width="1.8"></path>
           </svg>
-          <span>Help</span>
         </button>
-        <div class="sidebar-guest-card">
-          <div class="sidebar-guest-card-title">Get responses tailored to you</div>
-          <div class="sidebar-guest-card-sub">Log in to get answers based on saved chats, plus create images and upload files.</div>
-          <button type="button" class="sidebar-guest-card-login-btn" data-action-open-auth>
-            <svg viewBox="0 0 24 24" width="18" height="18" style="margin-right: 8px; flex-shrink: 0;" aria-hidden="true">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-            </svg>
-            <span>Log in with Google</span>
+        <button class="icon-button temporary-chat-exit-btn" id="temp-chat-exit-btn" type="button" aria-label="Exit temporary chat" title="Exit temporary chat" data-close-temp-chat style="display: none;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <button class="icon-button header-more-btn" id="header-chat-menu-btn" type="button" aria-label="Chat options" title="Chat options" data-header-chat-menu>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <circle cx="12" cy="5" r="1.75"/>
+            <circle cx="12" cy="12" r="1.75"/>
+            <circle cx="12" cy="19" r="1.75"/>
+          </svg>
+        </button>
+        <div class="conversation-menu header-chat-menu-dropdown" id="header-chat-menu-dropdown" hidden>
+          <button type="button" data-header-chat-action="share">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span>Share conversation</span>
+          </button>
+          <button type="button" data-header-chat-action="files">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span>Files in this chat</span>
+          </button>
+          <button type="button" data-header-chat-action="pin">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-2-7V4h1V2H6v2h1v6l-2 7z"/></svg>
+            <span data-header-pin-label>Pin</span>
+          </button>
+          <button type="button" data-header-chat-action="rename">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Rename</span>
+          </button>
+          <button type="button" data-header-chat-action="delete" style="color: #ff6b6b;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>Delete</span>
           </button>
         </div>
+      </div>
+    </header>
+
+    <main class="chat-content" id="chat-content">
+      <section class="empty-state" data-empty-state>
+        <div class="temporary-chat-center" id="temporary-chat-hero" style="display: none;">
+          <div class="temporary-chat-icon-wrap" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9.5" stroke-dasharray="2.5 2.5"></circle>
+              <path d="M12 7v5l3 2" stroke-dasharray="none"></path>
+            </svg>
+          </div>
+          <h1 class="temporary-chat-title">Just stopping by?</h1>
+          <p class="temporary-chat-desc"><span class="temp-dotted">Temporary chats</span> don't appear in <span class="temp-dotted">recent chats</span> and aren't used to improve XManius AI. Stored for 72 hours for safety.</p>
+        </div>
+        <div class="normal-chat-center" id="normal-chat-hero">
+          <h1 class="greeting-text">Where should we start?</h1>
+        </div>
+      </section>
+      <section class="message-list" data-message-list aria-live="polite"></section>
+    </main>
+
+    <form class="chat-composer" data-chat-form>
+      <button class="composer-icon composer-plus" type="button" data-composer-plus aria-expanded="false" aria-label="Add photos and files" title="Add photos and files">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+
+      <div class="composer-upload-popover" id="composer-upload-popover" hidden>
+        <button type="button" class="upload-popover-item" data-popover-upload-files>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <span>Upload files</span>
+        </button>
+        <button type="button" class="upload-popover-item" data-popover-camera>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>Use camera</span>
+        </button>
+        <button type="button" class="upload-popover-item" data-popover-live-voice>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
+          <span>Live Voice &amp; Vision</span>
+        </button>
       </div>
 
-      <!-- Logged-in User Account Button -->
-      <button class="sidebar-account" type="button" data-account-button id="sidebar-user-account-btn" style="display: none;" aria-label="Account and Profile Settings">
-        <span class="avatar"></span>
-        <span><b data-account-name></b><small data-account-status></small></span>
-        <span class="account-more">•••</span>
-      </button>
-    </aside>
-    <div class="chat-main">
-      <header class="chat-header">
-        <div class="header-left-group">
-          <button class="icon-button sidebar-open" type="button" data-open-sidebar aria-label="Open sidebar">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <div class="composer-attachments" data-attachments aria-live="polite"></div>
+
+      <input class="chat-input" data-chat-input type="text" maxlength="1000" autocomplete="off" placeholder="Ask XManius" aria-label="Ask XManius">
+      <input class="file-input" data-file-input type="file" accept="image/*,audio/*,video/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.webm,.mov,.mkv,.avi,.pdf,.txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.doc,.docx,.ppt,.pptx,.xls,.xlsx" multiple>
+      <input class="file-input" data-camera-input type="file" accept="image/*" capture="environment">
+
+      <div class="composer-right-controls">
+        <button class="composer-model-pill" type="button" data-model-dropdown-btn aria-haspopup="true" aria-expanded="false" title="Choose model and modes">
+          <span data-active-model-pill-text>Flash</span>
+          <svg class="model-chevron-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+
+        <div class="gemini-model-dropdown" id="gemini-model-dropdown" hidden>
+          <div class="gemini-model-row" data-slot="xmanius-2">
+            <button type="button" class="gemini-model-item is-selected" data-model-choice="xmanius-2">
+              <span class="gemini-check">&#10003;</span>
+              <div class="gemini-model-text"><strong>XManius Flash</strong><small>Fastest answers</small></div>
+            </button>
+            <span class="model-key-badge" data-key-badge="xmanius-2" title="Select API Key for Flash">Key 2 &#9662;</span>
+            <div class="model-key-dropdown" data-key-menu="xmanius-2">
+              <div class="model-key-dropdown-title">Select API Key &mdash; XManius Flash</div>
+              <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="1">Key 1</button>
+              <button type="button" class="model-key-opt is-selected" data-slot="xmanius-2" data-key="2">Key 2 (Primary)</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="3">Key 3</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="4">Key 4</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="5">Key 5</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="6">Key 6</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="7">Key 7</button>
+              <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice &amp; Audio">Key 8 (Voice Dedicated)</div>
+              <div class="model-key-divider"></div>
+              <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-2" data-key="auto">Auto Key</button>
+            </div>
+          </div>
+          <div class="gemini-model-row" data-slot="xmanius-1">
+            <button type="button" class="gemini-model-item" data-model-choice="xmanius-1">
+              <span class="gemini-check"></span>
+              <div class="gemini-model-text"><strong>XManius 1.5</strong><small>All-around help</small></div>
+            </button>
+            <span class="model-key-badge" data-key-badge="xmanius-1" title="Select API Key for 1.5">Key 1 &#9662;</span>
+            <div class="model-key-dropdown" data-key-menu="xmanius-1">
+              <div class="model-key-dropdown-title">Select API Key &mdash; XManius 1.5</div>
+              <button type="button" class="model-key-opt is-selected" data-slot="xmanius-1" data-key="1">Key 1 (Primary)</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="2">Key 2</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="3">Key 3</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="4">Key 4</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="5">Key 5</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="6">Key 6</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="7">Key 7</button>
+              <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice &amp; Audio">Key 8 (Voice Dedicated)</div>
+              <div class="model-key-divider"></div>
+              <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-1" data-key="auto">Auto Key</button>
+            </div>
+          </div>
+          <div class="gemini-model-row" data-slot="xmanius-3">
+            <button type="button" class="gemini-model-item" data-model-choice="xmanius-3">
+              <span class="gemini-check"></span>
+              <div class="gemini-model-text"><strong>XManius 2 Pro</strong><small>Advanced reasoning</small></div>
+            </button>
+            <span class="model-key-badge" data-key-badge="xmanius-3" title="Select API Key for 2 Pro">Key 3 &#9662;</span>
+            <div class="model-key-dropdown" data-key-menu="xmanius-3">
+              <div class="model-key-dropdown-title">Select API Key &mdash; XManius 2 Pro</div>
+              <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="1">Key 1</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="2">Key 2</button>
+              <button type="button" class="model-key-opt is-selected" data-slot="xmanius-3" data-key="3">Key 3 (Primary)</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="4">Key 4</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="5">Key 5</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="6">Key 6</button>
+              <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="7">Key 7</button>
+              <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice &amp; Audio">Key 8 (Voice Dedicated)</div>
+              <div class="model-key-divider"></div>
+              <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-3" data-key="auto">Auto Key</button>
+            </div>
+          </div>
+          <div class="gemini-model-divider"></div>
+          <button type="button" class="gemini-model-item gemini-toggle-item" data-toggle-extended-thinking>
+            <span class="gemini-check" data-check-think></span>
+            <div class="gemini-model-text"><strong>Extended thinking</strong><small>Complex problem solving</small></div>
           </button>
-          <!-- Static Brand for Guest Users -->
-          <div class="header-brand-title" id="header-brand-guest" style="font-size: 16px; font-weight: 600; color: #f1f5f9; letter-spacing: -0.2px;">XManius Flash</div>
-          <!-- Interactive Model Button with Chevron for Connected/Logged-in Users -->
-          <button class="model-name" id="header-model-btn" type="button" data-model-toggle aria-haspopup="menu" aria-expanded="false" style="display: none;">
-            <span data-active-model-name>XManius 1.5</span>
-            <span class="model-chevron" style="display: inline-block; margin-left: 4px; font-size: 12px; transform: translateY(1px);">⌵</span>
+          <button type="button" class="gemini-model-item gemini-toggle-item" data-toggle-search-mode>
+            <span class="gemini-check" data-check-search></span>
+            <div class="gemini-model-text"><strong>Search mode</strong><small>Search the web</small></div>
           </button>
         </div>
-        <div class="header-tools">
-          <button class="usage-indicator" type="button" data-usage-indicator aria-label="Usage limit"><span class="usage-ring"><span></span></span><span class="usage-details"><span data-usage-label>0%</span><small data-usage-reset>Reset time loading…</small></span></button>
-          <button class="icon-button" type="button" aria-label="New conversation" data-new-chat>＋</button>
-        </div>
-      </header>
-      <main class="chat-content" id="chat-content">
-        <section class="empty-state" data-empty-state>
-          <h1>Where should we begin?</h1>
-          <p>Ask XManius anything.</p>
-        </section>
-        <section class="message-list" data-message-list aria-live="polite"></section>
-      </main>
-      <form class="chat-composer" data-chat-form>
-        <button class="composer-icon composer-plus" type="button" data-model-toggle aria-expanded="false" aria-label="Attachments">+</button>
-        <div class="composer-attachments" data-attachments aria-live="polite"></div>
-        <input class="chat-input" data-chat-input type="text" maxlength="1000" autocomplete="off" placeholder="Ask anything" aria-label="Ask XManius anything">
-        <input class="file-input" data-file-input type="file" accept="image/*,audio/*,video/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.webm,.mov,.mkv,.avi,.pdf,.txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.doc,.docx,.ppt,.pptx,.xls,.xlsx" multiple>
-        <input class="file-input" data-camera-input type="file" accept="image/*" capture="environment">
-        <button class="composer-tool think-composer" type="button" data-think-toggle aria-pressed="false" aria-label="Toggle Think mode" title="Think"><img class="think-icon" src="assets/xmanius-think.png?v=20260826-brand" alt=""><span>Think</span></button>
-        <button class="composer-tool search-composer" type="button" data-web-search aria-pressed="false" aria-label="Toggle web search" title="Search the web"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.8 2.7 2.8 14.3 0 17M12 3.5c-2.8 2.7-2.8 14.3 0 17"></path></svg></button>
-        <button class="composer-icon composer-mic" type="button" data-chat-mic aria-label="Use voice input">
+
+        <button class="composer-icon composer-mic" type="button" data-chat-mic aria-label="Use voice input" title="Use microphone">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
         </button>
-        <button class="send-button" type="submit" aria-label="Send message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
-        <div class="dictation-bar" data-dictation-bar aria-hidden="true" style="display: none !important;"><button type="button" class="dictation-cancel" data-dictation-cancel aria-label="Cancel voice input">×</button><span class="dictation-waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button type="button" class="dictation-stop" data-dictation-stop aria-label="Stop recording"><span></span></button><button type="button" class="dictation-send" data-dictation-send aria-label="Send dictated message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button></div>
-        <div class="model-picker" data-model-picker aria-label="Choose model and attachments">
-          <div class="model-picker-models" data-auth-only style="display: none;">
-            <!-- Slot 1: XManius 1.5 -->
-            <div class="model-slot-row" data-slot="xmanius-1">
-              <button class="model-option is-selected" type="button" data-model="xmanius-1">
-                <div class="model-option-text">
-                  <div class="model-option-header">
-                    <strong>XManius 1.5</strong>
-                    <span class="model-key-badge" data-key-badge="xmanius-1">Key 1 ▾</span>
-                  </div>
-                  <small>Gemini 3.5 Flash Lite • Fast multi-modal AI &amp; tools</small>
-                </div>
-                <b>✓</b>
-              </button>
-              <div class="model-key-dropdown" data-key-menu="xmanius-1">
-                <div class="model-key-dropdown-title">Select API Key for XManius 1.5</div>
-                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-1" data-key="1">⚡ Key 1 (Primary)</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="2">⚡ Key 2</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="3">⚡ Key 3</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="4">⚡ Key 4</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="5">⚡ Key 5</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="6">⚡ Key 6</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-1" data-key="7">⚡ Key 7</button>
-                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
-                <div class="model-key-divider"></div>
-                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-1" data-key="auto">🔄 Auto Key</button>
-              </div>
-            </div>
+        <button class="send-button" type="submit" aria-label="Send message" title="Send message">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+      </div>
 
-            <!-- Slot 2: XManius Flash -->
-            <div class="model-slot-row" data-slot="xmanius-2">
-              <button class="model-option" type="button" data-model="xmanius-2">
-                <div class="model-option-text">
-                  <div class="model-option-header">
-                    <strong>XManius Flash</strong>
-                    <span class="model-key-badge" data-key-badge="xmanius-2">Key 2 ▾</span>
-                  </div>
-                  <small>Gemini 3.1 Flash Lite • Sub-second ultra-low latency</small>
-                </div>
-                <b></b>
-              </button>
-              <div class="model-key-dropdown" data-key-menu="xmanius-2">
-                <div class="model-key-dropdown-title">Select API Key for XManius Flash</div>
-                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="1">⚡ Key 1</button>
-                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-2" data-key="2">⚡ Key 2 (Primary)</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="3">⚡ Key 3</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="4">⚡ Key 4</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="5">⚡ Key 5</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="6">⚡ Key 6</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-2" data-key="7">⚡ Key 7</button>
-                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
-                <div class="model-key-divider"></div>
-                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-2" data-key="auto">🔄 Auto Key</button>
-              </div>
-            </div>
-
-            <!-- Slot 3: XManius 2 Pro -->
-            <div class="model-slot-row" data-slot="xmanius-3">
-              <button class="model-option" type="button" data-model="xmanius-3">
-                <div class="model-option-text">
-                  <div class="model-option-header">
-                    <strong>XManius 2 Pro</strong>
-                    <span class="model-key-badge" data-key-badge="xmanius-3">Key 3 ▾</span>
-                  </div>
-                  <small>Gemini 3.8 Flash • Advanced reasoning &amp; multi-tool STEM</small>
-                </div>
-                <b></b>
-              </button>
-              <div class="model-key-dropdown" data-key-menu="xmanius-3">
-                <div class="model-key-dropdown-title">Select API Key for XManius 2 Pro</div>
-                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="1">⚡ Key 1</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="2">⚡ Key 2</button>
-                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-3" data-key="3">⚡ Key 3 (Primary)</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="4">⚡ Key 4</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="5">⚡ Key 5</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="6">⚡ Key 6</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-3" data-key="7">⚡ Key 7</button>
-                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
-                <div class="model-key-divider"></div>
-                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-3" data-key="auto">🔄 Auto Key</button>
-              </div>
-            </div>
-
-            <!-- Slot 4: XManius Cortex -->
-            <div class="model-slot-row" data-slot="xmanius-4">
-              <button class="model-option" type="button" data-model="xmanius-4">
-                <div class="model-option-text">
-                  <div class="model-option-header">
-                    <strong>XManius Cortex</strong>
-                    <span class="model-key-badge" data-key-badge="xmanius-4">Key 4 ▾</span>
-                  </div>
-                  <small>Anti-Gravity • Autonomous agent execution &amp; problem solving</small>
-                </div>
-                <b></b>
-              </button>
-              <div class="model-key-dropdown" data-key-menu="xmanius-4">
-                <div class="model-key-dropdown-title">Select API Key for XManius Cortex</div>
-                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="1">⚡ Key 1</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="2">⚡ Key 2</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="3">⚡ Key 3</button>
-                <button type="button" class="model-key-opt is-selected" data-slot="xmanius-4" data-key="4">⚡ Key 4 (Primary)</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="5">⚡ Key 5</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="6">⚡ Key 6</button>
-                <button type="button" class="model-key-opt" data-slot="xmanius-4" data-key="7">⚡ Key 7</button>
-                <div class="model-key-opt is-reserved" title="Key 8 is reserved exclusively for Voice & Audio">🎙️ Key 8 (Voice Dedicated)</div>
-                <div class="model-key-divider"></div>
-                <button type="button" class="model-key-opt model-key-auto" data-slot="xmanius-4" data-key="auto">🔄 Auto Key</button>
-              </div>
-            </div>
-
-            <div class="model-picker-divider"></div>
-          </div>
-          <button type="button" class="model-option model-option-attachment" data-attach-files><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 13.5 7a3.5 3.5 0 0 1 5 5l-7.5 7.5a5 5 0 0 1-7-7L11.5 5"></path></svg><span class="attachment-option-copy"><strong>Add photos &amp; files</strong><small>Upload from computer</small></span><b class="shortcut-label">Ctrl + K</b></button>
-          <button type="button" class="model-option model-option-attachment" data-attach-camera><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.4-2h7.2l1.4 2h3v10H4z"></path><circle cx="12" cy="13.5" r="3"></circle></svg><span class="attachment-option-copy"><strong>Use camera</strong><small>Capture from device</small></span><b class="shortcut-label">Ctrl + T</b></button>
-          <button type="button" class="model-option model-option-attachment" data-attach-live-voice><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line><line x1="9" y1="21" x2="15" y2="21"></line></svg><span class="attachment-option-copy"><strong>Live Voice &amp; Camera</strong><small>Interactive voice &amp; live vision feed</small></span><b class="shortcut-label">Ctrl + V</b></button>
-        </div>
-        <div class="usage-notice" data-usage-notice role="status" aria-live="polite"></div>
-      </form>
-  <p class="chat-disclaimer">XManius can make mistakes. Check important information.</p>
-    </div>
+      <div class="dictation-bar" data-dictation-bar aria-hidden="true" style="display: none !important;">
+        <button type="button" class="dictation-cancel" data-dictation-cancel aria-label="Cancel voice input">&times;</button>
+        <span class="dictation-waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <button type="button" class="dictation-stop" data-dictation-stop aria-label="Stop recording"><span></span></button>
+        <button type="button" class="dictation-send" data-dictation-send aria-label="Send dictated message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+      </div>
+      <div class="usage-notice" data-usage-notice role="status" aria-live="polite"></div>
+    </form>
+    <p class="chat-disclaimer">XManius can make mistakes. Check important info.</p>
   </div>
-  
 
-  <script src="xmanius-runtime-config.js?v=20260901-live-v1"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/xmanius-supabase.js?v=20260901-auth-v3"></script>
-  <script src="js/xmanius-library.js?v=20260901-lib-v1"></script>
-  <script src="js/xmanius-stream-client.js?v=20260901-auth-v3" defer></script>
-  <script src="js/xmanius-cortex-ui.js?v=20260901-auth-v3" defer></script>
-  <script src="js/xmanius-chat.js?v=20260901-cortex-v7" defer></script>
-  <script src="js/xmanius-live-voice.js?v=20260901-live-voice-v14" defer></script>
-  <script src="js/xmanius-enhancements.js?v=20260901-auth-v3" defer></script>
-  <script src="js/home-greeting.js?v=20260901-auth-v3" defer></script>
+  <aside class="chat-files-drawer" id="chat-files-drawer" aria-hidden="true">
+    <div class="files-drawer-header">
+      <h2>Files</h2>
+      <button type="button" class="files-drawer-close" data-close-files-drawer aria-label="Close files panel" title="Close">&times;</button>
+    </div>
+    <div class="files-drawer-body">
+      <div class="files-drawer-section-title">Created</div>
+      <div class="files-drawer-created-empty">You haven't created anything yet</div>
+      <div class="files-drawer-section-title">Added</div>
+      <div class="files-drawer-list" id="files-drawer-list"></div>
+      <div class="files-drawer-empty" id="files-drawer-empty">
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        <p>No files in this chat yet</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script src="xmanius-runtime-config.js?v=20260901-live-v1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/xmanius-supabase.js?v=20260901-auth-v3"></script>
+<script src="js/xmanius-library.js?v=20260901-lib-v1"></script>
+<script src="js/xmanius-stream-client.js?v=20260901-auth-v3" defer></script>
+<script src="js/xmanius-cortex-ui.js?v=20260901-auth-v3" defer></script>
+<script src="js/xmanius-chat.js?v=20260911-btnfix-v2" defer></script>
+<script src="js/xmanius-live-voice.js?v=20260901-live-voice-v14" defer></script>
+<script src="js/xmanius-enhancements.js?v=20260901-auth-v3" defer></script>
+<script src="js/home-greeting.js?v=20260911-btnfix-v2" defer></script>
 </body>
 </html>
