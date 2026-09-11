@@ -16,6 +16,35 @@
 
 [hidden] { display: none !important; }
 
+/* ─── Global Google Sans Typography Everywhere ─── */
+*,
+*::before,
+*::after {
+  font-family: 'Google Sans', 'Product Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+html, body, button, input, textarea, select, .chat-app, .chat-main, .chat-content, .message, .message-body, .sidebar-recents, .conversation, .conversation-row, .settings-shell, .settings-main, .settings-nav {
+  font-family: 'Google Sans', 'Product Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* ─── Sidebar Width (Expanded 280px matching Gemini reference) ─── */
+.chat-sidebar {
+  transition: width 0.25s cubic-bezier(0.2, 0, 0, 1), flex-basis 0.25s cubic-bezier(0.2, 0, 0, 1), max-width 0.25s cubic-bezier(0.2, 0, 0, 1), padding 0.25s cubic-bezier(0.2, 0, 0, 1) !important;
+  will-change: width, flex-basis;
+  overflow-x: hidden !important;
+}
+.chat-sidebar,
+.chat-app:not(.sidebar-collapsed) .chat-sidebar {
+  flex: 0 0 280px !important;
+  width: 280px !important;
+  max-width: 280px !important;
+}
+.chat-app.sidebar-collapsed .chat-sidebar {
+  flex: 0 0 60px !important;
+  width: 60px !important;
+  max-width: 60px !important;
+}
+
 /* Definite clickability & display guards */
 .model-picker:not(.is-open) {
   display: none !important;
@@ -96,10 +125,17 @@
 }
 
 /* Clean up empty state overlays — keep only greeting & type box like Gemini */
+body.is-empty-state .header-left-group #header-model-btn,
 body.is-empty-state .header-left-group .header-brand-title,
 body.is-empty-state .header-left-group #header-brand-guest,
 body.is-empty-state .header-tools .usage-indicator,
 body.is-empty-state .chat-disclaimer {
+  display: none !important;
+}
+
+/* Redundant guest title element permanently hidden */
+.header-brand-title,
+#header-brand-guest {
   display: none !important;
 }
 
@@ -282,12 +318,10 @@ body.is-temporary-chat-mode.is-empty-state .chat-composer {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 30px rgba(100, 105, 115, 0.12) !important;
 }
 
-/* When image/file attachments are added, morph into a rectangular box with smooth edges (Screenshot 4) */
-body.is-empty-state:has(.attachment-preview-card) .chat-composer,
-body.is-empty-state:has(.composer-attachments.is-visible) .chat-composer,
+/* When image/file attachments are added in empty state, morph into a rectangular box with smooth edges */
 body.is-empty-state.has-attachments .chat-composer,
-.chat-composer.has-attachments {
-  border-radius: 24px !important; /* Rectangular with smooth edges */
+body.is-empty-state:has(.composer-attachments.is-visible) .chat-composer {
+  border-radius: 24px !important;
   height: auto !important;
   min-height: 140px !important;
   padding: 14px 18px 12px 18px !important;
@@ -299,19 +333,17 @@ body.is-empty-state.has-attachments .chat-composer,
   grid-template-columns: auto 1fr !important;
   row-gap: 10px !important;
   column-gap: 12px !important;
-  top: calc(50% + 45px) !important;
+  position: absolute !important;
+  top: calc(44% + 64px) !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  bottom: auto !important;
 }
 
-body.is-empty-state:has(.attachment-preview-card) .empty-state,
-body.is-empty-state:has(.composer-attachments.is-visible) .empty-state,
-body.is-empty-state.has-attachments .empty-state {
-  top: calc(50% - 150px) !important;
-}
-
-body.is-empty-state:has(.attachment-preview-card) .chat-disclaimer,
-body.is-empty-state:has(.composer-attachments.is-visible) .chat-disclaimer,
-body.is-empty-state.has-attachments .chat-disclaimer {
-  top: calc(50% + 160px) !important;
+body.is-empty-state.has-attachments .empty-state,
+body.is-empty-state:has(.composer-attachments.is-visible) .empty-state {
+  top: calc(44% - 64px) !important;
+  transform: translate(-50%, -50%) !important;
 }
 
 /* Ensure model picker pops up cleanly above the composer without causing layout distortion */
@@ -365,23 +397,26 @@ body.xmanius-theme-light .chat-composer.is-listening {
   border-color: #dadce0 !important;
 }
 
-/* Centered Disclaimer Text Below Composer in Empty State */
-body.is-empty-state .chat-disclaimer {
-  position: absolute !important;
-  top: calc(50% + 72px) !important;
+/* Pinned Disclaimer Text Fixed at Bottom (Gemini exact) */
+.chat-disclaimer,
+body.is-empty-state .chat-disclaimer,
+body:not(.is-empty-state) .chat-disclaimer {
+  position: fixed !important;
+  bottom: 8px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   margin: 0 !important;
+  top: auto !important;
   text-align: center !important;
   white-space: nowrap !important;
   z-index: 5 !important;
-  color: #858585 !important;
-  font-size: 12px !important;
+  color: #71767b !important;
+  font-size: 11.5px !important;
   pointer-events: none !important;
 }
 
-body.xmanius-theme-light.is-empty-state .chat-disclaimer {
-  color: #6b7280 !important;
+body.xmanius-theme-light .chat-disclaimer {
+  color: #707078 !important;
 }
 
 /* -------------------------------------------------------------
@@ -1753,9 +1788,9 @@ body.xmanius-theme-light .chat-sidebar {
 .chat-logo-full {
   display: block !important;
   width: auto !important;
-  max-width: 96px !important;
-  height: 15px !important;
-  max-height: 15px !important;
+  max-width: 100px !important;
+  height: 16px !important;
+  max-height: 16px !important;
   object-fit: contain !important;
   object-position: left center !important;
   transition: opacity 0.15s ease !important;
@@ -1907,108 +1942,190 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   color: #1f2937 !important;
 }
 
-/* Guest footer — minimal, row-style items */
-.sidebar-guest-footer {
-  margin-top: auto !important;
-  padding: 8px 10px !important;
+/* Scrollable Recent Chats Container (prevents pushing footer off-screen) */
+.sidebar-recents {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin-bottom: 8px !important;
+  padding-right: 2px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #444746 transparent !important;
+}
+
+.sidebar-recents::-webkit-scrollbar {
+  width: 4px !important;
+}
+.sidebar-recents::-webkit-scrollbar-track {
+  background: transparent !important;
+  margin: 10px 0 !important;
+}
+.sidebar-recents::-webkit-scrollbar-thumb {
+  background: #444746 !important;
+  border-radius: 9999px !important;
+}
+.sidebar-recents::-webkit-scrollbar-thumb:hover {
+  background: #747775 !important;
+}
+
+body.xmanius-theme-light .sidebar-recents {
+  scrollbar-color: #c4c7c5 transparent !important;
+}
+body.xmanius-theme-light .sidebar-recents::-webkit-scrollbar-thumb {
+  background: #c4c7c5 !important;
+}
+body.xmanius-theme-light .sidebar-recents::-webkit-scrollbar-thumb:hover {
+  background: #8e918f !important;
+}
+
+.recent-list {
+  flex: 1 !important;
+  overflow: visible !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
 }
-.sidebar-guest-menu-btn {
-  display: flex !important;
-  align-items: center !important;
-  gap: 14px !important;
-  width: 100% !important;
-  min-height: 40px !important;
-  padding: 8px 14px !important;
-  border-radius: 9999px !important;
-  background: transparent !important;
-  border: 0 !important;
-  color: #e3e3e3 !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  text-align: left !important;
-  cursor: pointer !important;
-  transition: background 0.15s ease !important;
+
+/* Guest footer removed — unified into persistent sidebar-account */
+.sidebar-guest-footer {
+  display: none !important;
 }
-.sidebar-guest-menu-btn:hover {
-  background: #282a2d !important;
-  color: #ffffff !important;
-}
-.sidebar-guest-menu-btn svg {
-  flex-shrink: 0 !important;
-  color: #9aa0a6 !important;
-}
-/* Hide the card (login card not needed as sidebar item) */
 .sidebar-guest-card {
   display: none !important;
 }
 
-/* Sidebar Account Button (logged-in) */
-.sidebar-account[style*="display: none"],
-.sidebar-account[style*="display:none"],
-.sidebar-account[hidden] {
-  display: none !important;
-}
+/* Persistent Sidebar Account / Profile Card (Gemini Reference Identical) */
 .sidebar-account {
-  display: flex;
+  display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
-  width: 100% !important;
-  padding: 8px 14px !important;
-  margin-top: auto !important;
+  gap: 12px !important;
+  width: calc(100% - 16px) !important;
+  margin: auto 8px 8px 8px !important;
+  padding: 8px 12px !important;
+  border-radius: 9999px !important;
   background: transparent !important;
   border: 0 !important;
   color: #e3e3e3 !important;
   cursor: pointer !important;
   text-align: left !important;
-  border-radius: 9999px !important;
+  flex-shrink: 0 !important;
   transition: background 0.15s ease !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
 }
+
 .sidebar-account:hover {
   background: #282a2d !important;
 }
+
 .sidebar-account .avatar {
-  width: 32px !important;
-  height: 32px !important;
+  width: 36px !important;
+  height: 36px !important;
   border-radius: 50% !important;
-  background: #8ab4f8 !important;
+  background: #ffffff !important;
+  display: grid !important;
+  place-items: center !important;
   flex-shrink: 0 !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
 }
+
+.sidebar-account .avatar svg {
+  width: 20px !important;
+  height: 20px !important;
+  display: block !important;
+}
+
 .sidebar-account-info {
   flex: 1 !important;
   min-width: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  gap: 2px !important;
 }
+
 .sidebar-account-info b {
-  font-size: 13.5px !important;
-  font-weight: 600 !important;
-  color: #f1f3f4 !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #e3e3e3 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  line-height: 1.25 !important;
 }
+
 .sidebar-account-info small {
-  font-size: 11.5px !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
   color: #9aa0a6 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.25 !important;
 }
-.account-more {
-  font-size: 15px !important;
+
+.account-settings-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 0 !important;
   color: #9aa0a6 !important;
-  letter-spacing: 0.5px !important;
-  padding: 4px !important;
-  border-radius: 6px !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
 }
-.account-more:hover {
-  background: #282a2d !important;
+
+.account-settings-btn svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: currentColor !important;
+  display: block !important;
+}
+
+.account-settings-btn:hover {
+  background: #383a3e !important;
   color: #ffffff !important;
+}
+
+/* Light Theme Sidebar Account */
+body.xmanius-theme-light .sidebar-account:hover {
+  background: #e8eaed !important;
+}
+body.xmanius-theme-light .sidebar-account-info b {
+  color: #1f1f1f !important;
+}
+body.xmanius-theme-light .sidebar-account-info small {
+  color: #5f6368 !important;
+}
+body.xmanius-theme-light .account-settings-btn {
+  color: #5f6368 !important;
+}
+body.xmanius-theme-light .account-settings-btn:hover {
+  background: #dadce0 !important;
+  color: #1f1f1f !important;
 }
 
 /* Collapsed Settings Gear: Hide in expanded state */
 .sidebar-collapsed-footer {
   display: none !important;
+}
+
+/* Smooth Transitions for Collapsible Sidebar Items */
+.chat-sidebar .nav-item-label,
+.chat-sidebar .sidebar-recents,
+.chat-sidebar .sidebar-account-info,
+.chat-sidebar .chat-logo-full {
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 /* Collapsed Sidebar */
@@ -2019,7 +2136,7 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   background: transparent !important;
   border-right: none !important;
   align-items: center !important;
-  overflow: visible !important;
+  overflow-x: hidden !important;
 }
 .chat-app.sidebar-collapsed .chat-logo-text,
 .chat-app.sidebar-collapsed .chat-logo-full,
@@ -2102,29 +2219,87 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
 .chat-app.sidebar-collapsed .sidebar-guest-menu-btn span {
   display: none !important;
 }
-.chat-app.sidebar-collapsed .sidebar-collapsed-footer {
-  margin-top: auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  align-items: center !important;
-  width: 100% !important;
+/* Hide extra icons of Settings and Help, and collapsed redundant buttons */
+.sidebar-guest-footer,
+.sidebar-guest-menu-btn,
+.sidebar-collapsed-footer,
+.sidebar-nav-bottom {
+  display: none !important;
 }
-.chat-app.sidebar-collapsed .sidebar-collapsed-gear-btn {
-  width: 40px !important;
-  height: 40px !important;
+
+/* ─── Profile Row (Avatar, Name/Subtitle & Setting Gear Icon on Right) ─── */
+.sidebar-account {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  min-height: 52px !important;
+  margin-top: auto !important;
+  padding: 8px 10px !important;
+  border: 0 !important;
   border-radius: 12px !important;
   background: transparent !important;
-  border: 0 !important;
-  color: #9aa0a6 !important;
+  color: #ffffff !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: background 0.15s ease !important;
+}
+.sidebar-account:hover {
+  background: #282a2d !important;
+}
+.sidebar-account .avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
   display: grid !important;
   place-items: center !important;
-  cursor: pointer !important;
 }
-.chat-app.sidebar-collapsed .sidebar-collapsed-gear-btn:hover {
-  background: #282a2d !important;
+.sidebar-account-info {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  overflow: hidden !important;
+}
+.sidebar-account-info b {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #f1f3f4 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.sidebar-account-info small {
+  font-size: 11px !important;
+  color: #9aa0a6 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.account-settings-btn {
+  display: grid !important;
+  place-items: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: #c4c7c5 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+  flex-shrink: 0 !important;
+}
+.account-settings-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
 }
+
+/* In collapsed rail mode, show only avatar at bottom */
 .chat-app.sidebar-collapsed .sidebar-account {
   width: 40px !important;
   height: 40px !important;
@@ -2134,8 +2309,12 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   border: 0 !important;
   border-radius: 50% !important;
 }
+.chat-app.sidebar-collapsed .sidebar-account-info,
+.chat-app.sidebar-collapsed .account-settings-btn {
+  display: none !important;
+}
 
-/* 3. Conversation 3-Dots Menu */
+/* 3. Conversation 3-Dots Menu (Image 4 exact fidelity) */
 .conversation-row {
   position: relative !important;
   display: flex !important;
@@ -2192,12 +2371,12 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   z-index: 1000 !important;
   display: flex !important;
   flex-direction: column !important;
-  width: 215px !important;
+  width: 200px !important;
   padding: 6px !important;
-  border: 1px solid #3c4043 !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
   border-radius: 16px !important;
   background: #1e1f20 !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
   gap: 2px !important;
 }
 .conversation-menu-portal button,
@@ -2206,26 +2385,32 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   align-items: center !important;
   gap: 12px !important;
   width: 100% !important;
-  padding: 9px 12px !important;
+  padding: 10px 14px !important;
   border-radius: 10px !important;
   background: transparent !important;
   border: 0 !important;
   color: #e3e3e3 !important;
   font-size: 14px !important;
-  font-weight: 500 !important;
+  font-weight: 400 !important;
   cursor: pointer !important;
   text-align: left !important;
-  transition: background 0.12s ease !important;
+  transition: background 0.12s ease, color 0.12s ease !important;
 }
 .conversation-menu-portal button:hover,
 .conversation-menu button:hover {
-  background: #2a2b2e !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
 }
 .conversation-menu-portal button svg,
 .conversation-menu button svg {
-  color: #9aa0a6 !important;
+  color: #c4c7c5 !important;
   flex-shrink: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+.conversation-menu-portal button:hover svg,
+.conversation-menu button:hover svg {
+  color: #ffffff !important;
 }
 
 /* 4. Right-Side Files Drawer */
@@ -2256,21 +2441,29 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
 }
 .files-drawer-header h2 {
   margin: 0 !important;
-  font-size: 20px !important;
-  font-weight: 600 !important;
-  color: #ffffff !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  color: #f1f3f4 !important;
 }
 .files-drawer-close {
   background: transparent !important;
   border: 0 !important;
-  color: #9aa0a6 !important;
-  font-size: 18px !important;
-  width: 32px !important;
-  height: 32px !important;
+  color: #c4c7c5 !important;
+  width: 36px !important;
+  height: 36px !important;
   border-radius: 50% !important;
   cursor: pointer !important;
   display: grid !important;
   place-items: center !important;
+  padding: 0 !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+.files-drawer-close svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: currentColor !important;
+  display: block !important;
 }
 .files-drawer-close:hover {
   background: #282a2d !important;
@@ -2282,20 +2475,20 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   padding: 18px 20px !important;
 }
 .files-drawer-section-title {
-  font-family: 'Google Sans', Roboto, sans-serif !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  color: #e3e3e3 !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #c4c7c5 !important;
   margin: 16px 0 8px 0 !important;
-  text-transform: none !important;
-  letter-spacing: normal !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
 }
 .files-drawer-created-empty {
   font-family: 'Google Sans Text', Roboto, sans-serif !important;
-  font-size: 13.5px !important;
-  color: #8e918f !important;
-  text-align: center !important;
-  padding: 24px 12px !important;
+  font-size: 14px !important;
+  color: #9aa0a6 !important;
+  text-align: left !important;
+  padding: 6px 0 16px 0 !important;
   font-style: normal !important;
 }
 .files-drawer-list {
@@ -2307,18 +2500,21 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   display: flex !important;
   align-items: center !important;
   gap: 12px !important;
-  padding: 8px 10px !important;
+  padding: 10px 12px !important;
   border-radius: 12px !important;
+  background: #282a2d !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   cursor: pointer !important;
-  transition: background 0.15s ease !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
   text-decoration: none !important;
 }
 .files-drawer-item:hover {
-  background: #282a2d !important;
+  background: #383a3e !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 .files-drawer-icon-box {
-  width: 34px !important;
-  height: 34px !important;
+  width: 38px !important;
+  height: 38px !important;
   border-radius: 8px !important;
   background: #c5221f !important;
   display: grid !important;
@@ -2370,7 +2566,131 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
 }
 .files-drawer-empty svg {
   margin-bottom: 12px !important;
-  color: #64748b !important;
+  color: #8e918f !important;
+  width: 44px !important;
+  height: 44px !important;
+  opacity: 0.85 !important;
+}
+
+/* Header Model Title / Pill — Clean Gemini Medium Contrast */
+#header-model-btn.model-name {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: #e3e3e3 !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 17px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.1px !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+#header-model-btn.model-name:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.header-chevron-svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: #9aa0a6 !important;
+  stroke-width: 2 !important;
+  transition: color 0.15s ease !important;
+  flex-shrink: 0 !important;
+}
+
+#header-model-btn.model-name:hover .header-chevron-svg {
+  color: #ffffff !important;
+}
+
+body.xmanius-theme-light #header-model-btn.model-name {
+  color: #1f1f1f !important;
+}
+body.xmanius-theme-light #header-model-btn.model-name:hover {
+  background: #e8eaed !important;
+}
+body.xmanius-theme-light .header-chevron-svg {
+  color: #5f6368 !important;
+}
+
+/* Message Attachments Grid in Chat Messages */
+.message.user .message-attachments {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+  margin-top: 8px !important;
+  width: 100% !important;
+}
+
+.message.user .message-attachments .attachment-preview-card {
+  width: 180px !important;
+  height: 130px !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  border: 1px solid #3c4043 !important;
+  background: #1e1f20 !important;
+  cursor: pointer !important;
+}
+
+.message.user .message-attachments .attachment-preview-card img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+body.xmanius-theme-light .message.user .message-attachments .attachment-preview-card {
+  border-color: #dadce0 !important;
+  background: #f1f2f4 !important;
+}
+
+/* Floating Scroll-to-Bottom Button (Matches Send button style, downward arrow) */
+.xmanius-scroll-bottom {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: 88px !important;
+  transform: translateX(-50%) !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #e3e3e3 !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5) !important;
+  display: grid !important;
+  place-items: center !important;
+  z-index: 60 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease !important;
+}
+
+.xmanius-scroll-bottom:hover {
+  background: #282a2d !important;
+  color: #ffffff !important;
+  transform: translateX(-50%) translateY(-2px) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.xmanius-scroll-bottom[hidden] {
+  display: none !important;
+}
+
+body.xmanius-theme-light .xmanius-scroll-bottom {
+  background: #ffffff !important;
+  border: 1px solid #dadce0 !important;
+  color: #444746 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+}
+body.xmanius-theme-light .xmanius-scroll-bottom:hover {
+  background: #f1f3f4 !important;
+  color: #1f1f1f !important;
 }
 
 /* 5. Temporary Chat Hero & Header Controls */
@@ -2598,7 +2918,41 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   gap: 8px !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
   transition: border-radius 0.2s ease, min-height 0.2s ease, padding 0.2s ease !important;
-  position: relative !important;
+  position: absolute !important;
+  bottom: 34px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+  right: auto !important;
+  z-index: 50 !important;
+}
+
+body:not(.is-empty-state) .chat-composer {
+  position: absolute !important;
+  bottom: 34px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+  right: auto !important;
+  z-index: 50 !important;
+}
+
+body:not(.is-empty-state) .chat-composer.has-attachments,
+body:not(.is-empty-state) .chat-composer:has(.composer-attachments.is-visible) {
+  position: absolute !important;
+  bottom: 34px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+}
+
+body:not(.is-empty-state) .chat-content {
+  padding-bottom: 96px !important;
+}
+
+body:not(.is-empty-state).has-attachments .chat-content,
+body:not(.is-empty-state):has(.composer-attachments.is-visible) .chat-content {
+  padding-bottom: 200px !important;
 }
 
 /* Expanded (with attachments): morph to rounded rectangle */
@@ -2667,15 +3021,18 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
 .chat-input {
   flex: 1 !important;
   grid-area: input !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  padding: 0 10px !important;
   font-family: 'Google Sans', 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
   font-size: 16px !important;
   font-weight: 400 !important;
-  line-height: 22px !important;
   color: #e3e3e3 !important;
   background: transparent !important;
   border: 0 !important;
   outline: none !important;
   min-width: 0 !important;
+  box-sizing: border-box !important;
 }
 .chat-input::placeholder {
   color: #8e918f !important;
@@ -2706,6 +3063,12 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   stroke: currentColor !important;
   stroke-width: 2 !important;
   display: block !important;
+  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1) !important;
+  transform-origin: center center !important;
+}
+.composer-plus[aria-expanded="true"] svg,
+.composer-plus.is-active svg {
+  transform: rotate(45deg) !important;
 }
 .composer-plus:hover {
   background: rgba(255, 255, 255, 0.08) !important;
@@ -3038,7 +3401,7 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   height: 20px !important;
 }
 
-/* 10. Blue Send Button */
+/* 10. Blue Send Button with Smooth Sliding Animation */
 .send-button {
   width: 32px !important;
   height: 32px !important;
@@ -3049,21 +3412,34 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   display: grid !important;
   place-items: center !important;
   cursor: pointer !important;
-  transition: transform 0.15s ease, background 0.15s ease !important;
   flex-shrink: 0 !important;
+  opacity: 1 !important;
+  transform: translateX(0) scale(1) !important;
+  max-width: 32px !important;
+  margin-left: 2px !important;
+  transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1), transform 0.22s cubic-bezier(0.2, 0, 0, 1), max-width 0.22s cubic-bezier(0.2, 0, 0, 1), margin 0.22s cubic-bezier(0.2, 0, 0, 1), background 0.15s ease !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
 }
 .send-button:hover {
   background: #1b66c9 !important;
-  transform: scale(1.04) !important;
+  transform: scale(1.05) !important;
 }
 .send-button svg {
   width: 17px !important;
   height: 17px !important;
 }
 
-/* Hide send button when composer is empty — matches Gemini reference */
-.chat-composer:not(.has-text):not(:has(.chat-input:not(:placeholder-shown))) .send-button {
-  display: none !important;
+/* Smooth slide out & fade when composer has no text */
+.chat-composer:not(.has-text):not(:has(.chat-input:not(:placeholder-shown))):not(:has(.send-button.is-stop)) .send-button {
+  opacity: 0 !important;
+  max-width: 0 !important;
+  width: 0 !important;
+  padding: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  transform: translateX(10px) scale(0.6) !important;
+  pointer-events: none !important;
 }
 
 /* 11. Message Typography */

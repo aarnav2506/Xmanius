@@ -374,14 +374,14 @@
   const positionChatMenu = (menu, button) => {
     if (!menu || !button) return;
     const rect = button.getBoundingClientRect();
-    const menuWidth = menu.offsetWidth || 138;
-    const menuHeight = menu.offsetHeight || 150;
-    const gap = 6;
-    const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
-    const below = rect.bottom + gap;
-    const top = below + menuHeight <= window.innerHeight - 8
-      ? below
-      : Math.max(8, rect.top - menuHeight - gap);
+    const menuWidth = menu.offsetWidth || 200;
+    const menuHeight = menu.offsetHeight || 160;
+    const gap = 8;
+    let left = rect.right + gap;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = Math.max(8, rect.left - menuWidth - gap);
+    }
+    const top = Math.max(8, Math.min(window.innerHeight - menuHeight - 8, rect.top - 6));
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
   };
@@ -423,23 +423,19 @@
       menu.className = "conversation-menu";
       menu.innerHTML = `
         <button type="button" data-chat-action="share">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           <span>Share conversation</span>
         </button>
-        <button type="button" data-chat-action="files">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-          <span>Files in this chat</span>
-        </button>
         <button type="button" data-chat-action="pin">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-2-7V4h1V2H6v2h1v6l-2 7z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-2-7V4h1V2H6v2h1v6l-2 7z"/></svg>
           <span>${chat.pinned ? "Unpin" : "Pin"}</span>
         </button>
         <button type="button" data-chat-action="rename">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           <span>Rename</span>
         </button>
         <button type="button" data-chat-action="delete" style="color: #ff6b6b;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           <span>Delete</span>
         </button>
       `;
@@ -469,7 +465,11 @@
       if (!item || !refs.length) continue;
       item.dataset.attachmentRefs = JSON.stringify(refs);
       const restored = [];
-      for (const reference of refs) { const saved = await attachmentDb.get(reference.id); if (saved) restored.push(saved); }
+      for (const reference of refs) {
+        let saved = null;
+        try { saved = await attachmentDb.get(reference.id); } catch (_) {}
+        restored.push(saved ? Object.assign({}, reference, saved) : reference);
+      }
       if (restored.length) renderMessageAttachmentPreviews(item, restored);
     }
     scrollChatToBottom({ force: true });
@@ -516,6 +516,9 @@
     pendingAttachments = [];
     if (attachments) attachments.replaceChildren();
     app?.classList.remove("has-attachments");
+    document.body.classList.remove("has-attachments");
+    form?.classList.remove("has-attachments");
+    renderPendingAttachments();
     document.querySelectorAll(".conversation-row").forEach((row) => {
       row.classList.remove("is-selected", "is-active");
     });
@@ -1777,8 +1780,22 @@
     renderPendingAttachments();
     input?.focus();
   };
-  const handleAttachmentSelection = async (event) => { const selected = [...(event.target.files || [])]; event.target.value = ""; await addSelectedFiles(selected); };
-  const renderMessageAttachmentPreviews = (message, items) => { const container = message?.querySelector(".message-attachments"); if (!container || !items?.length) return; container.replaceChildren(); items.forEach((attachment) => { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = createAttachmentCard(attachment); card.classList.add("message-image-preview"); container.append(card); }); };
+  const handleAttachmentSelection = async (event) => {
+    const selected = [...(event.target.files || [])];
+    event.target.value = "";
+    await addSelectedFiles(selected);
+  };
+  const renderMessageAttachmentPreviews = (message, items) => {
+    const container = message?.classList?.contains("message-attachments") ? message : message?.querySelector(".message-attachments");
+    if (!container || !items?.length) return;
+    container.replaceChildren();
+    items.forEach((attachment) => {
+      attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+      const card = createAttachmentCard(attachment);
+      card.classList.add("message-image-preview");
+      container.append(card);
+    });
+  };
   let cameraStream = null;
   let cameraDialog = null;
   const stopCamera = () => { cameraStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} }); cameraStream = null; if (cameraDialog) { const video = cameraDialog.querySelector("video"); if (video) video.srcObject = null; cameraDialog.classList.remove("is-open"); cameraDialog.setAttribute("aria-hidden", "true"); } };
@@ -1999,7 +2016,7 @@
       .replace(/\bXmanius\s+(Sonnet|Opus|Haiku)\b/g, "Claude $1")
       .trim();
   };
-  const addMessage = (text, type, { animate = false, persist = true, sources = [], artifacts = [], task = null, searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false, memoryUpdated = false } = {}) => {
+  const addMessage = (text, type, { animate = false, persist = true, sources = [], artifacts = [], task = null, searchError = "", attachmentNames = [], attachments = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false, memoryUpdated = false } = {}) => {
     const answerEnvelope = stripAnswerSummaryTags(text);
     text = answerEnvelope.text;
     if (type === "assistant") text = sanitizeClientBranding(text);
@@ -2026,10 +2043,15 @@
       badge.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> <span>Memory updated</span>`;
       item.prepend(badge);
     }
-    if (type === "user" && attachmentNames.length) {
+    if (type === "user" && (attachmentNames.length || attachments.length)) {
       const attached = document.createElement("div");
       attached.className = "message-attachments";
-      attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = name; attached.append(chip); });
+      if (attachments.length) {
+        item.dataset.attachmentRefs = JSON.stringify(attachments.map(attachmentReference));
+        renderMessageAttachmentPreviews(attached, attachments);
+      } else {
+        attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = name; attached.append(chip); });
+      }
       item.append(attached);
     }
     if (type === "assistant" && (thinkMode || reasoningSeconds)) {
@@ -2219,11 +2241,8 @@
     if (memoryTriggered) {
       updateMemoryFromUserPrompt(q);
     }
-    addMessage(q || "Please analyze the attached file(s).", "user", { attachmentNames: requestAttachments.map((attachment) => attachment.name) });
-    renderMessageAttachmentPreviews(list.lastElementChild, requestAttachments);
+    addMessage(q || "Please analyze the attached file(s).", "user", { attachmentNames: requestAttachments.map((attachment) => attachment.name), attachments: requestAttachments });
     persistAttachmentPayloads(requestAttachments).catch(() => {});
-    const sentMessage = list.lastElementChild;
-    if (sentMessage && requestAttachments.length) sentMessage.dataset.attachmentRefs = JSON.stringify(requestAttachments.map(attachmentReference));
     if (isTemporaryChatMode) {
       const tempView = document.getElementById("temporary-chat-view");
       if (tempView) {
@@ -2832,9 +2851,13 @@
       else pillText.textContent = "Flash";
     }
 
+    const modelBtnText = document.querySelector("#header-model-btn [data-active-model-name]");
+    if (modelBtnText) {
+      modelBtnText.textContent = getModelDisplayName(selectedModel);
+    }
     const brandHeader = document.getElementById("header-brand-guest");
     if (brandHeader) {
-      brandHeader.textContent = getModelDisplayName(selectedModel);
+      brandHeader.style.display = "none";
     }
 
     const geminiDropdown = document.getElementById("gemini-model-dropdown");
@@ -3019,21 +3042,67 @@
 
     listEl.replaceChildren();
 
+    if (!chat || !chat.messages?.length) {
+      chat = readChats().find((item) => item.id === currentChatId) || chat;
+    }
+
     const allAttachments = [];
     const seenIds = new Set();
+
+    // 1. Collect from saved chat messages
     if (chat && Array.isArray(chat.messages)) {
       chat.messages.forEach((msg) => {
         if (Array.isArray(msg.attachments)) {
           msg.attachments.forEach((att) => {
-            if (att && att.id && !seenIds.has(att.id)) {
-              seenIds.add(att.id);
-              allAttachments.push(att);
-            } else if (att && !att.id) {
+            const id = att?.id || att?.name;
+            if (id && !seenIds.has(id)) {
+              seenIds.add(id);
               allAttachments.push(att);
             }
           });
         }
       });
+    }
+
+    // 2. Collect from live DOM messages in active chat
+    document.querySelectorAll(".message").forEach((msgEl) => {
+      try {
+        const refs = JSON.parse(msgEl.dataset.attachmentRefs || "[]");
+        refs.forEach((att) => {
+          const id = att?.id || att?.name;
+          if (id && !seenIds.has(id)) {
+            seenIds.add(id);
+            allAttachments.push(att);
+          }
+        });
+      } catch (_) {}
+    });
+
+    // 3. Collect from current pending attachments
+    if (Array.isArray(pendingAttachments)) {
+      pendingAttachments.forEach((att) => {
+        const id = att?.id || att?.name;
+        if (id && !seenIds.has(id)) {
+          seenIds.add(id);
+          allAttachments.push(att);
+        }
+      });
+    }
+
+    // 4. Fallback: check Library files
+    if (!allAttachments.length && window.XmaniusLibrary?.getMediaFiles) {
+      try {
+        const libFiles = await window.XmaniusLibrary.getMediaFiles();
+        if (Array.isArray(libFiles)) {
+          libFiles.forEach((file) => {
+            const id = file?.id || file?.name;
+            if (id && !seenIds.has(id)) {
+              seenIds.add(id);
+              allAttachments.push(file);
+            }
+          });
+        }
+      } catch (_) {}
     }
 
     if (!allAttachments.length) {
@@ -3045,7 +3114,7 @@
         if (!full.data && full.id) {
           try {
             const saved = await attachmentDb.get(full.id);
-            if (saved) full = saved;
+            if (saved) full = Object.assign({}, ref, saved);
           } catch (_) {}
         }
 
@@ -3055,17 +3124,21 @@
         const iconBox = document.createElement("div");
         iconBox.className = "files-drawer-icon-box";
 
-        const isImg = full.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(full.name || "");
+        const isImg = full.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(full.name || "") || full.type === "image";
         const isPdf = full.mimeType === "application/pdf" || /\.pdf$/i.test(full.name || "");
 
-        if (isImg) {
+        const imgSrc = full.blobUrl || full.thumbnail || full.url || (full.data ? (full.data.startsWith("data:") ? full.data : `data:${full.mimeType || "image/png"};base64,${full.data}`) : "");
+        if (isImg && imgSrc) {
+          iconBox.style.background = "#1e1f20";
+          iconBox.innerHTML = `<img src="${imgSrc}" alt="${escapeHtml(full.name || 'image')}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;display:block;">`;
+        } else if (isImg) {
           iconBox.style.background = "#c5221f";
           iconBox.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`;
         } else if (isPdf) {
           iconBox.style.background = "#ea4335";
           iconBox.textContent = "PDF";
         } else {
-          iconBox.style.background = "#5f6368";
+          iconBox.style.background = "#3c4043";
           const ext = (full.name || "").split(".").pop()?.toUpperCase() || "DOC";
           iconBox.textContent = ext.slice(0, 4);
         }
@@ -3080,7 +3153,7 @@
 
         const ext = document.createElement("div");
         ext.className = "files-drawer-item-ext";
-        const extText = (full.name || "").split(".").pop()?.toUpperCase() || (isPdf ? "PDF" : "FILE");
+        const extText = (full.name || "").split(".").pop()?.toUpperCase() || (isPdf ? "PDF" : (isImg ? "IMAGE" : "FILE"));
         ext.textContent = extText;
 
         info.appendChild(title);
@@ -4196,7 +4269,20 @@
     });
     return menu;
   };
-  accountButton?.addEventListener("click", (event) => { event.stopPropagation(); if (profileMenu) { closeProfileMenu(); return; } profileMenu = createProfileMenu(); accountButton.parentElement.append(profileMenu); });
+  accountButton?.addEventListener("click", (event) => {
+    if (event.target.closest(".account-settings-btn, [data-open-settings]")) return;
+    event.stopPropagation();
+    const isGuest = window.XmaniusAuth ? window.XmaniusAuth.getUserProfile().isGuest : true;
+    if (isGuest) {
+      if (typeof window.XmaniusAuth?.openAuthModal === "function") {
+        window.XmaniusAuth.openAuthModal("signin");
+        return;
+      }
+    }
+    if (profileMenu) { closeProfileMenu(); return; }
+    profileMenu = createProfileMenu();
+    accountButton.parentElement.append(profileMenu);
+  });
   document.addEventListener("click", (event) => { if (profileMenu && !event.target.closest("[data-account-button], .profile-menu")) closeProfileMenu(); });
   document.addEventListener("click", (event) => { if (settingsChoiceMenu && !event.target.closest("[data-setting-choice], .settings-choice-menu-portal")) closeSettingsChoiceMenu(); });
   window.addEventListener("resize", positionSettingsChoiceMenu);
@@ -4333,13 +4419,13 @@
       uploadPopover.classList.add("is-open");
       uploadPopover.setAttribute("aria-hidden", "false");
       composerPlusBtn?.setAttribute("aria-expanded", "true");
-      if (composerPlusBtn) composerPlusBtn.textContent = "×";
+      composerPlusBtn?.classList.add("is-active");
     } else {
       uploadPopover.setAttribute("hidden", "");
       uploadPopover.classList.remove("is-open");
       uploadPopover.setAttribute("aria-hidden", "true");
       composerPlusBtn?.setAttribute("aria-expanded", "false");
-      if (composerPlusBtn) composerPlusBtn.textContent = "+";
+      composerPlusBtn?.classList.remove("is-active");
     }
   };
 
@@ -4355,7 +4441,11 @@
 
   uploadPopover?.querySelector("[data-popover-camera]")?.addEventListener("click", () => {
     setUploadPopover(false);
-    cameraInput?.click();
+    if (typeof openCamera === "function") {
+      openCamera();
+    } else {
+      cameraInput?.click();
+    }
   });
 
   uploadPopover?.querySelector("[data-popover-live-voice]")?.addEventListener("click", () => {

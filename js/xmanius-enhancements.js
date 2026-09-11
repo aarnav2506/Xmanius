@@ -354,9 +354,7 @@
     button.type = "button";
     button.className = "xmanius-scroll-bottom";
     button.setAttribute("aria-label", "Scroll to latest message");
-    button.title = "Scroll to latest message";
-    button.innerHTML = "↓";
-    button.hidden = true;
+    button.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
     chatMain.append(button);
 
     const update = () => {
