@@ -41,10 +41,15 @@
   const attachCameraButton = document.querySelector("[data-attach-camera]");
   const readApiBase = () => {
     try {
-      return String(window.XMANIUS_API_BASE_URL || localStorage.getItem("xmanius-api-base-url") || "").trim().replace(/\/+$/, "");
-    } catch {
-      return String(window.XMANIUS_API_BASE_URL || "").trim().replace(/\/+$/, "");
+      const configured = String(window.XMANIUS_API_BASE_URL || localStorage.getItem("xmanius-api-base-url") || "").trim().replace(/\/+$/, "");
+      if (configured) return configured;
+    } catch {}
+    // If running locally (file://, localhost, 127.0.0.1, Live Server), point to deployed production endpoint so local overview works out-of-the-box
+    const isLocal = typeof window !== "undefined" && (window.location.protocol === "file:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname.startsWith("192.168.") || window.location.hostname === "");
+    if (isLocal) {
+      return "https://xmanius.vercel.app";
     }
+    return "";
   };
   const getApiEndpoint = () => {
     const base = readApiBase();
@@ -91,6 +96,7 @@
   const showAttachmentNotice = (message, duration = 4200) => { if (!usageNotice) return; window.clearTimeout(attachmentNoticeTimer); usageNotice.textContent = message; usageNotice.classList.add("is-visible"); attachmentNoticeTimer = window.setTimeout(() => { if (usageNotice.textContent === message) { usageNotice.textContent = ""; usageNotice.classList.remove("is-visible"); } }, duration); };
   const chatsKey = "xmanius-chats-v1";
   let currentChatId = crypto.randomUUID?.() || String(Date.now());
+  let isTemporaryChatMode = false;
   const saveChats = (chats) => {
     localStorage.setItem(chatsKey, JSON.stringify(chats.slice(0, 50)));
     if (window.XmaniusAuth?.getState()?.user) {
@@ -302,6 +308,7 @@
     document.documentElement.lang = appSettings.language === "auto" ? (navigator.language || "en") : appSettings.language;
   };
   const saveCurrentChat = () => {
+    if (isTemporaryChatMode) return;
     // Memory is opt-in. When it is off, do not create or update a stored
     // conversation, including during reset, send, or navigation.
     if (!appSettings.memoryEnabled) return;
@@ -391,13 +398,70 @@
     positionChatMenu(menu, button);
     menu.classList.add("is-visible");
   };
-  const renderRecents = () => { closeChatMenu(); if (!recent) return; recent.replaceChildren(); readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => { const row = document.createElement("div"); row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`; row.dataset.chatId = chat.id; const button = document.createElement("button"); button.className = "conversation"; button.type = "button"; button.dataset.chatId = chat.id; button.textContent = chat.title; button.title = chat.title; const more = document.createElement("button"); more.className = "conversation-more"; more.type = "button"; more.dataset.chatMenu = chat.id; more.setAttribute("aria-label", `Options for ${chat.title}`); more.title = "Chat options"; more.textContent = "•••"; const menu = document.createElement("div"); menu.className = "conversation-menu"; menu.innerHTML = `<button type="button" data-chat-action="pin">${chat.pinned ? "Unpin" : "Pin"} chat</button><button type="button" data-chat-action="share">Share</button><button type="button" data-chat-action="delete">Delete</button>`; row.append(button, more, menu); recent.append(row); }); };
+  const renderRecents = () => {
+    closeChatMenu();
+    if (!recent) return;
+    recent.replaceChildren();
+    readChats().sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt).forEach((chat) => {
+      const row = document.createElement("div");
+      row.className = `conversation-row${chat.pinned ? " is-pinned" : ""}`;
+      row.dataset.chatId = chat.id;
+      const button = document.createElement("button");
+      button.className = "conversation";
+      button.type = "button";
+      button.dataset.chatId = chat.id;
+      button.textContent = chat.title;
+      button.title = chat.title;
+      const more = document.createElement("button");
+      more.className = "conversation-more";
+      more.type = "button";
+      more.dataset.chatMenu = chat.id;
+      more.setAttribute("aria-label", `Options for ${chat.title}`);
+      more.title = "Chat options";
+      more.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>`;
+      const menu = document.createElement("div");
+      menu.className = "conversation-menu";
+      menu.innerHTML = `
+        <button type="button" data-chat-action="share">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Share conversation</span>
+        </button>
+        <button type="button" data-chat-action="files">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span>Files in this chat</span>
+        </button>
+        <button type="button" data-chat-action="pin">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-2-7V4h1V2H6v2h1v6l-2 7z"/></svg>
+          <span>${chat.pinned ? "Unpin" : "Pin"}</span>
+        </button>
+        <button type="button" data-chat-action="rename">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Rename</span>
+        </button>
+        <button type="button" data-chat-action="delete" style="color: #ff6b6b;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Delete</span>
+        </button>
+      `;
+      row.append(button, more, menu);
+      recent.append(row);
+    });
+  };
+  let closeHeaderChatMenu = () => {};
+
   const loadChat = async (chatId) => {
     const chat = readChats().find((item) => item.id === chatId);
     if (!chat) return;
     list.replaceChildren();
     empty.hidden = true;
+    document.body.classList.remove("is-empty-state");
     currentChatId = chat.id;
+    document.querySelectorAll("[data-new-chat], .is-new-chat, .new-chat").forEach((btn) => btn.classList.remove("is-active"));
+    document.querySelectorAll(".conversation-row").forEach((row) => {
+      const active = row.dataset.chatId === chatId;
+      row.classList.toggle("is-active", active);
+      row.classList.toggle("is-selected", active);
+    });
     for (const message of chat.messages) {
       const refs = Array.isArray(message.attachments) ? message.attachments : [];
       addMessage(message.text, message.type, { animate: false, persist: false, attachmentNames: refs.map((attachment) => attachment.name), reasoningSummary: message.reasoningSummary || "", reasoningSeconds: message.reasoningSeconds || 0, sources: Array.isArray(message.sources) ? message.sources : [] });
@@ -410,6 +474,76 @@
     }
     scrollChatToBottom({ force: true });
   };
+
+  const startNewChat = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (activeRequestController) {
+      try { activeRequestController.abort(); } catch {}
+      activeRequestController = null;
+    }
+    if (isSpeaking) {
+      try { window.speechSynthesis?.cancel(); } catch {}
+      isSpeaking = false;
+    }
+    currentChatId = crypto.randomUUID?.() || String(Date.now());
+    list.replaceChildren();
+    if (empty) {
+      empty.hidden = false;
+      empty.style.display = "";
+    }
+    document.body.classList.add("is-empty-state");
+    if (isTemporaryChatMode) {
+      isTemporaryChatMode = false;
+      document.body.classList.remove("is-temporary-chat-mode");
+      tempChatBtn?.classList.remove("is-active");
+      const exitBtn = document.getElementById("temp-chat-exit-btn");
+      if (exitBtn) exitBtn.style.display = "none";
+      const tempHero = document.getElementById("temporary-chat-hero");
+      if (tempHero) tempHero.style.display = "none";
+      const normalHero = document.getElementById("normal-chat-hero");
+      if (normalHero) normalHero.style.display = "";
+      const greetingText = document.querySelector(".greeting-text");
+      if (greetingText) greetingText.style.display = "";
+    }
+    if (input) {
+      input.value = "";
+      input.style.height = "";
+      input.focus();
+    }
+    pendingAttachments = [];
+    if (attachments) attachments.replaceChildren();
+    app?.classList.remove("has-attachments");
+    document.querySelectorAll(".conversation-row").forEach((row) => {
+      row.classList.remove("is-selected", "is-active");
+    });
+    document.querySelectorAll("[data-new-chat], .is-new-chat, .new-chat").forEach((btn) => {
+      btn.classList.add("is-active");
+    });
+    if (typeof window.XmaniusRandomizeGreeting === "function") {
+      window.XmaniusRandomizeGreeting();
+    }
+    closeChatMenu();
+    closeHeaderChatMenu();
+    if (app && app.classList.contains("sidebar-visible")) {
+      app.classList.remove("sidebar-visible");
+    }
+  };
+  window.XmaniusStartNewChat = startNewChat;
+  const reset = startNewChat;
+
+  document.querySelectorAll("[data-new-chat], .is-new-chat, .new-chat").forEach((btn) => {
+    btn.addEventListener("click", startNewChat);
+  });
+  document.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-new-chat], .is-new-chat, .new-chat");
+    if (btn) {
+      startNewChat(event);
+    }
+  });
+
   const localAnswer = (question) => {
     const q = question.toLowerCase();
     const brand = isAndroid ? "Xmanias" : "Xmanius";
@@ -444,42 +578,51 @@
     const englishPool = pool.filter((v) => v.lang.startsWith("en") || v.lang.startsWith("auto"));
     const activePool = englishPool.length ? englishPool : pool;
 
+    const ukPool = activePool.filter((v) => /en[-_](gb|uk)|united kingdom/i.test(v.lang || "") || /uk|british|english \(united kingdom\)/i.test(v.name || ""));
+    const usPool = activePool.filter((v) => /en[-_]us|united states/i.test(v.lang || "") || /us|united states/i.test(v.name || ""));
+
     const femaleVoiceList = activePool.filter((v) => /(?:female|zira|eva|hazel|susan|catherine|heera|aria|jenny|victoria|samantha|karen|fiona|veena|aoede|kore|zephyr|woman|girl)/i.test(v.name));
-    const maleVoiceList = activePool.filter((v) => /(?:male|david|mark|george|ravi|guy|stefan|puck|charon|fenrir|pegasus|alex|daniel|fred|rishi|man|boy)/i.test(v.name));
+    const maleVoiceList = activePool.filter((v) => /(?:male|david|mark|george|ravi|guy|stefan|puck|charon|fenrir|pegasus|alex|daniel|fred|rishi|man|boy|oliver)/i.test(v.name));
 
     const pickFemale = (idx = 0) => femaleVoiceList[idx % (femaleVoiceList.length || 1)] || femaleVoiceList[0] || activePool.find((v) => !maleVoiceList.includes(v)) || activePool[0];
     const pickMale = (idx = 0) => maleVoiceList[idx % (maleVoiceList.length || 1)] || maleVoiceList[0] || activePool.find((v) => !femaleVoiceList.includes(v)) || activePool[0];
 
-    if (profile === "puck") {
-      pitch = 1.25; rate = 1.10;
+    if (profile === "us-female" || profile === "US_Female") {
+      pitch = 1.05; rate = 1.12;
+      voice = usPool.find(v => /(?:female|zira|jenny|aria|samantha|eva)/i.test(v.name)) || pickFemale(0);
+    } else if (profile === "us-male" || profile === "US_Male" || profile === "google-us") {
+      pitch = 0.95; rate = 1.14;
+      voice = usPool.find(v => /(?:male|david|mark|guy)/i.test(v.name)) || usPool[0] || pickMale(0);
+    } else if (profile === "uk-female" || profile === "UK_Female") {
+      pitch = 1.15; rate = 1.12;
+      voice = ukPool.find(v => /(?:female|hazel|susan|fiona|victoria)/i.test(v.name)) || ukPool[0] || pickFemale(1);
+    } else if (profile === "uk-male" || profile === "UK_Male" || profile === "google-uk") {
+      pitch = 0.80; rate = 1.08;
+      voice = ukPool.find(v => /(?:male|george|oliver|daniel)/i.test(v.name)) || ukPool[0] || pickMale(1);
+    } else if (profile === "puck") {
+      pitch = 1.05; rate = 1.15;
       voice = pickMale(0);
     } else if (profile === "charon") {
-      pitch = 0.55; rate = 0.85;
+      pitch = 0.72; rate = 1.08;
       voice = pickMale(1);
     } else if (profile === "aoede") {
-      pitch = 1.35; rate = 1.05;
+      pitch = 1.14; rate = 1.12;
       voice = pickFemale(0);
     } else if (profile === "kore") {
-      pitch = 0.95; rate = 0.90;
+      pitch = 1.00; rate = 1.10;
       voice = pickFemale(1);
     } else if (profile === "fenrir") {
-      pitch = 0.60; rate = 0.92;
+      pitch = 0.86; rate = 1.15;
       voice = pickMale(0);
     } else if (profile === "zephyr") {
-      pitch = 1.48; rate = 0.88;
+      pitch = 1.16; rate = 1.10;
       voice = pickFemale(0);
     } else if (profile === "pegasus") {
-      pitch = 0.78; rate = 1.00;
+      pitch = 0.76; rate = 1.08;
       voice = pickMale(1);
-    } else if (profile === "google-us") {
-      pitch = 1.0; rate = 1.0;
-      voice = activePool.find((v) => /us/i.test(v.name)) || activePool[0];
-    } else if (profile === "google-uk") {
-      pitch = 1.05; rate = 0.95;
-      voice = activePool.find((v) => /uk|gb/i.test(v.name)) || activePool[0];
     }
 
-    if (appSettings.voiceSpeed) {
+    if (appSettings.voiceSpeed && appSettings.voiceSpeed !== "1.0") {
       rate = Number(appSettings.voiceSpeed) || rate;
     }
     if (appSettings.voicePitch === "low") {
@@ -1288,6 +1431,48 @@
     }
   });
 
+  const compressImage = (file, maxDimension = 1440, quality = 0.82) => new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (!w || !h) {
+          readAsDataUrl(file).then(d => resolve({ data: d.replace(/^data:[^,]+,/, ""), dataUrl: d })).catch(() => resolve({ data: "", dataUrl: "" }));
+          return;
+        }
+        if (w > maxDimension || h > maxDimension) {
+          if (w > h) {
+            h = Math.round((h * maxDimension) / w);
+            w = maxDimension;
+          } else {
+            w = Math.round((w * maxDimension) / h);
+            h = maxDimension;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve({
+          data: compressedDataUrl.replace(/^data:[^,]+,/, ""),
+          dataUrl: compressedDataUrl
+        });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        readAsDataUrl(file).then(d => resolve({ data: d.replace(/^data:[^,]+,/, ""), dataUrl: d })).catch(() => resolve({ data: "", dataUrl: "" }));
+      };
+      img.src = url;
+    } catch {
+      readAsDataUrl(file).then(d => resolve({ data: d.replace(/^data:[^,]+,/, ""), dataUrl: d })).catch(() => resolve({ data: "", dataUrl: "" }));
+    }
+  });
+
   const prepareAttachment = async (file) => {
     const rawMime = file?.type || "application/octet-stream";
     const mimeType = normalizeMimeType(rawMime, file?.name);
@@ -1311,9 +1496,17 @@
     try { blobUrl = URL.createObjectURL(file); } catch {}
 
     if (isImage) {
-      const dataUrl = await readAsDataUrl(file);
-      data = dataUrl.replace(/^data:[^,]+,/, "");
-      thumbnail = dataUrl;
+      // High-performance image optimization: downscale large camera/gallery photos
+      // for instant sub-second upload and instant preview modal opening with zero browser lag.
+      if (file.size > 200_000) {
+        const compressed = await compressImage(file, 1440, 0.82);
+        data = compressed.data;
+        thumbnail = blobUrl || compressed.dataUrl;
+      } else {
+        const dataUrl = await readAsDataUrl(file);
+        data = dataUrl.replace(/^data:[^,]+,/, "");
+        thumbnail = blobUrl || dataUrl;
+      }
     } else if (isVideo) {
       thumbnail = await generateVideoThumbnail(file);
     }
@@ -1333,7 +1526,7 @@
       name: file.name,
       mimeType,
       data,
-      thumbnail,
+      thumbnail: thumbnail || blobUrl,
       blobUrl,
       rawFile: file
     };
@@ -1385,7 +1578,7 @@
     }
 
     if (isImage) {
-      mediaContentHtml = `<div class="media-preview-body media-preview-image-wrap"><img src="${attachment.thumbnail || mediaSource}" alt="${escapeHtml(attachment.name)}" class="media-preview-full-img" /></div>`;
+      mediaContentHtml = `<div class="media-preview-body media-preview-image-wrap"><img src="${mediaSource || attachment.thumbnail}" alt="${escapeHtml(attachment.name)}" class="media-preview-full-img" /></div>`;
     } else if (isVideo) {
       mediaContentHtml = `
         <div class="media-preview-body media-preview-video-wrap">
@@ -1473,9 +1666,9 @@
     const mime = (attachment?.mimeType || "").toLowerCase();
     const ext = (attachment?.name?.split(".").pop() || "").toLowerCase();
 
-    if (attachment?.thumbnail || (attachment?.data && /^image\//i.test(mime))) {
+    if (attachment?.blobUrl || attachment?.thumbnail || (attachment?.data && /^image\//i.test(mime))) {
       const image = document.createElement("img");
-      image.src = attachment.thumbnail || ("data:" + mime + ";base64," + attachment.data);
+      image.src = attachment.blobUrl || attachment.thumbnail || ("data:" + mime + ";base64," + attachment.data);
       image.alt = "Preview of " + attachment.name;
       card.append(image);
     } else if (/^video\//i.test(mime) || /^(mp4|webm|mov|mkv|avi)$/i.test(ext)) {
@@ -1556,8 +1749,10 @@
   const renderPendingAttachments = () => {
     if (!attachments) return;
     attachments.replaceChildren();
-    attachments.classList.toggle("is-visible", pendingAttachments.length > 0);
-    document.body.classList.toggle("has-attachments", pendingAttachments.length > 0);
+    const hasFiles = pendingAttachments.length > 0;
+    attachments.classList.toggle("is-visible", hasFiles);
+    document.body.classList.toggle("has-attachments", hasFiles);
+    form?.classList.toggle("has-attachments", hasFiles);
     if (!pendingAttachments.length) return;
     const strip = document.createElement("div");
     strip.className = "attachment-preview-strip";
@@ -1943,10 +2138,79 @@
   const hasCodeInHistory = () => [...list.querySelectorAll(".message.assistant")].some((item) => item.querySelector("[data-code-block]") || /```|<\/?(?:html|script|style|div|button|function|const|let)\b/i.test(item.dataset.rawText || ""));
   const needsCodeRethink = (question) => hasCodeInHistory() && /\b(?:error|bug|fault|broken|failed|failure|not\s+working|doesn['’]?t\s+work|does\s+not\s+work|fix\s+this|wrong)\b/i.test(question);
   const conversationHistory = () => [...list.querySelectorAll(".message")].slice(-12).map((item) => { const role = item.classList.contains("user") ? "user" : "model"; let text = item.dataset.rawText || item.querySelector(".message-body")?.textContent?.trim() || ""; if (role === "model") text = sanitizeClientBranding(text); return { role, text }; }).filter((item) => item.text);
+  // ─── Try Advanced Features Modal (Screenshot 1) ───────────────────────────
+  let advancedFeaturesModalEl = null;
+  const closeTryAdvancedFeaturesModal = () => {
+    advancedFeaturesModalEl?.remove();
+    advancedFeaturesModalEl = null;
+  };
+
+  const showTryAdvancedFeaturesModal = () => {
+    closeTryAdvancedFeaturesModal();
+    advancedFeaturesModalEl = document.createElement("div");
+    advancedFeaturesModalEl.className = "advanced-features-overlay is-active";
+    advancedFeaturesModalEl.innerHTML = `
+      <div class="advanced-features-card" role="dialog" aria-modal="true" aria-label="Try advanced features for free">
+        <button type="button" class="advanced-features-close" data-action="close" aria-label="Close">×</button>
+        <div class="advanced-features-banner"></div>
+        <div class="advanced-features-body">
+          <h2 class="advanced-features-title">Try advanced features for free</h2>
+          <p class="advanced-features-desc">Get smarter responses, upload files, create images, and more by logging in.</p>
+          <div class="advanced-features-actions">
+            <button type="button" class="advanced-features-btn-login" data-action="login">Log in</button>
+            <button type="button" class="advanced-features-btn-signup" data-action="signup">Sign up for free</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.append(advancedFeaturesModalEl);
+
+    advancedFeaturesModalEl.addEventListener("click", (e) => {
+      if (e.target === advancedFeaturesModalEl || e.target.closest("[data-action='close']")) {
+        closeTryAdvancedFeaturesModal();
+      }
+      if (e.target.closest("[data-action='login']")) {
+        closeTryAdvancedFeaturesModal();
+        window.XmaniusAuth?.openAuthModal("signin");
+      }
+      if (e.target.closest("[data-action='signup']")) {
+        closeTryAdvancedFeaturesModal();
+        window.XmaniusAuth?.openAuthModal("signup");
+      }
+    });
+  };
+
+  const exportChats = () => {
+    const chats = getChats();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chats, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", `xmanius_chats_${new Date().toISOString().slice(0,10)}.json`);
+    dlAnchorElem.click();
+    dlAnchorElem.remove();
+  };
+
   const ask = async (question, suppliedAttachments = pendingAttachments) => {
     const q = String(question || "").trim();
     const requestAttachments = [...suppliedAttachments];
     if ((!q && !requestAttachments.length) || activeRequestController) return;
+
+    // ─── 5-Message & Advanced Features Limit for Guests ──────────────────────
+    const isGuestUser = !window.XmaniusAuth?.getState()?.user;
+    if (isGuestUser) {
+      if (requestAttachments.length > 0) {
+        showTryAdvancedFeaturesModal();
+        return;
+      }
+      let guestCount = parseInt(sessionStorage.getItem("xmanius-guest-msg-count") || "0", 10);
+      if (guestCount >= 5) {
+        showTryAdvancedFeaturesModal();
+        return;
+      }
+      guestCount++;
+      sessionStorage.setItem("xmanius-guest-msg-count", String(guestCount));
+    }
+
     if (!updateUsage()) return;
     const requestMessage = q || "Please analyze the attached file(s) and provide the relevant answer.";
     const history = conversationHistory();
@@ -1957,10 +2221,18 @@
     }
     addMessage(q || "Please analyze the attached file(s).", "user", { attachmentNames: requestAttachments.map((attachment) => attachment.name) });
     renderMessageAttachmentPreviews(list.lastElementChild, requestAttachments);
-    await persistAttachmentPayloads(requestAttachments);
+    persistAttachmentPayloads(requestAttachments).catch(() => {});
     const sentMessage = list.lastElementChild;
     if (sentMessage && requestAttachments.length) sentMessage.dataset.attachmentRefs = JSON.stringify(requestAttachments.map(attachmentReference));
-    saveCurrentChat();
+    if (isTemporaryChatMode) {
+      const tempView = document.getElementById("temporary-chat-view");
+      if (tempView) {
+        tempView.style.display = "none";
+        tempView.setAttribute("aria-hidden", "true");
+      }
+    } else {
+      saveCurrentChat();
+    }
     input.value = "";
     pendingAttachments = [];
     renderPendingAttachments();
@@ -1985,37 +2257,103 @@
     }, thinkMode ? 300000 : 180000);
     setSendingState(true);
     try {
-      if (requestAttachments.some(a => a.rawFile && a.rawFile.size > 25 * 1024 * 1024 && !a.fileUri)) {
+      if (requestAttachments.some(a => a.rawFile && a.rawFile.size > 3 * 1024 * 1024 && !a.fileUri)) {
         const thinkingLabel = thinking.querySelector("span");
         for (const attachment of requestAttachments) {
-          if (attachment.rawFile && attachment.rawFile.size > 25 * 1024 * 1024 && !attachment.fileUri) {
+          if (attachment.rawFile && attachment.rawFile.size > 3 * 1024 * 1024 && !attachment.fileUri) {
             if (thinkingLabel) thinkingLabel.textContent = `Uploading ${attachment.name} (${(attachment.rawFile.size / (1024 * 1024)).toFixed(1)} MB)...`;
             await uploadLargeAttachment(attachment);
           }
         }
       }
-      const isLocationQuery = /\b(near\s+me|nearby|closest|around\s+here|in\s+my\s+area|local|current\s+location|barber\s*shops?\s+near\s+me|restaurants?\s+near\s+me|food\s+near\s+me|shops?\s+near\s+me|stores?\s+near\s+me|salons?\s+near\s+me)\b/i.test(q);
+      const isLocationQuery = /\b(near\s+me|nearby|closest|around\s+here|in\s+my\s+area|local|current\s+location|where\s+am\s+i|my\s+location|what\s+city|weather|weather\s+here|time\s+here|restaurants?\s+near\s+me|food\s+near\s+me|shops?\s+near\s+me|stores?\s+near\s+me|salons?\s+near\s+me|barbers?\s*shops?\s+near\s+me|hospitals?\s+near\s+me|hotels?\s+near\s+me|gas\s+stations?\s+near\s+me|pharmacy\s+near\s+me|places?\s+around\s+me|places?\s+near\s+me)\b/i.test(q);
       let userLocation = null;
       if (navigator.geolocation && (isLocationQuery || webSearch)) {
         try {
           userLocation = await new Promise((resolve) => {
             navigator.geolocation.getCurrentPosition(
               (pos) => {
+                const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
                 resolve({
                   latitude: pos.coords.latitude,
                   longitude: pos.coords.longitude,
-                  accuracy: pos.coords.accuracy
+                  accuracy: pos.coords.accuracy,
+                  timezone: tz
                 });
               },
-              () => resolve(null),
-              { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+              () => {
+                const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
+                resolve(tz ? { timezone: tz } : null);
+              },
+              { enableHighAccuracy: false, timeout: 400, maximumAge: 300000 }
             );
           });
-        } catch {}
+        } catch {
+          const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || "";
+          if (tz) userLocation = { timezone: tz };
+        }
       }
 
+      const profile = window.XmaniusAuth?.getUserProfile?.() || {};
+      const userName = (!profile.isGuest && profile.displayName && profile.displayName !== "Guest User") ? profile.displayName.trim() : "";
       const isCortexMode = selectedModel === "xmanius-4" || selectedModel === "xmanius-7" || selectedModel === "xmanius-8";
-      const response = await fetch(getApiEndpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: requestMessage, model: selectedModel, runAsTask: isCortexMode, mode: isCortexMode ? "cortex" : (webSearch ? "research" : (thinkMode ? "deep_research" : "fast")), thinkMode, webSearch, location: userLocation, history, rethink, attachments: requestAttachments.map(attachmentToRequest), preferences: { ...appSettings, customInstructions: String(appSettings.customInstructions || "").slice(0, 500), memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : "" } }), signal: activeRequestController.signal });
+      const slotActiveKey = (typeof getSelectedKeyForSlot === "function") ? getSelectedKeyForSlot(selectedModel) : (localStorage.getItem(`xmanius-slot-key-${selectedModel}`) || "auto");
+      const requestPayload = {
+        message: requestMessage,
+        model: selectedModel,
+        selectedKey: slotActiveKey,
+        runAsTask: isCortexMode,
+        mode: isCortexMode ? "cortex" : (webSearch ? "research" : (thinkMode ? "deep_research" : "fast")),
+        thinkMode,
+        webSearch,
+        location: userLocation,
+        history,
+        rethink,
+        attachments: requestAttachments.map(attachmentToRequest),
+        preferences: {
+          ...appSettings,
+          userName: userName,
+          isGuest: Boolean(profile.isGuest),
+          customInstructions: String(appSettings.customInstructions || "").slice(0, 500),
+          memoryContext: appSettings.memoryEnabled ? buildMemorySummary() : ""
+        }
+      };
+
+      const primaryEndpoint = getApiEndpoint();
+      let response;
+      try {
+        response = await fetch(primaryEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestPayload),
+          signal: activeRequestController.signal
+        });
+      } catch (err) {
+        if (err?.name === "AbortError") throw err;
+        response = null;
+      }
+
+      // If primary request failed or returned 502/503/504/404, fallback to production backend preserving exact slot
+      if (!response || !response.ok) {
+        try {
+          const endpointToUse = (primaryEndpoint && primaryEndpoint.startsWith("/")) ? "https://xmanius.vercel.app/api/xmanius-chat" : (primaryEndpoint || "https://xmanius.vercel.app/api/xmanius-chat");
+          const fallbackPayload = { ...requestPayload, model: selectedModel };
+          const fallbackRes = await fetch(endpointToUse, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(fallbackPayload),
+            signal: activeRequestController.signal
+          });
+          if (fallbackRes && fallbackRes.ok) {
+            response = fallbackRes;
+          }
+        } catch (_) {}
+      }
+
+      if (!response) {
+        throw new Error("Could not connect to XManius API server. Please check your internet connection and try again.");
+      }
+
       const data = await response.json().catch(() => ({}));
       thinking.remove();
 
@@ -2110,9 +2448,81 @@
   let voiceRestartTimer = 0;
   let voiceStopRequested = false;
   const showVoiceNotice = (message, duration = 4500) => { if (!usageNotice) { console.warn(`[Xmanius voice] ${message}`); return; } window.clearTimeout(voiceNoticeTimer); usageNotice.textContent = message; usageNotice.classList.add("is-visible"); voiceNoticeTimer = window.setTimeout(() => { if (usageNotice.textContent === message) { usageNotice.textContent = ""; usageNotice.classList.remove("is-visible"); } }, duration); };
-  const stopAudioMeter = () => { if (audioFrame) { window.cancelAnimationFrame(audioFrame); audioFrame = 0; } try { audioSource?.disconnect(); } catch {} audioSource = null; audioAnalyser = null; audioStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} }); audioStream = null; const context = audioContext; audioContext = null; if (context && context.state !== "closed") void context.close().catch(() => {}); };
+  let voiceMediaRecorder = null;
+  let voiceAudioChunks = [];
+
+  const transcribeAudioBlob = async (blob) => {
+    try {
+      const reader = new FileReader();
+      const base64Data = await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const res = String(reader.result || "");
+          resolve(res.split(",")[1] || "");
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      if (!base64Data) return;
+
+      let transcribeUrl = "/api/xmanius-transcribe";
+      if (typeof window.XmaniusApiEndpoint === "function") {
+        const ep = window.XmaniusApiEndpoint();
+        if (ep.includes("/api/xmanius-chat")) transcribeUrl = ep.replace("/api/xmanius-chat", "/api/xmanius-transcribe");
+      }
+
+      const res = await fetch(transcribeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio: base64Data, mimeType: blob.type || "audio/webm" })
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.text && typeof data.text === "string" && data.text.trim()) {
+          input.value = data.text.trim();
+        }
+      }
+    } catch (e) {
+      console.warn("[XManius Transcribe Live]", e);
+    }
+  };
+
+  const stopAudioMeter = () => {
+    if (audioFrame) { window.cancelAnimationFrame(audioFrame); audioFrame = 0; }
+    if (voiceMediaRecorder && voiceMediaRecorder.state !== "inactive") {
+      try { voiceMediaRecorder.stop(); } catch {}
+    }
+    try { audioSource?.disconnect(); } catch {}
+    audioSource = null;
+    audioAnalyser = null;
+    audioStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} });
+    audioStream = null;
+    const context = audioContext;
+    audioContext = null;
+    if (context && context.state !== "closed") void context.close().catch(() => {});
+  };
   const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); dictationBar?.style.setProperty("display", active ? "flex" : "none", "important"); if (active) { const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } return; } input.placeholder = "Ask anything"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); };
-  const finishVoiceSession = ({ clearText = false, focus = true, abort = false } = {}) => { voiceStopRequested = true; window.clearTimeout(voiceRestartTimer); voiceRestartTimer = 0; voiceSessionId += 1; const oldRecognition = recognition; recognition = null; listening = false; if (abort) { try { oldRecognition?.abort(); } catch {} } if (clearText) input.value = ""; setDictation(false); input.placeholder = "Ask anything"; if (focus) input.focus(); };
+  const finishVoiceSession = ({ clearText = false, focus = true, abort = false } = {}) => {
+    voiceStopRequested = true;
+    window.clearTimeout(voiceRestartTimer);
+    voiceRestartTimer = 0;
+    voiceSessionId += 1;
+    const oldRecognition = recognition;
+    recognition = null;
+    listening = false;
+    if (abort) { try { oldRecognition?.abort(); } catch {} }
+    if (clearText) input.value = "";
+    
+    const recordedChunks = voiceAudioChunks.slice();
+    voiceAudioChunks = [];
+    if (recordedChunks.length > 0 && !abort && !clearText) {
+      const recordedBlob = new Blob(recordedChunks, { type: voiceMediaRecorder?.mimeType || "audio/webm" });
+      void transcribeAudioBlob(recordedBlob);
+    }
+
+    setDictation(false);
+    input.placeholder = "Ask anything";
+    if (focus) input.focus();
+  };
   const startAudioMeter = async () => {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone metering is unavailable in this browser.");
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -2120,6 +2530,23 @@
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     if (!form.classList.contains("is-listening")) { stream.getTracks().forEach((track) => track.stop()); return; }
     audioStream = stream;
+
+    try {
+      voiceAudioChunks = [];
+      if (typeof MediaRecorder !== "undefined") {
+        const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+        voiceMediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        voiceMediaRecorder.ondataavailable = (ev) => {
+          if (ev.data && ev.data.size > 0) voiceAudioChunks.push(ev.data);
+        };
+        voiceMediaRecorder.start(250);
+      }
+    } catch (recErr) {
+      console.warn("[XManius MediaRecorder]", recErr);
+    }
+
     audioContext = new AudioContextClass();
     await audioContext.resume().catch(() => {});
     audioAnalyser = audioContext.createAnalyser();
@@ -2174,118 +2601,188 @@
   };
   const startVoice = () => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
+    if (!Recognition && typeof MediaRecorder === "undefined") {
       finishVoiceSession({ focus: true });
-      showVoiceNotice("Voice input is not supported here. Try Chrome or Edge over HTTPS, or use the text box.");
+      showVoiceNotice("Voice input is not supported here.");
       return;
     }
     if (recognition || form.classList.contains("is-listening")) return;
 
     voiceStopRequested = false;
     const sessionId = ++voiceSessionId;
-    const instance = new Recognition();
     let finalText = "";
-    recognition = instance;
     listening = false;
     setDictation(true);
-    input.placeholder = "Listening…";
+    input.placeholder = "Listening (Gemini 3.5 Live)…";
     document.querySelector("[data-chat-mic]")?.classList.add("active");
-    instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
-    instance.interimResults = true;
-    instance.continuous = true;
-    instance.maxAlternatives = 3;
-    const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
-    const restart = () => {
-      voiceRestartTimer = 0;
-      if (!isCurrentSession() || voiceStopRequested) return;
-      try {
-        instance.start();
-      } catch (error) {
-        if (error?.name === "InvalidStateError") {
-          voiceRestartTimer = window.setTimeout(restart, 180);
+
+    if (Recognition) {
+      const instance = new Recognition();
+      recognition = instance;
+      instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
+      instance.interimResults = true;
+      instance.continuous = true;
+      instance.maxAlternatives = 3;
+      const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
+      const restart = () => {
+        voiceRestartTimer = 0;
+        if (!isCurrentSession() || voiceStopRequested) return;
+        try {
+          instance.start();
+        } catch (error) {
+          if (error?.name === "InvalidStateError") {
+            voiceRestartTimer = window.setTimeout(restart, 180);
+            return;
+          }
+          finishVoiceSession({ focus: true });
+        }
+      };
+      instance.onstart = () => {
+        if (!isCurrentSession()) return;
+        listening = true;
+        input.placeholder = "Listening…";
+        void startAudioMeter().catch((error) => {
+          if (isCurrentSession()) {
+            stopAudioMeter();
+            console.warn("[Xmanius voice meter]", error);
+          }
+        });
+      };
+      instance.onresult = (event) => {
+        if (!isCurrentSession()) return;
+        let interimText = "";
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const alternatives = [...event.results[index]].filter((alternative) => alternative?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+          const transcript = alternatives[0]?.transcript || "";
+          if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
+          else interimText += transcript;
+        }
+        input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
+      };
+      instance.onerror = (event) => {
+        if (!isCurrentSession()) return;
+        if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
+        finishVoiceSession({ focus: true });
+      };
+      instance.onend = () => {
+        if (!isCurrentSession()) return;
+        listening = false;
+        if (voiceStopRequested) {
+          finishVoiceSession({ focus: true });
           return;
         }
-        finishVoiceSession({ focus: true });
-        showVoiceNotice("Voice input stopped unexpectedly. Try again.");
-      }
-    };
-    instance.onstart = () => {
-      if (!isCurrentSession()) return;
-      listening = true;
-      input.placeholder = "Listening…";
-      void startAudioMeter().catch((error) => {
-        if (isCurrentSession()) {
-          stopAudioMeter();
-          showVoiceNotice("Voice transcription is active, but the waveform is unavailable.");
-          console.warn("[Xmanius voice meter]", error);
-        }
-      });
-    };
-    instance.onresult = (event) => {
-      if (!isCurrentSession()) return;
-      let interimText = "";
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const alternatives = [...event.results[index]].filter((alternative) => alternative?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-        const transcript = alternatives[0]?.transcript || "";
-        if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
-        else interimText += transcript;
-      }
-      input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
-    };
-    instance.onerror = (event) => {
-      if (!isCurrentSession()) return;
-      const messages = {
-        "not-allowed": "Microphone permission was denied. Allow microphone access and try again.",
-        "service-not-allowed": "The browser speech service is unavailable. Try again or use the text box.",
-        "audio-capture": "No working microphone was found. Check your device settings."
+        window.clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = window.setTimeout(restart, 100);
       };
-      if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
-      finishVoiceSession({ focus: true });
-      showVoiceNotice(messages[event.error] || "Voice input stopped unexpectedly. Try again.");
-    };
-    instance.onend = () => {
-      if (!isCurrentSession()) return;
-      listening = false;
-      if (voiceStopRequested) {
-        finishVoiceSession({ focus: true });
-        return;
+      try {
+        instance.start();
+      } catch {
+        void startAudioMeter();
       }
-      window.clearTimeout(voiceRestartTimer);
-      voiceRestartTimer = window.setTimeout(restart, 100);
-    };
-    try {
-      instance.start();
-    } catch {
-      if (isCurrentSession()) {
-        finishVoiceSession({ focus: true });
-        showVoiceNotice("Voice input could not start. Please try again.");
-      }
+    } else {
+      void startAudioMeter();
     }
   };
-  attachFilesButton?.addEventListener("click", () => { setModelPicker(false); fileInput?.click(); });
-  attachCameraButton?.addEventListener("click", () => { setModelPicker(false); void openCamera(); });
+  attachFilesButton?.addEventListener("click", () => {
+    setModelPicker(false);
+    if (!window.XmaniusAuth?.getState()?.user) {
+      showTryAdvancedFeaturesModal();
+      return;
+    }
+    fileInput?.click();
+  });
+  attachCameraButton?.addEventListener("click", () => {
+    setModelPicker(false);
+    if (!window.XmaniusAuth?.getState()?.user) {
+      showTryAdvancedFeaturesModal();
+      return;
+    }
+    void openCamera();
+  });
   fileInput?.addEventListener("change", handleAttachmentSelection);
   cameraInput?.addEventListener("change", handleAttachmentSelection);
-  attachments?.addEventListener("click", (event) => { const remove = event.target.closest("[data-remove-attachment]"); if (!remove) return; pendingAttachments.splice(Number(remove.dataset.removeAttachment), 1); renderPendingAttachments(); });
-  document.addEventListener("keydown", (event) => { if (!event.ctrlKey || event.altKey || event.metaKey) return; const key = event.key.toLowerCase(); if (key === "k") { event.preventDefault(); fileInput?.click(); } if (key === "t") { event.preventDefault(); void openCamera(); } });
-  document.addEventListener("paste", (event) => { const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean); if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); } });
+  attachments?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-attachment]");
+    if (!remove) return;
+    pendingAttachments.splice(Number(remove.dataset.removeAttachment), 1);
+    renderPendingAttachments();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!event.ctrlKey || event.altKey || event.metaKey) return;
+    const key = event.key.toLowerCase();
+    if (key === "k") {
+      event.preventDefault();
+      if (!window.XmaniusAuth?.getState()?.user) { showTryAdvancedFeaturesModal(); return; }
+      fileInput?.click();
+    }
+    if (key === "t") {
+      event.preventDefault();
+      if (!window.XmaniusAuth?.getState()?.user) { showTryAdvancedFeaturesModal(); return; }
+      void openCamera();
+    }
+  });
+  document.addEventListener("paste", (event) => {
+    const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean);
+    if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); }
+  });
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
-  sendButton?.addEventListener("click", (event) => { if (!activeRequestController) return; event.preventDefault(); activeRequestStopReason = "user"; activeRequestController.abort(); });
+  input.addEventListener("input", () => form.classList.toggle("has-text", Boolean(input.value.trim())));
+  sendButton?.addEventListener("click", (event) => {
+    if (!activeRequestController) return;
+    event.preventDefault();
+    activeRequestStopReason = "user";
+    activeRequestController.abort();
+  });
   document.querySelector("[data-chat-mic]")?.addEventListener("click", startVoice);
-  dictationSend?.setAttribute("aria-label", "Review dictated message");
-  dictationSend?.setAttribute("title", "Review dictated message");
+
+  const handleDictationSend = () => {
+    const textToSend = input.value.trim();
+    voiceStopRequested = true;
+    if (recognition) {
+      try { recognition.stop(); } catch {}
+    }
+    finishVoiceSession({ clearText: false, focus: false, abort: false });
+    if (textToSend) {
+      ask(textToSend);
+    }
+  };
+
+  dictationSend?.addEventListener("click", (event) => {
+    event.preventDefault();
+    handleDictationSend();
+  });
   dictationCancel?.addEventListener("click", () => finishVoiceSession({ clearText: true, focus: true, abort: true }));
-  dictationStop?.addEventListener("click", () => { voiceStopRequested = true; if (!recognition) { finishVoiceSession({ focus: true }); return; } try { recognition.stop(); } catch { finishVoiceSession({ focus: true, abort: true }); } });
+  dictationStop?.addEventListener("click", () => {
+    voiceStopRequested = true;
+    if (!recognition) {
+      finishVoiceSession({ focus: true });
+      return;
+    }
+    try { recognition.stop(); } catch {
+      finishVoiceSession({ focus: true, abort: true });
+    }
+  });
   document.addEventListener("visibilitychange", () => { if (document.hidden && (recognition || form.classList.contains("is-listening"))) finishVoiceSession({ focus: false, abort: true }); });
   window.addEventListener("pagehide", () => finishVoiceSession({ focus: false, abort: true }));
 
-  // ─── 500MB Media Library & Settings Shortcuts ─────────────────────────────
   document.querySelectorAll("[data-open-library]").forEach((btn) => {
     btn.addEventListener("click", () => window.XmaniusLibrary?.open());
   });
 
   document.querySelectorAll("[data-open-personalization]").forEach((btn) => {
     btn.addEventListener("click", () => openSettings("personalization"));
+  });
+
+  document.querySelectorAll("[data-open-settings]").forEach((btn) => {
+    btn.addEventListener("click", () => openSettings("general"));
+  });
+
+  document.querySelectorAll("[data-open-help]").forEach((btn) => {
+    btn.addEventListener("click", () => openAboutMemory());
+  });
+
+  document.querySelectorAll("[data-action-open-auth]").forEach((btn) => {
+    btn.addEventListener("click", () => window.XmaniusAuth?.openAuthModal("signin"));
   });
 
   window.XmaniusAttachExternalFile = (fileObj) => {
@@ -2307,9 +2804,10 @@
   let moreModelsCloseTimer = 0;
   const setModelSubmenu = (open) => { window.clearTimeout(moreModelsCloseTimer); modelSubmenu?.classList.toggle("is-open", open); moreModelsToggle?.setAttribute("aria-expanded", String(open)); };
   const scheduleModelSubmenuClose = () => { window.clearTimeout(moreModelsCloseTimer); moreModelsCloseTimer = window.setTimeout(() => setModelSubmenu(false), 140); };
-  const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); modelToggle?.setAttribute("aria-expanded", String(open)); headerModelToggle?.setAttribute("aria-expanded", String(open)); if (!open) setModelSubmenu(false); };
-  modelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
-  headerModelToggle?.addEventListener("click", () => setModelPicker(!modelPicker.classList.contains("is-open")));
+  const setModelPicker = (open) => { modelPicker?.classList.toggle("is-open", open); document.querySelectorAll("[data-model-toggle]").forEach(el => el.setAttribute("aria-expanded", String(open))); if (!open) setModelSubmenu(false); };
+  document.querySelectorAll("[data-model-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => setModelPicker(!modelPicker?.classList.contains("is-open")));
+  });
   moreModelsToggle?.addEventListener("mouseenter", () => setModelSubmenu(true));
   moreModelsToggle?.addEventListener("mouseleave", scheduleModelSubmenuClose);
   moreModelsToggle?.addEventListener("focus", () => setModelSubmenu(true));
@@ -2320,12 +2818,55 @@
     const brand = isAndroid ? "Xmanias" : "Xmanius";
     if (modelKey === "xmanius-1") return `${brand} 1.5`;
     if (modelKey === "xmanius-2") return `${brand} Flash`;
-    if (modelKey === "xmanius-3") return `${brand} Pro`;
-    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `${brand} Cortex`;
+    if (modelKey === "xmanius-3") return `${brand} 2 Pro`;
+    if (modelKey === "xmanius-4" || modelKey === "xmanius-7" || modelKey === "xmanius-8") return `Cortex (Anti-Gravity)`;
     return `${brand} ${modelKey.replace("xmanius-", "")}`;
   };
+
+  const updateGeminiDropdownState = () => {
+    const pillText = document.querySelector("[data-active-model-pill-text]");
+    if (pillText) {
+      if (selectedModel === "xmanius-2") pillText.textContent = "Flash";
+      else if (selectedModel === "xmanius-1") pillText.textContent = "1.5";
+      else if (selectedModel === "xmanius-3") pillText.textContent = "2 Pro";
+      else pillText.textContent = "Flash";
+    }
+
+    const brandHeader = document.getElementById("header-brand-guest");
+    if (brandHeader) {
+      brandHeader.textContent = getModelDisplayName(selectedModel);
+    }
+
+    const geminiDropdown = document.getElementById("gemini-model-dropdown");
+    if (geminiDropdown) {
+      geminiDropdown.querySelectorAll("[data-model-choice]").forEach((btn) => {
+        const isSel = btn.dataset.modelChoice === selectedModel;
+        btn.classList.toggle("is-selected", isSel);
+        const check = btn.querySelector(".gemini-check");
+        if (check) check.textContent = isSel ? "✓" : "";
+      });
+
+      const thinkCheck = geminiDropdown.querySelector("[data-check-think]");
+      if (thinkCheck) thinkCheck.textContent = thinkMode ? "✓" : "";
+      geminiDropdown.querySelector("[data-toggle-extended-thinking]")?.classList.toggle("is-selected", thinkMode);
+
+      const searchCheck = geminiDropdown.querySelector("[data-check-search]");
+      if (searchCheck) searchCheck.textContent = webSearch ? "✓" : "";
+      geminiDropdown.querySelector("[data-toggle-search-mode]")?.classList.toggle("is-selected", webSearch);
+    }
+
+    const modeChat = document.querySelector('[data-sidebar-mode="chat"]');
+    const modeCortex = document.querySelector('[data-sidebar-mode="cortex"]');
+    const isCortex = selectedModel === "xmanius-4" || selectedModel === "xmanius-7" || selectedModel === "xmanius-8";
+    modeChat?.classList.toggle("is-active", !isCortex);
+  };
+
   const setSelectedModel = (model) => {
-    selectedModel = /^xmanius-[1-9]$/.test(model || "") ? model : "xmanius-1";
+    if (/^xmanius-[1-9]$/.test(model || "")) {
+      selectedModel = model;
+    } else {
+      selectedModel = localStorage.getItem("xmanius-selected-model-v1") || "xmanius-2";
+    }
     try { localStorage.setItem("xmanius-selected-model-v1", selectedModel); } catch {}
     modelPicker?.querySelectorAll("[data-model]").forEach((item) => {
       const active = item.dataset.model === selectedModel;
@@ -2334,25 +2875,258 @@
       const check = item.querySelector("b");
       if (check) check.textContent = active ? "✓" : "";
     });
-    if (modelName) modelName.innerHTML = `${getModelDisplayName(selectedModel)} <span class="dropdown-chevron" aria-hidden="true"></span>`;
+    if (modelName) modelName.innerHTML = `<span data-active-model-name>${getModelDisplayName(selectedModel)}</span> <span class="model-chevron" style="display:inline-block; margin-left:4px; font-size:12px; transform:translateY(1px);">⌵</span>`;
+    updateGeminiDropdownState();
   };
+
+  const getDefaultKeyForSlot = (slot) => {
+    if (slot === "xmanius-1") return "1";
+    if (slot === "xmanius-2") return "2";
+    if (slot === "xmanius-3") return "3";
+    if (slot === "xmanius-4") return "4";
+    return "auto";
+  };
+
+  const getSelectedKeyForSlot = (slot) => {
+    try {
+      const saved = localStorage.getItem(`xmanius-slot-key-${slot}`);
+      if (saved && (/^[1-7]$/.test(saved) || saved === "auto")) return saved;
+    } catch {}
+    return getDefaultKeyForSlot(slot);
+  };
+
+  const setSelectedKeyForSlot = (slot, key) => {
+    try {
+      localStorage.setItem(`xmanius-slot-key-${slot}`, key);
+    } catch {}
+    const badge = document.querySelector(`[data-key-badge="${slot}"]`);
+    if (badge) {
+      badge.textContent = key === "auto" ? "Auto ▾" : `Key ${key} ▾`;
+    }
+    const menu = document.querySelector(`[data-key-menu="${slot}"]`);
+    if (menu) {
+      menu.querySelectorAll(".model-key-opt").forEach((opt) => {
+        opt.classList.toggle("is-selected", opt.dataset.key === key);
+      });
+    }
+  };
+
+  window.XmaniusGetSlotKey = getSelectedKeyForSlot;
+  window.XmaniusSetSlotKey = setSelectedKeyForSlot;
+
+  // Initialize key badges & dropdown active states
+  ["xmanius-1", "xmanius-2", "xmanius-3", "xmanius-4"].forEach((slot) => {
+    setSelectedKeyForSlot(slot, getSelectedKeyForSlot(slot));
+  });
+
+  window.XmaniusSetSelectedModel = setSelectedModel;
   setSelectedModel(selectedModel);
-  modelPicker?.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) { setModelPicker(false); input.placeholder = "Voice chat is ready"; return; } if (event.target.closest("[data-more-models]")) { setModelSubmenu(!modelSubmenu?.classList.contains("is-open")); return; } const option = event.target.closest("[data-model]"); if (option) { setSelectedModel(option.dataset.model); setModelPicker(false); } });
-  document.addEventListener("click", (event) => { if (modelPicker?.classList.contains("is-open") && !event.target.closest(".chat-composer, [data-model-menu]")) setModelPicker(false); });
-  const reset = () => { saveCurrentChat(); currentChatId = crypto.randomUUID?.() || String(Date.now()); list.replaceChildren(); empty.hidden = false; document.body.classList.add("is-empty-state"); input.value = ""; input.focus(); };
-  document.querySelectorAll("[data-new-chat]").forEach((button) => button.addEventListener("click", reset));
-  document.addEventListener("click", (event) => {
-    const chip = event.target.closest("[data-suggestion]");
-    if (chip && input) {
-      input.value = chip.dataset.suggestion;
-      input.focus();
+
+  let positionKeyDropdown = (menu) => {
+    if (!menu) return;
+    if (window.innerWidth <= 640) {
+      menu.classList.remove("flip-left");
+      menu.style.top = "";
+      return;
+    }
+    menu.classList.remove("flip-left");
+    menu.style.top = "0px";
+    const parentRow = menu.closest(".model-slot-row");
+    const parentRect = parentRow ? parentRow.getBoundingClientRect() : menu.parentElement.getBoundingClientRect();
+    if (parentRect.right + 235 > window.innerWidth) {
+      menu.classList.add("flip-left");
+    }
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.bottom > window.innerHeight - 10) {
+      const overflow = menuRect.bottom - (window.innerHeight - 10);
+      let newTop = -overflow;
+      if (parentRect.top + newTop < 10) {
+        newTop = 10 - parentRect.top;
+      }
+      menu.style.top = `${newTop}px`;
+    }
+  };
+
+  modelPicker?.querySelectorAll(".model-slot-row").forEach((row) => {
+    row.addEventListener("mouseenter", () => {
+      const menu = row.querySelector(".model-key-dropdown");
+      if (menu) positionKeyDropdown(menu);
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    const openMenu = modelPicker?.querySelector(".model-key-dropdown.is-open");
+    if (openMenu) positionKeyDropdown(openMenu);
+  });
+
+  modelPicker?.addEventListener("click", (event) => {
+    const keyOpt = event.target.closest(".model-key-opt");
+    if (keyOpt) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!keyOpt.classList.contains("is-reserved")) {
+        const slot = keyOpt.dataset.slot;
+        const key = keyOpt.dataset.key;
+        if (slot && key) {
+          setSelectedKeyForSlot(slot, key);
+          setSelectedModel(slot);
+        }
+      }
+      return;
+    }
+
+    const keyBadge = event.target.closest(".model-key-badge");
+    if (keyBadge) {
+      event.preventDefault();
+      event.stopPropagation();
+      const slot = keyBadge.dataset.keyBadge;
+      const menu = document.querySelector(`[data-key-menu="${slot}"]`);
+      if (menu) {
+        const wasOpen = menu.classList.contains("is-open");
+        modelPicker?.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+        if (!wasOpen) { menu.classList.add("is-open"); positionKeyDropdown(menu); }
+      }
+      return;
+    }
+
+    if (event.target.closest(".model-key-dropdown")) {
+      event.stopPropagation();
+      return;
+    }
+
+    if (event.target.closest("[data-voice-chat]")) {
+      setModelPicker(false);
+      input.placeholder = "Voice chat is ready";
+      return;
+    }
+    if (event.target.closest("[data-more-models]")) {
+      setModelSubmenu(!modelSubmenu?.classList.contains("is-open"));
+      return;
+    }
+    const option = event.target.closest("[data-model]");
+    if (option) {
+      setSelectedModel(option.dataset.model);
+      setModelPicker(false);
     }
   });
+
+
+  const openFilesDrawerForChat = async (chat) => {
+    const drawer = document.getElementById("chat-files-drawer");
+    const listEl = document.getElementById("files-drawer-list");
+    const emptyEl = document.getElementById("files-drawer-empty");
+    if (!drawer || !listEl) return;
+
+    listEl.replaceChildren();
+
+    const allAttachments = [];
+    const seenIds = new Set();
+    if (chat && Array.isArray(chat.messages)) {
+      chat.messages.forEach((msg) => {
+        if (Array.isArray(msg.attachments)) {
+          msg.attachments.forEach((att) => {
+            if (att && att.id && !seenIds.has(att.id)) {
+              seenIds.add(att.id);
+              allAttachments.push(att);
+            } else if (att && !att.id) {
+              allAttachments.push(att);
+            }
+          });
+        }
+      });
+    }
+
+    if (!allAttachments.length) {
+      if (emptyEl) emptyEl.style.display = "flex";
+    } else {
+      if (emptyEl) emptyEl.style.display = "none";
+      for (const ref of allAttachments) {
+        let full = ref;
+        if (!full.data && full.id) {
+          try {
+            const saved = await attachmentDb.get(full.id);
+            if (saved) full = saved;
+          } catch (_) {}
+        }
+
+        const item = document.createElement("div");
+        item.className = "files-drawer-item";
+
+        const iconBox = document.createElement("div");
+        iconBox.className = "files-drawer-icon-box";
+
+        const isImg = full.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(full.name || "");
+        const isPdf = full.mimeType === "application/pdf" || /\.pdf$/i.test(full.name || "");
+
+        if (isImg) {
+          iconBox.style.background = "#c5221f";
+          iconBox.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`;
+        } else if (isPdf) {
+          iconBox.style.background = "#ea4335";
+          iconBox.textContent = "PDF";
+        } else {
+          iconBox.style.background = "#5f6368";
+          const ext = (full.name || "").split(".").pop()?.toUpperCase() || "DOC";
+          iconBox.textContent = ext.slice(0, 4);
+        }
+
+        const info = document.createElement("div");
+        info.className = "files-drawer-item-info";
+
+        const title = document.createElement("div");
+        title.className = "files-drawer-item-title";
+        title.textContent = full.name || "Untitled attachment";
+        title.title = full.name || "";
+
+        const ext = document.createElement("div");
+        ext.className = "files-drawer-item-ext";
+        const extText = (full.name || "").split(".").pop()?.toUpperCase() || (isPdf ? "PDF" : "FILE");
+        ext.textContent = extText;
+
+        info.appendChild(title);
+        info.appendChild(ext);
+        item.appendChild(iconBox);
+        item.appendChild(info);
+
+        item.addEventListener("click", () => {
+          openMediaPreviewModal(full);
+        });
+
+        listEl.appendChild(item);
+      }
+    }
+
+    drawer.classList.add("is-open");
+    drawer.setAttribute("aria-hidden", "false");
+  };
   const handleChatAction = async (action, chatId) => {
     const chats = readChats();
     const chat = chats.find((item) => item.id === chatId);
     if (!chat) { closeChatMenu(); return; }
-    if (action.dataset.chatAction === "pin") chat.pinned = !chat.pinned;
+    if (action.dataset.chatAction === "files") {
+      closeChatMenu();
+      openFilesDrawerForChat(chat);
+      return;
+    }
+    if (action.dataset.chatAction === "pin") {
+      chat.pinned = !chat.pinned;
+      saveChats(chats);
+      closeChatMenu();
+      renderRecents();
+      return;
+    }
+    if (action.dataset.chatAction === "rename") {
+      closeChatMenu();
+      const newTitle = window.prompt("Rename chat:", chat.title);
+      if (newTitle && newTitle.trim()) {
+        chat.title = newTitle.trim();
+        chat.titleGenerated = true;
+        saveChats(chats);
+        renderRecents();
+      }
+      return;
+    }
+
     if (action.dataset.chatAction === "delete") {
       saveChats(chats.filter((item) => item.id !== chat.id));
       if (chat.id === currentChatId) {
@@ -2437,7 +3211,19 @@
     enthusiastic: { less: "Less", default: "Default", more: "More" },
     headers: { more: "More", default: "Default", less: "Less" },
     emoji: { more: "More", default: "Default", less: "Less" },
-    voiceCallSound: { puck: "Puck (Energetic Male)", charon: "Charon (Deep Male)", aoede: "Aoede (Expressive Female)", kore: "Kore (Warm Female)", fenrir: "Fenrir (Bold Male)", zephyr: "Zephyr (Soft Female)", pegasus: "Pegasus (Rich Male)", "google-us": "US Natural", "google-uk": "UK Natural" },
+    voiceCallSound: {
+      aoede: "Aoede (Expressive Female)",
+      kore: "Kore (Warm Female)",
+      charon: "Charon (Deep Male)",
+      fenrir: "Fenrir (Bold Male)",
+      puck: "Puck (Energetic Male)",
+      zephyr: "Zephyr (Soft Female)",
+      pegasus: "Pegasus (Rich Male)",
+      "us-female": "US Female (Natural)",
+      "us-male": "US Male (Natural)",
+      "uk-female": "UK Female (Natural British)",
+      "uk-male": "UK Male (Natural British)"
+    },
     voiceSpeed: { "0.75": "0.75x (Slower)", "0.9": "0.9x (Normal)", "1.0": "1.0x (Standard)", "1.25": "1.25x (Faster)", "1.5": "1.5x (Fast)" },
     voicePitch: { low: "Lower pitch", normal: "Normal pitch", high: "Higher pitch" }
   };
@@ -2450,7 +3236,19 @@
     enthusiastic: [["less", "Less"], ["default", "Default"], ["more", "More"]],
     headers: [["more", "More"], ["default", "Default"], ["less", "Less"]],
     emoji: [["more", "More"], ["default", "Default"], ["less", "Less"]],
-    voiceCallSound: [["puck", "Puck (Energetic Male)"], ["charon", "Charon (Deep Male)"], ["aoede", "Aoede (Expressive Female)"], ["kore", "Kore (Warm Female)"], ["fenrir", "Fenrir (Bold Male)"], ["zephyr", "Zephyr (Soft Female)"], ["pegasus", "Pegasus (Rich Male)"], ["google-us", "US Natural"], ["google-uk", "UK Natural"]],
+    voiceCallSound: [
+      ["aoede", "Aoede (Expressive Female)"],
+      ["kore", "Kore (Warm Female)"],
+      ["charon", "Charon (Deep Male)"],
+      ["fenrir", "Fenrir (Bold Male)"],
+      ["puck", "Puck (Energetic Male)"],
+      ["zephyr", "Zephyr (Soft Female)"],
+      ["pegasus", "Pegasus (Rich Male)"],
+      ["us-female", "US Female (Natural)"],
+      ["us-male", "US Male (Natural)"],
+      ["uk-female", "UK Female (Natural British)"],
+      ["uk-male", "UK Male (Natural British)"]
+    ],
     voiceSpeed: [["0.75", "0.75x (Slower)"], ["0.9", "0.9x (Normal)"], ["1.0", "1.0x (Standard)"], ["1.25", "1.25x (Faster)"], ["1.5", "1.5x (Fast)"]],
     voicePitch: [["low", "Lower pitch"], ["normal", "Normal pitch"], ["high", "Higher pitch"]]
   };
@@ -2829,22 +3627,26 @@
     
     if (settingsSection === "general") {
       title.textContent = "General";
-      const authUser = window.XmaniusAuth?.getState()?.user;
-      const accountSection = authUser
-        ? '<div class="settings-row"><div><strong>Account &amp; Session</strong><small>Signed in as ' + (authUser.email || "Active User") + '</small></div><button type="button" class="settings-danger-btn" data-action-logout>Log Out</button></div>'
-        : '<div class="settings-row"><div><strong>Account &amp; Session</strong><small>Sign in to sync your conversations to the cloud.</small></div><button type="button" class="settings-value" data-action-open-auth style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600;">Log In / Sign Up</button></div>';
-
-      content.innerHTML = '<div class="settings-intro"><strong>Make Xmanius work the way you prefer.</strong><small>These preferences are saved locally on this device.</small></div>' +
-        accountSection +
-        createSettingRow("appearance", "Appearance", "Choose the interface theme.") +
-        createSettingRow("contrast", "Contrast", "Adjust the contrast of the interface.") +
-        createSettingRow("language", "Language", "Used for the interface and voice recognition.") +
-        '<div class="settings-row settings-toggle-row"><div><strong>Higher intelligence</strong><small>Use Think mode for questions that need deeper analysis.</small></div><button type="button" class="settings-switch ' + (thinkMode ? "is-on" : "") + '" data-settings-think aria-pressed="' + String(thinkMode) + '"><span></span></button></div>' +
-        '<div class="settings-row settings-toggle-row"><div><strong>Enable dictation</strong><small>Allow microphone input in the chat composer.</small></div><button type="button" class="settings-switch is-on" aria-label="Dictation is available"><span></span></button></div>' +
-        '<div class="settings-row"><div><strong>Delete all chats</strong><small>Permanently delete all conversation history stored on this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>';
+      content.innerHTML = `
+        ${createSettingRow("appearance", "Appearance", "Choose the interface theme.")}
+        ${createSettingRow("contrast", "Contrast", "Adjust the contrast of the interface.")}
+        ${createSettingRow("language", "Language", "Used for the interface and voice recognition.")}
+        <div class="settings-row settings-toggle-row">
+          <div><strong>Higher intelligence</strong><small>Use Think mode for questions that need deeper analysis.</small></div>
+          <button type="button" class="settings-switch ${thinkMode ? "is-on" : ""}" data-settings-think aria-pressed="${String(thinkMode)}"><span></span></button>
+        </div>
+        <div class="settings-row settings-toggle-row">
+          <div><strong>Enable dictation</strong><small>Allow microphone input in the chat composer.</small></div>
+          <button type="button" class="settings-switch is-on" aria-label="Dictation is available"><span></span></button>
+        </div>
+        <div class="settings-row">
+          <div><strong>Delete all chats</strong><small>Permanently delete all conversation history stored on this device.</small></div>
+          <button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button>
+        </div>
+      `;
     } else if (settingsSection === "personalization") {
       title.textContent = "Personalization";
-      content.innerHTML = '<div class="settings-intro"><strong>Choose how Xmanius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
+      content.innerHTML = '<div class="settings-intro"><strong>Choose how XManius responds.</strong><small>These choices guide tone and formatting without exposing private application details.</small></div>' +
         createSettingRow("baseTone", "Base style and tone", "The overall style of the answer.") +
         createSettingRow("warm", "Warm", "Friendlier and more personable.") +
         createSettingRow("enthusiastic", "Enthusiastic", "How energetic the response sounds.") +
@@ -2856,11 +3658,16 @@
       title.textContent = "Voice";
       content.innerHTML = '<div class="settings-intro"><strong>Customize voice, speech rate, and audio.</strong><small>Select voice character, pitch, speed, and test your voice settings.</small></div>' +
         createSettingRow("voiceCallSound", "Voice character", "Choose from energy, tone, and character options.") +
-        '<div class="settings-voice-preview-card"><div class="voice-preview-info"><span class="voice-preview-icon">🎙</span><div><strong>Voice Preview</strong><small>Test how Xmanius sounds with your selected voice and speed.</small></div></div><button type="button" class="voice-test-play-btn" data-action-test-voice><span>▶ Test Voice</span></button></div>' +
+        '<div class="settings-voice-preview-card"><div class="voice-preview-info"><span class="voice-preview-icon">🎙</span><div><strong>Voice Preview</strong><small>Test how XManius sounds with your selected voice and speed.</small></div></div><button type="button" class="voice-test-play-btn" data-action-test-voice><span>▶ Test Voice</span></button></div>' +
         createSettingRow("voiceSpeed", "Speech speed", "Adjust how fast or slow the voice speaks.") +
         createSettingRow("voicePitch", "Voice pitch", "Adjust the pitch depth of speech.") +
         '<div class="settings-row settings-toggle-row"><div><strong>Auto read aloud</strong><small>Automatically speak AI responses when received.</small></div><button type="button" class="settings-switch ' + (appSettings.autoReadAloud ? "is-on" : "") + '" data-settings-autoread aria-pressed="' + String(appSettings.autoReadAloud) + '"><span></span></button></div>' +
         '<div class="settings-row settings-toggle-row"><div><strong>Hands-free mic</strong><small>Keep microphone active for continuous voice conversation.</small></div><button type="button" class="settings-switch ' + (appSettings.handsFreeMic ? "is-on" : "") + '" data-settings-handsfree aria-pressed="' + String(appSettings.handsFreeMic) + '"><span></span></button></div>';
+    } else if (settingsSection === "memory") {
+      title.textContent = "Memories";
+      content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Let XManius personalize relevant answers from chats saved on this device.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
+        '<div class="settings-memory-card"><div class="settings-memory-card-info"><strong>Memory summary</strong><p>View an overview of what XManius has learned about you. Use <a href="javascript:void(0);" data-open-custom-instructions>custom instructions</a> for information you’d like it to always keep in mind. You can still manage your old <a href="javascript:void(0);" data-manage-memory>saved memories</a>.</p></div><button type="button" class="settings-secondary-btn" data-manage-memory>Manage</button></div>' +
+        '<div class="settings-memory-card"><div><strong>Delete all chats</strong><small>Permanently delete all saved conversation history from this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>';
     } else if (settingsSection === "storage") {
       title.textContent = "Storage";
       content.innerHTML = `
@@ -2969,12 +3776,6 @@
           </div>
         `;
       }
-    } else {
-      title.textContent = "Memory";
-      content.innerHTML = '<div class="settings-memory-card"><div><strong>Enable memory</strong><small>Let Xmanias personalize relevant answers from chats saved on this device.</small></div><button type="button" class="settings-switch ' + (appSettings.memoryEnabled ? "is-on" : "") + '" data-settings-memory aria-pressed="' + String(appSettings.memoryEnabled) + '"><span></span></button></div>' +
-        '<div class="settings-memory-card"><div class="settings-memory-card-info"><strong>Memory summary</strong><p>View an overview of what Xmanias has learned about you. Use <a href="javascript:void(0);" data-open-custom-instructions>custom instructions</a> for information you’d like it to always keep in mind. You can still manage your old <a href="javascript:void(0);" data-manage-memory>saved memories</a>.</p></div><button type="button" class="settings-secondary-btn" data-manage-memory>Manage</button></div>' +
-        '<div class="settings-memory-card"><div><strong>Delete all chats</strong><small>Permanently delete all saved conversation history from this device.</small></div><button type="button" class="settings-danger-btn" data-action-delete-all-chats>Delete all</button></div>' +
-        '<p class="settings-note">Turning Memory off stops collecting new chats and stops using saved context. You can remove existing saved memory in Manage.</p>';
     }
   };
 
@@ -2997,19 +3798,32 @@
   const openAboutMemory = () => {
     closeAboutMemory();
     aboutMemoryBackdrop = document.createElement("div");
-    aboutMemoryBackdrop.className = "about-memory-backdrop";
+    aboutMemoryBackdrop.className = "about-memory-backdrop is-open";
     aboutMemoryBackdrop.innerHTML = `
-      <section class="about-memory-shell" role="dialog" aria-modal="true" aria-label="About memory">
+      <section class="about-memory-shell" role="dialog" aria-modal="true" aria-label="Help & About XManius">
         <header class="about-memory-header">
-          <h2>About memory</h2>
-          <button type="button" class="about-memory-close" data-close-about-memory aria-label="Close">×</button>
+          <h2>Help & About XManius</h2>
+          <button type="button" class="about-memory-close" data-close-about-memory aria-label="Close">✕</button>
         </header>
         <div class="about-memory-body">
-          <p>Xmanias automatically remembers important information about you, and keeps it up to date. This summary page is a brief overview of what's been remembered — not a complete list.</p>
+          <p><strong>XManius AI</strong> is an intelligent conversational platform powered by advanced multimodal intelligence.</p>
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-weight: 600; font-size: 13.5px; margin-bottom: 2px;">⚡ Models & Speeds</div>
+              <div style="font-size: 12.5px; color: #a1a1aa;">Choose between XManius 1.5, Flash, Pro, and Cortex for coding, research, and general queries.</div>
+            </div>
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-weight: 600; font-size: 13.5px; margin-bottom: 2px;">🔒 Privacy & Storage</div>
+              <div style="font-size: 12.5px; color: #a1a1aa;">Your uploaded files and chats are strictly private and associated with your account only.</div>
+            </div>
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-weight: 600; font-size: 13.5px; margin-bottom: 2px;">📎 Multimodal Uploads</div>
+              <div style="font-size: 12.5px; color: #a1a1aa;">Supports images, PDFs, audio (MP3, WAV), video (MP4), documents, and code files.</div>
+            </div>
+          </div>
         </div>
-        <footer class="about-memory-footer">
-          <button type="button" class="about-memory-btn-learn" data-close-about-memory>Learn more</button>
-          <button type="button" class="about-memory-btn-gotit" data-close-about-memory>Got it</button>
+        <footer class="about-memory-footer" style="display: flex; justify-content: flex-end; padding-top: 16px;">
+          <button type="button" class="about-memory-btn-gotit" data-close-about-memory style="padding: 8px 20px; border-radius: 999px; background: #ffffff; color: #000000; border: none; font-weight: 600; font-size: 13.5px; cursor: pointer;">Got it</button>
         </footer>
       </section>
     `;
@@ -3021,17 +3835,25 @@
       }
     });
   };
+
   const openSettings = (section = "general") => {
     closeProfileMenu();
-    settingsSection = section;
+    const profile = window.XmaniusAuth?.getUserProfile?.() || { isGuest: true };
+    const isGuest = Boolean(profile.isGuest);
+    if (isGuest) {
+      settingsSection = "general";
+    } else {
+      settingsSection = section;
+    }
+
     if (!settingsBackdrop) {
       settingsBackdrop = document.createElement("div");
       settingsBackdrop.className = "settings-backdrop";
       settingsBackdrop.innerHTML = `
         <section class="settings-shell" role="dialog" aria-modal="true" aria-label="Xmanius settings">
           <aside class="settings-nav">
-            <button type="button" class="settings-close" data-settings-close aria-label="Close settings">×</button>
-            <input class="settings-search" data-settings-search type="search" placeholder="Search settings" aria-label="Search settings">
+            <button type="button" class="settings-close" data-settings-close aria-label="Close settings" style="align-self: flex-start; margin-bottom: 12px; font-size: 18px; width: 32px; height: 32px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; cursor: pointer;">✕</button>
+            
             <button type="button" class="settings-nav-item is-active" data-settings-section="general">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"/>
@@ -3039,7 +3861,8 @@
               </svg>
               <span>General</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="personalization">
+
+            <button type="button" class="settings-nav-item" data-settings-section="personalization" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="9.5"/>
                 <path d="M10.5 8.5 A 3.5 3.5 0 0 0 9 12 A 3.5 3.5 0 0 0 12.5 15.5"/>
@@ -3047,7 +3870,8 @@
               </svg>
               <span>Personalization</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="voice">
+
+            <button type="button" class="settings-nav-item" data-settings-section="voice" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -3055,18 +3879,32 @@
               </svg>
               <span>Voice</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="storage">
+
+            <button type="button" class="settings-nav-item" data-settings-section="memory" data-auth-only>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              <span>Memories</span>
+            </button>
+
+            <button type="button" class="settings-nav-item" data-settings-section="storage" data-auth-only>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="4" width="20" height="16" rx="2"/>
                 <path d="M2 10h20M7 15h.01M17 15h.01"/>
               </svg>
               <span>Storage</span>
             </button>
-            <button type="button" class="settings-nav-item" data-settings-section="account">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
-              </svg>
+
+            <div class="settings-nav-spacer" style="flex: 1;"></div>
+
+            <button type="button" class="settings-nav-item settings-nav-account-item" data-settings-section="account" data-auth-only style="margin-top: auto;">
+              <span class="settings-nav-avatar" data-settings-nav-avatar style="width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; background: #3b82f6;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+                </svg>
+              </span>
               <span>Account</span>
             </button>
           </aside>
@@ -3118,6 +3956,8 @@
         if (memory) { appSettings.memoryEnabled = !appSettings.memoryEnabled; saveSettings(); renderSettingsSection(); return; }
         const deleteChats = event.target.closest("[data-action-delete-all-chats]");
         if (deleteChats) { deleteAllChats(); return; }
+        const exportChatsBtn = event.target.closest("[data-action-export-chats]");
+        if (exportChatsBtn) { exportChats(); return; }
         const think = event.target.closest("[data-settings-think]");
         if (think) { thinkMode = !thinkMode; thinkToggle?.classList.toggle("active", thinkMode); thinkToggle?.setAttribute("aria-pressed", String(thinkMode)); renderSettingsSection(); return; }
         const customInst = event.target.closest("[data-open-custom-instructions]");
@@ -3165,6 +4005,29 @@
         }
       });
     }
+
+    // Toggle auth-only tabs in settings
+    settingsBackdrop.querySelectorAll("[data-auth-only]").forEach(el => {
+      el.style.setProperty("display", isGuest ? "none" : "flex", "important");
+    });
+    const spacer = settingsBackdrop.querySelector(".settings-nav-spacer");
+    if (spacer) {
+      spacer.style.setProperty("display", isGuest ? "none" : "block", "important");
+    }
+
+    const avatarEl = settingsBackdrop.querySelector("[data-settings-nav-avatar]");
+    if (avatarEl && !isGuest) {
+      const userProf = window.XmaniusAuth?.getUserProfile?.() || {};
+      if (userProf.avatarUrl) {
+        avatarEl.innerHTML = `<img src="${userProf.avatarUrl}" alt="${userProf.displayName || "Account"}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">`;
+      } else if (userProf.displayName) {
+        const initial = (userProf.displayName || "A").trim()[0].toUpperCase();
+        avatarEl.innerHTML = `<span style="width: 100%; height: 100%; background: #3b82f6; color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; border-radius: 50%;">${initial}</span>`;
+      } else {
+        avatarEl.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>`;
+      }
+    }
+
     settingsBackdrop.classList.add("is-open");
     settingsBackdrop.querySelectorAll("[data-settings-section]").forEach((item) => item.classList.toggle("is-active", item.dataset.settingsSection === settingsSection));
     renderSettingsSection();
@@ -3302,15 +4165,33 @@
       if (action === "connect") {
         closeProfileMenu();
         window.XmaniusAuth?.openAuthModal("signin");
+        return;
       }
       if (action === "edit-profile") {
         closeProfileMenu();
         window.XmaniusAuth?.openEditProfileModal();
+        return;
       }
-      if (action === "personalization") openSettings("personalization");
-      if (action === "settings") openSettings("general");
-      if (action === "connect") window.XmaniusAuth?.openAuthModal("signin");
-      if (action === "signout") window.XmaniusAuth?.signOut();
+      if (action === "personalization") {
+        closeProfileMenu();
+        openSettings("personalization");
+        return;
+      }
+      if (action === "settings") {
+        closeProfileMenu();
+        openSettings("general");
+        return;
+      }
+      if (action === "help") {
+        closeProfileMenu();
+        openAboutMemory();
+        return;
+      }
+      if (action === "logout" || action === "signout") {
+        closeProfileMenu();
+        window.XmaniusAuth?.signOut();
+        return;
+      }
       closeProfileMenu();
     });
     return menu;
@@ -3387,7 +4268,373 @@
     recognitionInstance.onend = () => { mic.classList.remove("is-active"); };
     recognitionInstance.start();
   };
+  // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // GEMINI AI UI SUITE - COMPLETE INTERACTIVE CONTROLLERS
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  // 1. Temporary Chat (Incognito) Controller
+  const tempChatView = document.getElementById("temporary-chat-view");
+  const tempChatBtn = document.querySelector("[data-temporary-chat]");
+
+  const setTemporaryChatMode = (enable) => {
+    isTemporaryChatMode = Boolean(enable);
+    document.body.classList.toggle("is-temporary-chat-mode", isTemporaryChatMode);
+    if (tempChatBtn) {
+      tempChatBtn.classList.toggle("is-active", isTemporaryChatMode);
+      tempChatBtn.setAttribute("aria-pressed", String(isTemporaryChatMode));
+    }
+    const exitBtn = document.getElementById("temp-chat-exit-btn");
+    if (exitBtn) {
+      exitBtn.style.display = isTemporaryChatMode ? "grid" : "none";
+    }
+    const tempHero = document.getElementById("temporary-chat-hero");
+    if (tempHero) {
+      tempHero.style.display = isTemporaryChatMode ? "flex" : "none";
+    }
+    const normalHero = document.getElementById("normal-chat-hero");
+    if (normalHero) {
+      normalHero.style.display = isTemporaryChatMode ? "none" : "";
+    }
+    const greetingText = document.querySelector(".greeting-text");
+    if (greetingText) {
+      greetingText.style.display = isTemporaryChatMode ? "none" : "";
+    }
+    if (isTemporaryChatMode) {
+      currentChatId = "temp-" + Date.now();
+      list.replaceChildren();
+      empty.hidden = false;
+      document.body.classList.add("is-empty-state");
+      input.value = "";
+      input.focus();
+    } else {
+      reset();
+    }
+  };
+
+  tempChatBtn?.addEventListener("click", () => {
+    setTemporaryChatMode(!isTemporaryChatMode);
+  });
+
+  document.querySelectorAll("[data-close-temp-chat]").forEach((btn) => {
+    btn.addEventListener("click", () => setTemporaryChatMode(false));
+  });
+
+  // 2. Dynamic Composer Plus Button & Upload Popover
+  const composerPlusBtn = document.querySelector("[data-composer-plus]");
+  const uploadPopover = document.getElementById("composer-upload-popover");
+
+  const setUploadPopover = (open) => {
+    if (!uploadPopover) return;
+    const shouldOpen = typeof open === "boolean" ? open : uploadPopover.hasAttribute("hidden");
+    if (shouldOpen) {
+      uploadPopover.removeAttribute("hidden");
+      uploadPopover.classList.add("is-open");
+      uploadPopover.setAttribute("aria-hidden", "false");
+      composerPlusBtn?.setAttribute("aria-expanded", "true");
+      if (composerPlusBtn) composerPlusBtn.textContent = "×";
+    } else {
+      uploadPopover.setAttribute("hidden", "");
+      uploadPopover.classList.remove("is-open");
+      uploadPopover.setAttribute("aria-hidden", "true");
+      composerPlusBtn?.setAttribute("aria-expanded", "false");
+      if (composerPlusBtn) composerPlusBtn.textContent = "+";
+    }
+  };
+
+  composerPlusBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setUploadPopover();
+  });
+
+  uploadPopover?.querySelector("[data-popover-upload-files]")?.addEventListener("click", () => {
+    setUploadPopover(false);
+    fileInput?.click();
+  });
+
+  uploadPopover?.querySelector("[data-popover-camera]")?.addEventListener("click", () => {
+    setUploadPopover(false);
+    cameraInput?.click();
+  });
+
+  uploadPopover?.querySelector("[data-popover-live-voice]")?.addEventListener("click", () => {
+    setUploadPopover(false);
+    if (window.XmaniusLiveVoice?.open) {
+      window.XmaniusLiveVoice.open();
+    } else {
+      openGeneralVoice();
+    }
+  });
+
+  // 3. Composer Model Pill & Dropdown with Key Selection
+  const modelDropdownBtn = document.querySelector("[data-model-dropdown-btn]");
+  const geminiModelDropdown = document.getElementById("gemini-model-dropdown");
+
+  const setGeminiModelDropdown = (open) => {
+    if (!geminiModelDropdown) return;
+    const shouldOpen = typeof open === "boolean" ? open : geminiModelDropdown.hasAttribute("hidden");
+    if (shouldOpen) {
+      geminiModelDropdown.removeAttribute("hidden");
+      geminiModelDropdown.classList.add("is-open");
+      geminiModelDropdown.setAttribute("aria-hidden", "false");
+      modelDropdownBtn?.setAttribute("aria-expanded", "true");
+      updateGeminiDropdownState();
+    } else {
+      geminiModelDropdown.setAttribute("hidden", "");
+      geminiModelDropdown.classList.remove("is-open");
+      geminiModelDropdown.setAttribute("aria-hidden", "true");
+      modelDropdownBtn?.setAttribute("aria-expanded", "false");
+      document.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+    }
+  };
+
+  modelDropdownBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setGeminiModelDropdown();
+  });
+
+  geminiModelDropdown?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-model-choice]");
+    if (btn) {
+      e.stopPropagation();
+      const model = btn.dataset.modelChoice;
+      if (model) {
+        setSelectedModel(model);
+        setGeminiModelDropdown(false);
+      }
+      return;
+    }
+  });
+
+  geminiModelDropdown?.querySelector("[data-toggle-extended-thinking]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    thinkMode = !thinkMode;
+    thinkToggle?.classList.toggle("active", thinkMode);
+    thinkToggle?.setAttribute("aria-pressed", String(thinkMode));
+    updateGeminiDropdownState();
+  });
+
+  geminiModelDropdown?.querySelector("[data-toggle-search-mode]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    webSearch = !webSearch;
+    webSearchToggle?.classList.toggle("active", webSearch);
+    webSearchToggle?.setAttribute("aria-pressed", String(webSearch));
+    updateGeminiDropdownState();
+  });
+
+  // 4. API Key Selection & Viewport Boundary Collision Guard
+  positionKeyDropdown = (menu) => {
+    if (!menu) return;
+    if (window.innerWidth <= 640) {
+      menu.classList.remove("flip-left");
+      menu.style.top = "";
+      return;
+    }
+    menu.classList.remove("flip-left");
+    menu.style.top = "0px";
+    const parentRow = menu.closest(".gemini-model-row") || menu.closest(".model-slot-row");
+    const parentRect = parentRow ? parentRow.getBoundingClientRect() : menu.parentElement.getBoundingClientRect();
+    if (parentRect.right + 225 > window.innerWidth) {
+      menu.classList.add("flip-left");
+    }
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.bottom > window.innerHeight - 10) {
+      const overflow = menuRect.bottom - (window.innerHeight - 10);
+      let newTop = -overflow;
+      if (parentRect.top + newTop < 10) {
+        newTop = 10 - parentRect.top;
+      }
+      menu.style.top = `${newTop}px`;
+    }
+  };
+
+  document.querySelectorAll(".gemini-model-row, .model-slot-row").forEach((row) => {
+    row.addEventListener("mouseenter", () => {
+      const menu = row.querySelector(".model-key-dropdown");
+      if (menu) positionKeyDropdown(menu);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    const keyOpt = event.target.closest(".model-key-opt");
+    if (keyOpt) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!keyOpt.classList.contains("is-reserved")) {
+        const slot = keyOpt.dataset.slot;
+        const key = keyOpt.dataset.key;
+        if (slot && key) {
+          setSelectedKeyForSlot(slot, key);
+          setSelectedModel(slot);
+        }
+      }
+      return;
+    }
+
+    const keyBadge = event.target.closest(".model-key-badge");
+    if (keyBadge) {
+      event.preventDefault();
+      event.stopPropagation();
+      const slot = keyBadge.dataset.keyBadge;
+      const menu = document.querySelector(`[data-key-menu="${slot}"]`);
+      if (menu) {
+        const wasOpen = menu.classList.contains("is-open");
+        document.querySelectorAll(".model-key-dropdown.is-open").forEach((m) => m.classList.remove("is-open"));
+        if (!wasOpen) {
+          menu.classList.add("is-open");
+          positionKeyDropdown(menu);
+        }
+      }
+      return;
+    }
+
+    if (uploadPopover && !uploadPopover.hasAttribute("hidden") && !event.target.closest("#composer-upload-popover, [data-composer-plus]")) {
+      setUploadPopover(false);
+    }
+    if (geminiModelDropdown && !geminiModelDropdown.hasAttribute("hidden") && !event.target.closest("#gemini-model-dropdown, [data-model-dropdown-btn]")) {
+      setGeminiModelDropdown(false);
+    }
+  });
+
+
+  window.addEventListener("resize", () => {
+    const openMenu = document.querySelector(".model-key-dropdown.is-open");
+    if (openMenu) positionKeyDropdown(openMenu);
+  });
+
+  // 5. Files Drawer Handlers
+  document.querySelector("[data-close-files-drawer]")?.addEventListener("click", () => {
+    const drawer = document.getElementById("chat-files-drawer");
+    if (drawer) {
+      drawer.classList.remove("is-open");
+      drawer.setAttribute("aria-hidden", "true");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    const drawer = document.getElementById("chat-files-drawer");
+    if (drawer && drawer.classList.contains("is-open")) {
+      if (!e.target.closest("#chat-files-drawer, [data-chat-action='files']")) {
+        drawer.classList.remove("is-open");
+        drawer.setAttribute("aria-hidden", "true");
+      }
+    }
+  });
+
+  // 6. Sidebar Mode Switcher [ Chat | Cortex BETA ]
+  document.querySelector('[data-sidebar-mode="chat"]')?.addEventListener("click", () => {
+    setSelectedModel("xmanius-2");
+  });
+
+  document.querySelector('[data-sidebar-mode="cortex"]')?.addEventListener("click", () => {
+    setSelectedModel("xmanius-4");
+  });
+
+  // 7. Sidebar Navigation Items
+  document.querySelector("[data-open-library]")?.addEventListener("click", () => {
+    if (window.XmaniusLibrary?.open) {
+      window.XmaniusLibrary.open();
+    }
+  });
+
+  document.querySelector("[data-search-chats]")?.addEventListener("click", () => {
+    const query = window.prompt("Search chats by title:");
+    if (query !== null) {
+      const term = query.trim().toLowerCase();
+      const rows = recent?.querySelectorAll(".conversation-row");
+      rows?.forEach((row) => {
+        const title = row.querySelector(".conversation")?.textContent?.toLowerCase() || "";
+        row.style.display = !term || title.includes(term) ? "" : "none";
+      });
+    }
+  });
+
+  // 8. Header Chat 3-Dots Menu
+  const headerChatMenuBtn = document.getElementById("header-chat-menu-btn");
+  const headerChatMenuDropdown = document.getElementById("header-chat-menu-dropdown");
+
+  closeHeaderChatMenu = () => {
+    if (headerChatMenuDropdown) {
+      headerChatMenuDropdown.setAttribute("hidden", "");
+      headerChatMenuDropdown.classList.remove("is-visible");
+      headerChatMenuBtn?.setAttribute("aria-expanded", "false");
+    }
+  };
+
+  headerChatMenuBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!headerChatMenuDropdown) return;
+    const isHidden = headerChatMenuDropdown.hasAttribute("hidden") || !headerChatMenuDropdown.classList.contains("is-visible");
+    if (isHidden) {
+      closeChatMenu();
+      const chats = readChats();
+      const currentChat = chats.find((c) => c.id === currentChatId);
+      const pinLabel = headerChatMenuDropdown.querySelector("[data-header-pin-label]");
+      if (pinLabel) pinLabel.textContent = currentChat?.pinned ? "Unpin" : "Pin";
+
+      headerChatMenuDropdown.removeAttribute("hidden");
+      headerChatMenuDropdown.classList.add("is-visible");
+      headerChatMenuBtn?.setAttribute("aria-expanded", "true");
+    } else {
+      closeHeaderChatMenu();
+    }
+  });
+
+  headerChatMenuDropdown?.addEventListener("click", async (e) => {
+    const actionBtn = e.target.closest("[data-header-chat-action]");
+    if (!actionBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeHeaderChatMenu();
+
+    const action = actionBtn.dataset.headerChatAction;
+    const chats = readChats();
+    let currentChat = chats.find((c) => c.id === currentChatId);
+
+    if (action === "files") {
+      openFilesDrawerForChat(currentChat || { id: currentChatId, title: "Current chat", messages: [] });
+      return;
+    }
+
+    if (!currentChat) {
+      if (action === "delete") {
+        startNewChat();
+      } else if (action === "share") {
+        if (navigator.clipboard) await navigator.clipboard.writeText("XManius AI: New conversation").catch(() => {});
+      }
+      return;
+    }
+
+    if (action === "pin") {
+      currentChat.pinned = !currentChat.pinned;
+      saveChats(chats);
+      renderRecents();
+    } else if (action === "rename") {
+      const newTitle = window.prompt("Rename chat:", currentChat.title);
+      if (newTitle && newTitle.trim()) {
+        currentChat.title = newTitle.trim();
+        currentChat.titleGenerated = true;
+        saveChats(chats);
+        renderRecents();
+      }
+    } else if (action === "delete") {
+      saveChats(chats.filter((item) => item.id !== currentChat.id));
+      startNewChat();
+      renderRecents();
+    } else if (action === "share") {
+      const shareText = `${currentChat.title}\n\n${currentChat.messages.map((item) => `${item.type === "user" ? "You" : (isAndroid ? "Xmanias" : "Xmanius")}: ${item.text}`).join("\n\n")}`;
+      if (navigator.share) await navigator.share({ title: currentChat.title, text: shareText }).catch(() => {});
+      else await navigator.clipboard?.writeText(shareText);
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#header-chat-menu-btn, #header-chat-menu-dropdown")) {
+      closeHeaderChatMenu();
+    }
+  });
+
   window.__openXmaniusVoice = openGeneralVoice;
   document.addEventListener("click", (event) => { if (event.target.closest("[data-voice-chat]")) openGeneralVoice(); });
 })();
-

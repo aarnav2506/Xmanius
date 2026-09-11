@@ -7,11 +7,12 @@
  */
 
 const DEFAULT_MODELS = Object.freeze({
-  FAST: "gemini-3.5-flash-lite",
+  FAST: "gemini-2.5-flash",
   PRO: "gemini-2.5-pro",
-  FLASH: "gemini-2.5-flash",
+  FLASH: "gemini-2.0-flash",
   REASONING: "gemini-2.5-pro",
-  ANTIGRAVITY: "antigravity",
+  CORTEX: "gemini-2.5-pro",
+  ANTIGRAVITY: "gemini-2.5-pro",
 });
 
 const sanitizeSecretString = function (text, secrets) {
@@ -37,7 +38,7 @@ class ModelProvider {
   static getEnvironmentKeys(slotNumber) {
     const slot = slotNumber || 1;
     const keys = [];
-    const suffixes = slot === 1 ? ["", "_1", "_4"] : ["_" + slot];
+    const suffixes = slot === 1 ? ["", "_1", "_4", "_2", "_3"] : ["_" + slot, "", "_4", "_1"];
     
     for (let i = 0; i < suffixes.length; i++) {
       const sfx = suffixes[i];
@@ -55,7 +56,7 @@ class ModelProvider {
       }
     }
 
-    const defaultKey = process.env.XMANIUS_GEMINI_API_KEY || process.env.XMANIUS_DEMO_API_KEY;
+    const defaultKey = process.env.XMANIUS_GEMINI_API_KEY || process.env.XMANIUS_DEMO_API_KEY || process.env.GEMINI_API_KEY;
     if (defaultKey && keys.indexOf(defaultKey.trim()) === -1) {
       keys.push(defaultKey.trim());
     }

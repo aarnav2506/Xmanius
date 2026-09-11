@@ -38,11 +38,16 @@ export default async function handler(request, response) {
   if (!audioData) return response.status(400).json({ error: "Audio data is required." });
   if (audioData.length > MAX_AUDIO_BYTES) return response.status(413).json({ error: "Audio data exceeds maximum size limit." });
 
-  const apiKey = process.env.XMANIUS_GEMINI_API_KEY || process.env.XMANIUS_GEMINI_API_KEY_1 || process.env.XMANIUS_GEMINI_API_KEY_2;
+  // Dedicated Live key allocation (Key LIVE or Key 2 has its own quota pool)
+  const apiKey = process.env.XMANIUS_GEMINI_API_KEY_LIVE ||
+                 process.env.XMANIUS_GEMINI_API_KEY_2 ||
+                 process.env.XMANIUS_GEMINI_API_KEY ||
+                 process.env.XMANIUS_GEMINI_API_KEY_1;
   if (!apiKey) return response.status(503).json({ error: "Server AI credentials not configured." });
 
-  const selectedModel = translate ? "gemini-3.5-live-translate" : "gemini-3.5-transcribe-live";
-  const fallbackModels = [selectedModel, "gemini-2.5-flash-native-audio-dialog", "gemini-2.5-flash-lite", "gemini-1.5-flash-8b"];
+  const fallbackModels = translate
+    ? ["gemini-3.5-live-translate", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3-flash-live"]
+    : ["gemini-3.5-transcribe-live", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3-flash-live"];
 
   const prompt = translate
     ? `Listen to this live audio recording carefully. Translate all spoken words accurately into clean, natural ${targetLanguage} text. Return only the translated text.`
