@@ -1219,19 +1219,49 @@
     }
     return renderMathExpression(closedRaw);
   };
+  const isSafeImageUrl = (value) => {
+    if (!value || typeof value !== "string") return false;
+    const trimmed = value.trim();
+    if (/^(?:https?:\/\/|\/|\.\.?\/|data:image\/|blob:)/i.test(trimmed)) {
+      return !/^\s*javascript:/i.test(trimmed);
+    }
+    return false;
+  };
   const isSafeHttpUrl = (value) => {
-    try {
-      const url = new URL(String(value || ""));
-      return url.protocol === "http:" || url.protocol === "https:";
-    } catch (_) { return false; }
+    if (!value || typeof value !== "string") return false;
+    const trimmed = value.trim();
+    if (/^(?:https?:\/\/)/i.test(trimmed)) {
+      return !/^\s*javascript:/i.test(trimmed);
+    }
+    return false;
   };
   const isImageUrl = (value) => {
-    if (!isSafeHttpUrl(value)) return false;
-    try { return /\.(?:png|jpe?g|webp|gif|avif|svg)(?:$|[?#])/i.test(new URL(value).pathname); } catch (_) { return false; }
+    if (!isSafeImageUrl(value)) return false;
+    try {
+      const clean = value.split(/[?#]/)[0];
+      return /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(clean) || /^data:image\//i.test(value);
+    } catch (_) { return false; }
   };
   const cleanEmbeddedLabel = (value) => String(value || "Image").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim() || "Image";
+  const renderSingleImage = (url, alt = "") => {
+    if (!isSafeImageUrl(url)) return escapeHtml(alt || url);
+    const safeUrl = escapeHtml(url);
+    const safeAlt = escapeHtml(cleanEmbeddedLabel(alt));
+    return `<figure class="chat-image-card"><a class="chat-image-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeAlt || 'View full image'}"><img class="chat-image-img" src="${safeUrl}" alt="${safeAlt || 'Image'}" loading="lazy" referrerpolicy="no-referrer"></a>${safeAlt ? `<figcaption class="chat-image-caption">${safeAlt}</figcaption>` : ""}</figure>`;
+  };
+  const renderImageCarousel = (items) => {
+    if (!items || !items.length) return "";
+    if (items.length === 1) return renderSingleImage(items[0].url, items[0].alt);
+    const slidesHtml = items.map((item, idx) => {
+      const safeUrl = escapeHtml(item.url);
+      const safeAlt = escapeHtml(cleanEmbeddedLabel(item.alt) || `Image ${idx + 1}`);
+      return `<figure class="chat-image-card carousel-slide"><a class="chat-image-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeAlt}"><img class="chat-image-img" src="${safeUrl}" alt="${safeAlt}" loading="lazy" referrerpolicy="no-referrer"></a>${safeAlt ? `<figcaption class="chat-image-caption">${safeAlt}</figcaption>` : ""}</figure>`;
+    }).join("");
+    const dotsHtml = items.map((_, idx) => `<button type="button" class="carousel-dot${idx === 0 ? " is-active" : ""}" data-carousel-dot="${idx}" aria-label="Go to slide ${idx + 1}"></button>`).join("");
+    return `<div class="chat-image-carousel" data-carousel="true"><div class="carousel-track">${slidesHtml}</div><button type="button" class="carousel-nav-btn carousel-prev" aria-label="Previous image" data-carousel-prev><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button><button type="button" class="carousel-nav-btn carousel-next" aria-label="Next image" data-carousel-next><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button><div class="carousel-indicators">${dotsHtml}</div></div>`;
+  };
   const normalizeEmbeddedMarkup = (value) => normalizeResponseText(value)
-    .replace(/<img\b[^>]*?\bsrc\s*=\s*["'](https?:\/\/[^"']+)["'][^>]*>/gi, (tag, url) => {
+    .replace(/<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi, (tag, url) => {
       const alt = tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] || "Image preview";
       return `![${cleanEmbeddedLabel(alt)}](${url})`;
     })
@@ -1247,27 +1277,14 @@
       .replace(/(^|\n)\s*#{1,6}\s+/g, "$1")
       .replace(/\\([{}])/g, "$1");
     // Keep paired Markdown emphasis available for the formatter below.
-    // Unmatched markers are removed after paired markers have been turned
-    // into <strong>, so raw `**` never leaks into the visible answer.
-    // Models sometimes emit a Markdown blockquote marker for ordinary
-    // prompt labels or prose. The app does not render blockquotes, so the
-    // marker should never leak into the visible answer as a stray `>`.
     source = source.replace(/(^|\n)[ \t]*>[ \t]+(?=[^<>])/g, "$1");
-    // Keep common video specifications readable and consistent while leaving
-    // fenced code untouched (code is rendered by highlightCode separately).
     source = source.replace(/\b(\d+(?:[.,]\d+)?)\s*(?:fps|frames?\s+per\s+second)\b/gi, "$1 FPS");
-    const imageCard = (url, label) => {
-      if (!isSafeHttpUrl(url)) return escapeHtml(label || url);
-      const safeUrl = escapeHtml(url);
-      const safeLabel = escapeHtml(cleanEmbeddedLabel(label));
-      return `<a class="inline-image-preview-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="Open image: ${safeLabel}"><img class="inline-image-preview" src="${safeUrl}" alt="${safeLabel}" loading="lazy" referrerpolicy="no-referrer"><span class="inline-image-caption">${safeLabel}</span></a>`;
-    };
     const sourceLink = (url, label = url) => {
       if (!isSafeHttpUrl(url)) return escapeHtml(label);
       return `<a class="inline-source-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(cleanEmbeddedLabel(label))}</a>`;
     };
-    source = source.replace(/!\[([^\]]*)\]\(\s*(https?:\/\/[^\s)]+)(?:\s+["'][^)]*["'])?\s*\)/gi, (_, label, url) => tokenFor(imageCard(url, label || "Image preview")));
-    source = source.replace(/\[([^\]]+)\]\(\s*(https?:\/\/[^\s)]+)\s*\)/gi, (_, label, url) => tokenFor(isImageUrl(url) ? imageCard(url, label) : sourceLink(url, label)));
+    source = source.replace(/!\[([^\]]*)\]\(\s*([^\s)]+)(?:\s+["'][^)]*["'])?\s*\)/gi, (_, label, url) => tokenFor(renderSingleImage(url, label || "Image preview")));
+    source = source.replace(/\[([^\]]+)\]\(\s*([^\s)]+)\s*\)/gi, (_, label, url) => tokenFor(isImageUrl(url) ? renderSingleImage(url, label) : sourceLink(url, label)));
     source = source.replace(/https?:\/\/[^\s<>"')]+/gi, (url, offset, whole) => {
       const trailing = url.match(/[.,;:!?]+$/)?.[0] || "";
       const cleanUrl = trailing ? url.slice(0, -trailing.length) : url;
@@ -1967,6 +1984,42 @@
       if (/^(-{3,}|_{3,}|\*{3,})$/.test(trimmed)) { output.push("<hr>"); index += 1; continue; }
       const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
       if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); highlightNextMath = /final answer/i.test(heading[2]); index += 1; continue; }
+      // Standalone markdown image line or image series carousel
+      const imgLineRegex = /^!\[([^\]]*)\]\(\s*([^\s)]+)(?:\s+["'][^)]*["'])?\s*\)$/;
+      const imgLineMatch = trimmed.match(imgLineRegex);
+      if (imgLineMatch) {
+        flushBullets(); flushNumbered();
+        const imageSeries = [{ alt: imgLineMatch[1], url: imgLineMatch[2] }];
+        index += 1;
+        while (index < lines.length) {
+          const nextTrim = lines[index].trim();
+          if (!nextTrim) {
+            let peek = index + 1;
+            while (peek < lines.length && !lines[peek].trim()) peek++;
+            if (peek < lines.length && imgLineRegex.test(lines[peek].trim())) {
+              index = peek;
+              const nextM = lines[index].trim().match(imgLineRegex);
+              imageSeries.push({ alt: nextM[1], url: nextM[2] });
+              index += 1;
+              continue;
+            }
+            break;
+          }
+          const nextM = nextTrim.match(imgLineRegex);
+          if (nextM) {
+            imageSeries.push({ alt: nextM[1], url: nextM[2] });
+            index += 1;
+          } else {
+            break;
+          }
+        }
+        if (imageSeries.length > 1) {
+          output.push(renderImageCarousel(imageSeries));
+        } else {
+          output.push(renderSingleImage(imageSeries[0].url, imageSeries[0].alt));
+        }
+        continue;
+      }
       if (/^\s*(\$\$|\\\[)/.test(trimmed)) {
         const close = trimmed.startsWith("$$") ? "$$" : "\\]";
         const openingLength = 2;
@@ -2001,7 +2054,7 @@
       const normalizedMathLine = normalizeExtendedMathNotation(trimmed);
       const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b)/.test(normalizedMathLine);
       const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\neq|\\approx|\\in\b|\\subset\b|\\cap\b|\\cup\b|\\forall\b|\\exists\b|\\implies\b|\\iff\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\lim|\\int|\\sum|\\prod|\\vec|\\hat|\\bar|\\Delta|\\pi|\\theta|\\longrightarrow|\^|_|(?<![A-Za-z0-9])[0-9]+!|≤|≥|∈|⊂|∩|∪|∀|∃|⇒|⇔|≠|≈|(?<![A-Za-z0-9])(?:\d+\s*[CPcp]\s*\d+|[nNkKmM]\s*[CPcp]\s*[rRkKmM0-9]|\d+\s*[CPcp]\s*[rRkKmM])(?![A-Za-z0-9])|(?<![A-Za-z0-9])[CPcp]\s*\([0-9a-zA-Z\s+\-*/^_.]+,[0-9a-zA-Z\s+\-*/^_.]+\))).{2,900}$/.test(trimmed);
-      const isProseLine = proseWords.test(trimmed) || /[.!?:]$/.test(trimmed) || /^[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(trimmed) || (trimmed.includes("$") && !(trimmed.startsWith("$") && trimmed.endsWith("$")));
+      const isProseLine = trimmed.includes("![") || proseWords.test(trimmed) || /[.!?:]$/.test(trimmed) || /^[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(trimmed) || (trimmed.includes("$") && !(trimmed.startsWith("$") && trimmed.endsWith("$")));
       if ((hasMatrix || hasScalarMath) && !isProseLine) {
         output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed, true)}</div>`);
         highlightNextMath = false;
@@ -3001,8 +3054,54 @@
       event.preventDefault();
       event.stopPropagation();
       void startVoice();
+      return;
+    }
+    const prevBtn = event.target.closest?.("[data-carousel-prev]");
+    if (prevBtn) {
+      event.preventDefault();
+      const carousel = prevBtn.closest("[data-carousel]");
+      const track = carousel?.querySelector(".carousel-track");
+      if (track) track.scrollBy({ left: -track.clientWidth * 0.75, behavior: "smooth" });
+      return;
+    }
+    const nextBtn = event.target.closest?.("[data-carousel-next]");
+    if (nextBtn) {
+      event.preventDefault();
+      const carousel = nextBtn.closest("[data-carousel]");
+      const track = carousel?.querySelector(".carousel-track");
+      if (track) track.scrollBy({ left: track.clientWidth * 0.75, behavior: "smooth" });
+      return;
+    }
+    const dotBtn = event.target.closest?.("[data-carousel-dot]");
+    if (dotBtn) {
+      event.preventDefault();
+      const idx = parseInt(dotBtn.dataset.carouselDot, 10);
+      const carousel = dotBtn.closest("[data-carousel]");
+      const track = carousel?.querySelector(".carousel-track");
+      const slides = track?.querySelectorAll(".carousel-slide");
+      if (track && slides && slides[idx]) {
+        slides[idx].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+      }
+      return;
     }
   });
+  document.addEventListener("scroll", (event) => {
+    const track = event.target.closest?.(".carousel-track");
+    if (!track) return;
+    const carousel = track.closest("[data-carousel]");
+    if (!carousel) return;
+    const slides = track.querySelectorAll(".carousel-slide");
+    const dots = carousel.querySelectorAll(".carousel-dot");
+    if (!slides.length || !dots.length) return;
+    const scrollLeft = track.scrollLeft;
+    let activeIdx = 0;
+    slides.forEach((slide, i) => {
+      if (slide.offsetLeft - track.offsetLeft <= scrollLeft + track.clientWidth * 0.4) {
+        activeIdx = i;
+      }
+    });
+    dots.forEach((dot, i) => dot.classList.toggle("is-active", i === activeIdx));
+  }, { passive: true, capture: true });
 
   const handleDictationSend = () => {
     const textToSend = input.value.trim();

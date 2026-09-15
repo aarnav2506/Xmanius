@@ -145,14 +145,14 @@ body.is-empty-state .chat-disclaimer {
   display: none !important;
 }
 
-/* Normal Chat Empty State: Ultra-smooth diffuse Gemini-style sapphire bloom */
+/* Normal Chat Empty State: Exact Gemini sapphire glowing bloom centered behind input */
 body.is-empty-state:not(.is-temporary-chat-mode) .chat-main {
   display: flex !important;
   flex-direction: column !important;
   position: relative !important;
   overflow: hidden !important;
   background:
-    radial-gradient(ellipse 900px 520px at 58% 61%, rgba(18, 38, 92, 0.28) 0%, rgba(16, 30, 72, 0.18) 35%, rgba(14, 22, 52, 0.08) 65%, transparent 100%),
+    radial-gradient(ellipse 860px 440px at 50% calc(44% + 35px), rgba(32, 75, 175, 0.32) 0%, rgba(24, 60, 145, 0.22) 25%, rgba(18, 42, 105, 0.12) 50%, rgba(14, 26, 68, 0.04) 75%, transparent 100%),
     #131314 !important;
 }
 
@@ -3656,8 +3656,11 @@ body.xmanius-theme-light .message.assistant .message-body h4 {
   color: #1f1f1f !important;
 }
 body.xmanius-theme-light .message.assistant .message-body strong,
-body.xmanius-theme-light .message.assistant .message-body b {
-  color: #000000 !important;
+body.xmanius-theme-light .message.assistant .message-body b,
+body.xmanius-theme-light .message-body strong,
+body.xmanius-theme-light .message-body b {
+  color: #2c3036 !important; /* Soft dark charcoal, avoiding harsh pitch black */
+  font-weight: 550 !important; /* Reduced boldness: balanced medium weight */
 }
 body.xmanius-theme-light .doc-citation-badge,
 body.xmanius-theme-light .pdf-badge {
@@ -3666,10 +3669,12 @@ body.xmanius-theme-light .pdf-badge {
   color: #444746 !important;
 }
 body.xmanius-theme-light .message.user {
-  background: #f0f4f9 !important;
-  color: #1f1f1f !important;
+  background: transparent !important; /* Eliminates full-width blue/gray strip */
+  box-shadow: none !important;
+  border: 0 !important;
 }
 body.xmanius-theme-light .message.user .message-body {
+  background: #e9eef6 !important; /* Gemini soft user message pill */
   color: #1f1f1f !important;
 }
 
@@ -4215,8 +4220,15 @@ body.xmanius-theme-light .files-drawer-item-sub {
   color: #5e5e5e !important;
 }
 body.xmanius-theme-light .conversation-row:hover,
-body.xmanius-theme-light .conversation-row.is-menu-open {
-  background: #e8eaed !important;
+body.xmanius-theme-light .conversation-row.is-menu-open,
+body.xmanius-theme-light .conversation-row.is-active,
+body.xmanius-theme-light .conversation-row.is-selected {
+  background: #e0e2e5 !important;
+}
+body.xmanius-theme-light .conversation-row.is-active .conversation,
+body.xmanius-theme-light .conversation-row.is-selected .conversation {
+  color: #1f1f1f !important;
+  font-weight: 500 !important;
 }
 body.xmanius-theme-light .conversation-row .conversation {
   color: #1f1f1f !important;
@@ -4363,8 +4375,14 @@ body.xmanius-theme-light .sidebar-primary-nav .sidebar-nav-item:hover {
   line-height: 1.5 !important;
 }
 
+body.xmanius-theme-light .message.user {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
 body.xmanius-theme-light .message.user .message-body {
-  background: #f0f4f9 !important;
+  background: #e9eef6 !important;
   color: #1f1f1f !important;
 }
 
@@ -4380,8 +4398,14 @@ body.xmanius-theme-light .message.user .message-body {
 
 .message-body strong,
 .message-body b {
-  font-weight: 600 !important;
-  color: #ffffff !important;
+  font-weight: 550 !important;
+  color: #f1f3f4 !important;
+}
+
+body.xmanius-theme-light .message-body strong,
+body.xmanius-theme-light .message-body b {
+  font-weight: 550 !important;
+  color: #2c3036 !important;
 }
 
 .message-body em,
@@ -4929,3 +4953,193 @@ body.xmanius-theme-light .voice-file-notice {
   from { opacity: 0; transform: translateX(-50%) translateY(8px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* =============================================================
+   16. GEMINI IMAGE PRESENTATION ARCHITECTURE
+   Single Image Cards & Multi-Image Carousels
+============================================================= */
+.chat-image-card {
+  margin: 14px 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.chat-image-link {
+  display: inline-block !important;
+  position: relative !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  background: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+}
+
+.chat-image-link:hover {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+.chat-image-img {
+  display: block !important;
+  max-width: 100% !important;
+  max-height: 480px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: cover !important;
+  border-radius: 16px !important;
+  background: #18191a !important;
+  margin: 0 !important;
+}
+
+.chat-image-caption {
+  margin-top: 8px !important;
+  font-size: 13px !important;
+  color: #9aa0a6 !important;
+  line-height: 1.4 !important;
+  text-align: left !important;
+  padding: 0 4px !important;
+}
+
+/* Multi-Image Carousel Container */
+.chat-image-carousel {
+  position: relative !important;
+  width: 100% !important;
+  margin: 16px 0 !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+
+.chat-image-carousel .carousel-track {
+  display: flex !important;
+  gap: 14px !important;
+  overflow-x: auto !important;
+  scroll-snap-type: x mandatory !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  padding: 4px 2px 10px 2px !important;
+}
+
+.chat-image-carousel .carousel-track::-webkit-scrollbar {
+  display: none !important;
+}
+
+.chat-image-carousel .carousel-slide {
+  flex: 0 0 min(320px, 82%) !important;
+  scroll-snap-align: start !important;
+  margin: 0 !important;
+}
+
+.chat-image-carousel .carousel-slide .chat-image-link {
+  width: 100% !important;
+}
+
+.chat-image-carousel .carousel-slide .chat-image-img {
+  width: 100% !important;
+  height: 220px !important;
+  object-fit: cover !important;
+}
+
+.carousel-nav-btn {
+  position: absolute !important;
+  top: 45% !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(30, 31, 32, 0.88) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  padding: 0 !important;
+}
+
+.carousel-nav-btn:hover {
+  background: rgba(45, 46, 48, 0.95) !important;
+  transform: translateY(-50%) scale(1.08) !important;
+}
+
+.carousel-prev {
+  left: 6px !important;
+}
+
+.carousel-next {
+  right: 6px !important;
+}
+
+.carousel-indicators {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-top: 8px !important;
+}
+
+.carousel-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 0 !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: background 0.2s ease, transform 0.2s ease !important;
+}
+
+.carousel-dot.is-active {
+  background: #ffffff !important;
+  transform: scale(1.3) !important;
+}
+
+/* Light Theme Overrides for Image Cards & Carousels */
+body.xmanius-theme-light .chat-image-link {
+  background: #f0f4f9 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body.xmanius-theme-light .chat-image-link:hover {
+  border-color: rgba(0, 0, 0, 0.18) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+}
+
+body.xmanius-theme-light .chat-image-img {
+  background: #e8ecf2 !important;
+}
+
+body.xmanius-theme-light .chat-image-caption {
+  color: #5f6368 !important;
+}
+
+body.xmanius-theme-light .carousel-nav-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #1f1f1f !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+}
+
+body.xmanius-theme-light .carousel-nav-btn:hover {
+  background: #ffffff !important;
+}
+
+body.xmanius-theme-light .carousel-dot {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+body.xmanius-theme-light .carousel-dot.is-active {
+  background: #1a73e8 !important;
+}
+

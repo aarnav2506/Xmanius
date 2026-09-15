@@ -72,7 +72,7 @@ body.xmanius-theme-light .chat-input::placeholder,body.xmanius-theme-light .chat
 body.xmanius-theme-light .new-chat,body.xmanius-theme-light .conversation:hover { background:#ededf0; color:#202024; }
 body.xmanius-theme-light .conversation,body.xmanius-theme-light .sidebar-label { color:#45454c; }
 body.xmanius-theme-light .message-body { color:#202024; }
-body.xmanius-theme-light .message.user { background:#dbeafe; color:#14233d; }
+body.xmanius-theme-light .message.user { background:transparent; color:#14233d; }
 body.xmanius-theme-light .profile-menu { background:#fff; border-color:#d1d1d6; }
 body.xmanius-theme-light .profile-menu strong,body.xmanius-theme-light .profile-menu button { color:#202024; }
 body.xmanius-theme-light .settings-shell,body.xmanius-theme-light .settings-nav { background:#fff; color:#202024; }
@@ -103,7 +103,7 @@ body.xmanius-theme-light .model-name span { color:#676a72; }
 body.xmanius-theme-light .empty-state h1 { color:#202123; }
 body.xmanius-theme-light .empty-state p { color:#6d7078; }
 body.xmanius-theme-light .message { color:#202123; }
-body.xmanius-theme-light .message.user { background:#e7f2ff; color:#1f3d5e; }
+body.xmanius-theme-light .message.user { background:transparent; color:#1f3d5e; }
 body.xmanius-theme-light .message-body h3,body.xmanius-theme-light .message-body strong { color:#202123; }
 body.xmanius-theme-light .message-body code { background:#eef1f5; color:#075985; }
 body.xmanius-theme-light .message-actions { color:#60646b; }
