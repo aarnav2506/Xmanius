@@ -819,13 +819,13 @@
       .replace(/([A-Za-z0-9α-ωΑ-Ωπ)])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}^{${[...power].map((character) => superscripts[character] || character).join("")}}`)
       .replace(/\bsqrt\s*\(([^()\n]+)\)/gi, "\\sqrt{$1}")
       .replace(/\bexp\s*\(([^()\n]+)\)/gi, "\\exp{$1}")
-      .replace(/\b(?:determinant|det)\s*\(\s*([A-Za-z][A-Za-z0-9_]*)\s*\)/gi, "\\det{$1}")
+      .replace(/\b(?:determinant|det)\s*\(\s*([A-Za-z][A-Za-z0-9_]*)\s*\)/g, "\\det{$1}")
       .replace(/\b(?:arcsin|asin)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\sin^{-1}")
       .replace(/\b(?:arccos|acos)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\cos^{-1}")
       .replace(/\b(?:arctan|atan)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\tan^{-1}")
       .replace(/\b(sin|cos|tan)\s+inverse\b/gi, "\\$1^{-1}")
-      .replace(/\b(?:determinant|det)\s+([A-Za-z])\b/gi, "\\det{$1}")
-      .replace(/\b(?:determinant|det)\s+(?=[A-Za-z0-9{])/gi, "\\det ")
+      .replace(/\b(?:determinant|det)\s+([A-Z])\b/g, "\\det{$1}")
+      .replace(/\bdet\s+([A-Z]\b|[0-9{])/g, "\\det ")
       .replace(/1\s*\/\s*\\det\s*\{?([A-Za-z])\}?/g, "\\frac{1}{\\det{$1}}")
       .replace(/\b(?:π|\\pi)\s*\/\s*(\d+)\b/g, "\\frac{\\pi}{$1}")
       .replace(/(?<![A-Za-z0-9])(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/g, "\\frac{$1}{$2}")
@@ -836,6 +836,12 @@
       .replace(/\b(log|lg|ln)\s*_\s*\{?([0-9a-zA-Z]+)\}?\s*\(([^()\n]+)\)/gi, "\\$1_{$2}($3)")
       .replace(/\b(log|lg|ln)\s*_\s*\{?([0-9a-zA-Z]+)\}?\s*([0-9a-zA-Z]+)/gi, "\\$1_{$2}{$3}")
       .replace(/\blim\s*_\s*\{?([^}\n]+)\}?/gi, "\\lim_{$1}")
+      .replace(/\\(sum|prod|coprod|bigcup|bigcap)\s+\{([^}]+)\}\^/gi, "\\$1_{$2}^")
+      .replace(/\\(int|iint|iiint|oint)\s+([0-9a-zA-Z]+)\^/gi, "\\$1_{$2}^")
+      .replace(/\\(int|iint|iiint|oint)\s+\{([^}]+)\}\^/gi, "\\$1_{$2}^")
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])\s*([0-9a-zA-Z]+|\{[^{}]+\})/g, "$1{}^{$2}$3_{$4}")
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])/g, "$1{}^{$2}$3")
+      .replace(/\b([a-zA-Z])\s*\{(\d+)\}/g, "$1_{$2}")
       .replace(/(?<![A-Za-z0-9\\])([a-zA-Z0-9α-ωΑ-Ω]+)\s*\^\s*([0-9a-zA-Zα-ωΑ-Ω+\-]+|\{[^{}]+\})/g, "$1^{$2}");
     return source;
   };
@@ -1155,7 +1161,64 @@
     }
     return output;
   };
-  const renderMathMarkup = (value) => renderMathExpression(value);
+  const autoCloseLatex = (input) => {
+    if (typeof input !== "string") return "";
+    let text = input;
+    const envRegex = /\\(begin|end)\s*\{([a-zA-Z*]+)\}/g;
+    const stack = [];
+    let m;
+    while ((m = envRegex.exec(text)) !== null) {
+      if (m[1] === "begin") stack.push(m[2]);
+      else if (m[1] === "end") {
+        const idx = stack.lastIndexOf(m[2]);
+        if (idx !== -1) stack.splice(idx, 1);
+      }
+    }
+    let openBraces = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "{" && (i === 0 || text[i-1] !== "\\")) openBraces++;
+      else if (text[i] === "}" && (i === 0 || text[i-1] !== "\\")) openBraces = Math.max(0, openBraces - 1);
+    }
+    text += "}".repeat(openBraces);
+    while (stack.length > 0) {
+      const env = stack.pop();
+      text += "\\end{" + env + "}";
+    }
+    return text;
+  };
+  const renderMathMarkup = (value, displayMode = false) => {
+    if (typeof value !== "string") return "";
+    let raw = value.trim();
+    if (raw.startsWith("$$") && raw.endsWith("$$")) raw = raw.slice(2, -2).trim();
+    else if (raw.startsWith("\\[") && raw.endsWith("\\]")) raw = raw.slice(2, -2).trim();
+    else if (raw.startsWith("\\(") && raw.endsWith("\\)")) raw = raw.slice(2, -2).trim();
+    else if (raw.startsWith("$") && raw.endsWith("$") && raw.length >= 2) raw = raw.slice(1, -1).trim();
+
+    // Normalize leading superscripts like ^n P_r or ^n C_r for KaTeX
+    raw = raw
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])\s*([0-9a-zA-Z]+|\{[^{}]+\})/g, "$1{}^{$2}$3_{$4}")
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])/g, "$1{}^{$2}$3");
+
+    const closedRaw = autoCloseLatex(raw);
+
+    if (window.katex && typeof window.katex.renderToString === "function") {
+      try {
+        return window.katex.renderToString(closedRaw, {
+          displayMode: Boolean(displayMode),
+          throwOnError: false,
+          errorColor: "currentColor",
+          strict: false,
+          trust: true,
+          macros: {
+            "\\implies": "\\Longrightarrow",
+            "\\iff": "\\Longleftrightarrow",
+            "\\adj": "\\operatorname{adj}"
+          }
+        });
+      } catch (_) {}
+    }
+    return renderMathExpression(closedRaw);
+  };
   const isSafeHttpUrl = (value) => {
     try {
       const url = new URL(String(value || ""));
@@ -1216,6 +1279,8 @@
     let output = escapeHtml(source)
       .replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>")
       .replace(/__(.+?)__/gs, "<strong>$1</strong>")
+      .replace(/(?<![*\w])\*([^*\n]+?)\*(?![*\w])/g, "<em>$1</em>")
+      .replace(/(?<![_\w])_([^_\n]+?)_(?![_\w])/g, "<em>$1</em>")
       .replace(/~~(.+?)~~/gs, "<del>$1</del>")
       .replace(/`([^`\n]+)`/g, "<code>$1</code>")
       .replace(/([A-Za-z0-9α-ωΑ-Ωπ\)\]])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}<sup>${[...power].map((c) => superscripts[c] || c).join("")}</sup>`)
@@ -1232,9 +1297,9 @@
       /^(?:[A-Za-zα-ωΑ-ΩπθλμσφΔΩ])\s*[\^_]\s*(?:\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-Ω+\-]+)/,
       /^(?:mm|cm|dm|km|m|µm|um|nm|in|ft|yd|kg|mg|g|L|mL)\s*[\^_]\s*(?:\{[^{}\n]+\}|[0-9+\-]+)/i,
       /^(?:e|π|\\pi)\s*\^\s*(?:\{[^{}\n]+\}|\([^()\n]+\)|[A-Za-z0-9+\-]+)/i,
-      /^(?:determinant|det)\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z][A-Za-z0-9]*)/i,
-      /^(?:sin|cos|tan|cot|sec|csc|cosec|sinh|cosh|tanh|coth|arcsin|arccos|arctan)\s*(?:\^\s*(?:\{[^{}\n]+\}|-?\d+))?\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-ΩπθλμσφΔΩ]+)/i,
-      /^(?:log|lg|ln|lb)(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)?\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-Ω]+)/i,
+      /^(?:det)\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Z]\b)/,
+      /^(?:sin|cos|tan|cot|sec|csc|cosec|sinh|cosh|tanh|coth|arcsin|arccos|arctan)(?:\s*(?:\^\s*(?:\{[^{}\n]+\}|-?\d+))?\s*(?:\([^()\n]+\)|\{[^{}\n]+\})|\s+(?:\^\s*(?:\{[^{}\n]+\}|-?\d+)\s*)?[A-Za-z0-9α-ωΑ-ΩπθλμσφΔΩ]{1,4}(?![A-Za-z0-9]))/i,
+      /^(?:log|lg|ln|lb)(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)?(?:\s*(?:\([^()\n]+\)|\{[^{}\n]+\})|\s+[A-Za-z0-9α-ωΑ-Ω]{1,4}(?![A-Za-z0-9]))/i,
       /^(?:lim)\s*(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)/i,
       /^(?:adj|adjugate)\s*\(\s*[A-Za-z]\s*\)/i,
       /^(?:sqrt|exp)\s*\([^()\n]+\)/i,
@@ -1302,12 +1367,13 @@
     return output;
   };
   const inlineMarkdown = (value) => {
-    const mathPattern = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
+    const mathPattern = /(\$\$[\s\S]+?\$\$|\$(?:\\\$|[^\$\n]|\n(?!\s*\n))+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
     let output = "";
     let cursor = 0;
     for (const match of String(value).matchAll(mathPattern)) {
       output += renderTextWithMath(value.slice(cursor, match.index));
-      output += `<span class="math-inline">${renderMathMarkup(match[0])}</span>`;
+      const isDisplay = match[0].startsWith("$$") || match[0].startsWith("\\[");
+      output += `<span class="${isDisplay ? "math-block" : "math-inline"}">${renderMathMarkup(match[0], isDisplay)}</span>`;
       cursor = match.index + match[0].length;
     }
     output += renderTextWithMath(String(value).slice(cursor));
@@ -1815,20 +1881,73 @@
     const flushNumbered = () => { if (!numbered.length) return; output.push(`<ol>${numbered.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ol>`); numbered = []; };
     while (index < lines.length) {
       const line = lines[index];
-      // Flatten accidental blockquote syntax into normal prose. Do this at
-      // line level so fenced code keeps its original `>` characters.
-      const displayLine = line.replace(/^[ \t]*>[ \t]+(?=[^<>])/g, "");
-      const trimmed = displayLine.trim();
+      const trimmed = line.trim();
       if (!trimmed) { flushBullets(); flushNumbered(); index += 1; continue; }
       const fence = trimmed.match(/^```\s*([\w+#.-]*)\s*$/);
       if (fence) {
-        flushBullets();
-        const language = fence[1] || "code";
+        flushBullets(); flushNumbered();
+        const rawLang = (fence[1] || "").trim();
+        const language = rawLang || "code";
+        const displayLabel = (!rawLang || /^(?:code|latex|tex|math|plain|text)$/i.test(rawLang))
+          ? "Code snippet"
+          : (rawLang.charAt(0).toUpperCase() + rawLang.slice(1));
         const codeLines = [];
         index += 1;
         while (index < lines.length && !/^```\s*$/.test(lines[index].trim())) { codeLines.push(lines[index]); index += 1; }
         if (index < lines.length) index += 1;
-        output.push(`<section class="code-block" data-code-block data-language="${escapeHtml(language)}"><header><span>${escapeHtml(language)}</span><div><button type="button" data-code-action="copy">Copy</button><button type="button" data-code-action="download">Download</button><button type="button" data-code-action="run">Run</button></div></header><pre><code>${highlightCode(codeLines.join("\n"))}</code></pre></section>`);
+        const codeContent = codeLines.join("\n");
+        output.push(`<section class="code-block" data-code-block data-language="${escapeHtml(language)}">` +
+          `<header>` +
+            `<span class="code-block-title">${escapeHtml(displayLabel)}</span>` +
+            `<div class="code-block-actions">` +
+              `<button type="button" class="code-action-btn" data-code-action="download" aria-label="Download code" title="Download">` +
+                `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M4 20h16"/></svg>` +
+              `</button>` +
+              `<button type="button" class="code-action-btn" data-code-action="copy" aria-label="Copy code" title="Copy">` +
+                `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>` +
+              `</button>` +
+              (/^html?$/i.test(language) ? `<button type="button" class="code-action-btn code-action-run" data-code-action="run" aria-label="Run HTML" title="Run HTML"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>` : "") +
+            `</div>` +
+          `</header>` +
+          `<pre><code>${highlightCode(codeContent)}</code></pre>` +
+        `</section>`);
+        continue;
+      }
+      const bqMatch = line.match(/^[ \t]*>[ \t]?(.*)$/);
+      if (bqMatch) {
+        flushBullets(); flushNumbered();
+        const bqLines = [];
+        while (index < lines.length) {
+          const match = lines[index].match(/^[ \t]*>[ \t]?(.*)$/);
+          if (!match) break;
+          bqLines.push(match[1]);
+          index += 1;
+        }
+        const bqFull = bqLines.join("\n").trim();
+        if (bqFull.includes("📁") && (bqFull.includes("Open Viewer") || bqFull.includes("Download File"))) {
+          const nameLine = bqLines.find((l) => l.includes("📁")) || "";
+          const filename = nameLine.replace(/^\s*\*\*📁\s*/, "").replace(/📁/, "").replace(/\*\*\s*$/, "").trim() || "Document.pdf";
+          const metaLine = bqLines.find((l) => l !== nameLine && (l.includes("•") || l.includes("MB") || l.includes("KB") || l.includes("PDF") || l.includes("Uploaded"))) || "";
+          const meta = metaLine.replace(/^\s*\*+/, "").replace(/\*+\s*$/, "").trim() || "PDF Document • Uploaded Today";
+          output.push(`
+            <div class="message-file-card" data-file-card="true">
+              <div class="message-file-card-info">
+                <div class="message-file-card-title"><span>📁</span> <strong>${escapeHtml(filename)}</strong></div>
+                <div class="message-file-card-meta">${escapeHtml(meta)}</div>
+              </div>
+              <div class="message-file-card-actions">
+                <button type="button" class="message-file-card-btn" data-action="open-viewer">Open Viewer</button>
+                <button type="button" class="message-file-card-btn" data-action="download">Download File</button>
+              </div>
+            </div>
+          `);
+        } else {
+          let calloutClass = "";
+          if (/security warning/i.test(bqFull)) calloutClass = " callout-security";
+          else if (/warning|caution/i.test(bqFull)) calloutClass = " callout-warning";
+          else if (/tip|note/i.test(bqFull)) calloutClass = " callout-tip";
+          output.push(`<blockquote class="${calloutClass.trim()}">${bqLines.map((l) => `<p>${inlineMarkdown(l)}</p>`).join("")}</blockquote>`);
+        }
         continue;
       }
       if (index + 1 < lines.length && trimmed.includes("|") && isTableDivider(lines[index + 1])) {
@@ -1850,7 +1969,7 @@
       if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); highlightNextMath = /final answer/i.test(heading[2]); index += 1; continue; }
       if (/^\s*(\$\$|\\\[)/.test(trimmed)) {
         const close = trimmed.startsWith("$$") ? "$$" : "\\]";
-        const openingLength = trimmed.startsWith("$$") ? 2 : 2;
+        const openingLength = 2;
         const sameLineEnd = trimmed.indexOf(close, openingLength);
         let math = trimmed.slice(openingLength, sameLineEnd >= 0 ? sameLineEnd : undefined);
         index += 1;
@@ -1858,16 +1977,33 @@
         if (sameLineEnd < 0 && index < lines.length) math += `\n${lines[index].slice(0, lines[index].indexOf(close))}`;
         if (sameLineEnd < 0 && index < lines.length) index += 1;
         const important = /\\boxed|final answer/i.test(math) || highlightNextMath;
-        output.push(`<div class="math-block${important ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(math)}</div>`);
+        output.push(`<div class="math-block${important ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(math, true)}</div>`);
         highlightNextMath = false;
         continue;
       }
-      const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
+      const envBlockMatch = trimmed.match(/^\\begin\s*\{([a-zA-Z*]+)\}/);
+      if (envBlockMatch) {
+        const envName = envBlockMatch[1];
+        const endTag = `\\end{${envName}}`;
+        let math = trimmed;
+        if (!trimmed.includes(endTag)) {
+          index += 1;
+          while (index < lines.length && !lines[index].includes(endTag)) { math += `\n${lines[index]}`; index += 1; }
+          if (index < lines.length) { math += `\n${lines[index]}`; index += 1; }
+        } else {
+          index += 1;
+        }
+        output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(math, true)}</div>`);
+        highlightNextMath = false;
+        continue;
+      }
+      const proseWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we|to|find|of|matrix|matrices|determinant|determinants|expand|row|column|calculate|calculation|let|where|when|with|using|hence|therefore|thus|note|suppose|assume|consider|gives|have|get|shows|first|second|third|along|by)\b/i;
       const normalizedMathLine = normalizeExtendedMathNotation(trimmed);
       const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b)/.test(normalizedMathLine);
-      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|(?<![A-Za-z0-9])[0-9]+!|≤|≥|∈|(?<![A-Za-z0-9])(?:\d+\s*[CPcp]\s*\d+|[nNkKmM]\s*[CPcp]\s*[rRkKmM0-9]|\d+\s*[CPcp]\s*[rRkKmM])(?![A-Za-z0-9])|(?<![A-Za-z0-9])[CPcp]\s*\([0-9a-zA-Z\s+\-*/^_.]+,[0-9a-zA-Z\s+\-*/^_.]+\))).{2,900}$/.test(trimmed);
-      if ((hasMatrix || hasScalarMath) && (hasMatrix || (!mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)))) {
-        output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
+      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\neq|\\approx|\\in\b|\\subset\b|\\cap\b|\\cup\b|\\forall\b|\\exists\b|\\implies\b|\\iff\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\lim|\\int|\\sum|\\prod|\\vec|\\hat|\\bar|\\Delta|\\pi|\\theta|\\longrightarrow|\^|_|(?<![A-Za-z0-9])[0-9]+!|≤|≥|∈|⊂|∩|∪|∀|∃|⇒|⇔|≠|≈|(?<![A-Za-z0-9])(?:\d+\s*[CPcp]\s*\d+|[nNkKmM]\s*[CPcp]\s*[rRkKmM0-9]|\d+\s*[CPcp]\s*[rRkKmM])(?![A-Za-z0-9])|(?<![A-Za-z0-9])[CPcp]\s*\([0-9a-zA-Z\s+\-*/^_.]+,[0-9a-zA-Z\s+\-*/^_.]+\))).{2,900}$/.test(trimmed);
+      const isProseLine = proseWords.test(trimmed) || /[.!?:]$/.test(trimmed) || /^[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(trimmed) || (trimmed.includes("$") && !(trimmed.startsWith("$") && trimmed.endsWith("$")));
+      if ((hasMatrix || hasScalarMath) && !isProseLine) {
+        output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed, true)}</div>`);
         highlightNextMath = false;
         index += 1;
         continue;
@@ -2068,9 +2204,46 @@
       body.querySelectorAll("[data-code-block]").forEach((block) => {
         const code = block.querySelector("code")?.textContent || "";
         const language = block.dataset.language || "code";
-        block.querySelector('[data-code-action="copy"]')?.addEventListener("click", async (event) => { try { await navigator.clipboard.writeText(code); event.currentTarget.textContent = "Copied"; window.setTimeout(() => { event.currentTarget.textContent = "Copy"; }, 1300); } catch { event.currentTarget.textContent = "Copy failed"; } });
-        block.querySelector('[data-code-action="download"]')?.addEventListener("click", () => { const extension = language === "html" ? "html" : language === "javascript" || language === "js" ? "js" : language === "css" ? "css" : "txt"; const blob = new Blob([code], { type: "text/plain;charset=utf-8" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `xmanius-code.${extension}`; link.click(); URL.revokeObjectURL(link.href); });
-        block.querySelector('[data-code-action="run"]')?.addEventListener("click", () => { if (!/^html?$/i.test(language)) { window.alert("Run is available for HTML code blocks."); return; } const preview = window.open("about:blank", "_blank"); if (!preview) return; preview.document.open(); preview.document.write(code); preview.document.close(); });
+        const copyBtn = block.querySelector('[data-code-action="copy"]');
+        if (copyBtn) {
+          const originalHtml = copyBtn.innerHTML;
+          copyBtn.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(code);
+              copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#a8c7fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+              copyBtn.title = "Copied!";
+              window.setTimeout(() => {
+                copyBtn.innerHTML = originalHtml;
+                copyBtn.title = "Copy";
+              }, 1400);
+            } catch {
+              copyBtn.title = "Copy failed";
+            }
+          });
+        }
+        const downloadBtn = block.querySelector('[data-code-action="download"]');
+        if (downloadBtn) {
+          downloadBtn.addEventListener("click", () => {
+            const extension = language === "html" ? "html" : language === "javascript" || language === "js" ? "js" : language === "css" ? "css" : language === "python" || language === "py" ? "py" : language === "tex" || language === "latex" ? "tex" : "txt";
+            const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `code-snippet.${extension}`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+          });
+        }
+        const runBtn = block.querySelector('[data-code-action="run"]');
+        if (runBtn) {
+          runBtn.addEventListener("click", () => {
+            if (!/^html?$/i.test(language)) { window.alert("Run is available for HTML code blocks."); return; }
+            const preview = window.open("about:blank", "_blank");
+            if (!preview) return;
+            preview.document.open();
+            preview.document.write(code);
+            preview.document.close();
+          });
+        }
       });
       if (searchError) { const notice = document.createElement("p"); notice.className = "search-error"; notice.textContent = searchError; item.append(notice); }
       if (displaySources.length) {
@@ -2253,6 +2426,8 @@
       saveCurrentChat();
     }
     input.value = "";
+    if (input.tagName === "TEXTAREA") input.style.height = "28px";
+    form.classList.remove("has-text");
     pendingAttachments = [];
     renderPendingAttachments();
     updateUsage(true);
@@ -2483,7 +2658,8 @@
       });
       if (!base64Data) return;
 
-      let transcribeUrl = "/api/xmanius-transcribe";
+      const base = readApiBase();
+      let transcribeUrl = base ? `${base}/api/xmanius-transcribe` : "/api/xmanius-transcribe";
       if (typeof window.XmaniusApiEndpoint === "function") {
         const ep = window.XmaniusApiEndpoint();
         if (ep.includes("/api/xmanius-chat")) transcribeUrl = ep.replace("/api/xmanius-chat", "/api/xmanius-transcribe");
@@ -2498,6 +2674,8 @@
         const data = await res.json().catch(() => ({}));
         if (data.text && typeof data.text === "string" && data.text.trim()) {
           input.value = data.text.trim();
+          updateHasText();
+          adjustInputHeight();
         }
       }
     } catch (e) {
@@ -2519,7 +2697,7 @@
     audioContext = null;
     if (context && context.state !== "closed") void context.close().catch(() => {});
   };
-  const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); dictationBar?.style.setProperty("display", active ? "flex" : "none", "important"); if (active) { const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } return; } input.placeholder = "Ask anything"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); };
+  const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); dictationBar?.style.setProperty("display", active ? "flex" : "none", "important"); if (active) { const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } return; } input.placeholder = "Ask XManius"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); };
   const finishVoiceSession = ({ clearText = false, focus = true, abort = false } = {}) => {
     voiceStopRequested = true;
     window.clearTimeout(voiceRestartTimer);
@@ -2539,7 +2717,7 @@
     }
 
     setDictation(false);
-    input.placeholder = "Ask anything";
+    input.placeholder = "Ask XManius";
     if (focus) input.focus();
   };
   const startAudioMeter = async () => {
@@ -2618,88 +2796,115 @@
     };
     audioFrame = window.requestAnimationFrame(meter);
   };
-  const startVoice = () => {
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition && typeof MediaRecorder === "undefined") {
-      finishVoiceSession({ focus: true });
-      showVoiceNotice("Voice input is not supported here.");
+  const startVoice = async () => {
+    // If currently listening, toggle off (finish session)
+    if (listening || form.classList.contains("is-listening") || recognition || (voiceMediaRecorder && voiceMediaRecorder.state === "recording")) {
+      finishVoiceSession({ clearText: false, focus: true, abort: false });
       return;
     }
-    if (recognition || form.classList.contains("is-listening")) return;
+
+    // Microphone requires HTTPS. When opened from file:// the browser blocks getUserMedia.
+    if (window.location.protocol === "file:") {
+      showVoiceNotice("Microphone requires a secure connection (HTTPS). Open XManius at https://xmanius.vercel.app to use voice input.");
+      return;
+    }
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const hasMedia = Boolean(navigator.mediaDevices?.getUserMedia);
+
+    if (!Recognition && !hasMedia) {
+      showVoiceNotice("Voice input is not supported in this browser.");
+      return;
+    }
 
     voiceStopRequested = false;
     const sessionId = ++voiceSessionId;
     let finalText = "";
-    listening = false;
+    listening = true;
     setDictation(true);
-    input.placeholder = "Listening (Gemini 3.5 Live)…";
+    input.placeholder = "Listening…";
     document.querySelector("[data-chat-mic]")?.classList.add("active");
 
-    if (Recognition) {
-      const instance = new Recognition();
-      recognition = instance;
-      instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
-      instance.interimResults = true;
-      instance.continuous = true;
-      instance.maxAlternatives = 3;
-      const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
-      const restart = () => {
-        voiceRestartTimer = 0;
-        if (!isCurrentSession() || voiceStopRequested) return;
-        try {
-          instance.start();
-        } catch (error) {
-          if (error?.name === "InvalidStateError") {
-            voiceRestartTimer = window.setTimeout(restart, 180);
-            return;
-          }
-          finishVoiceSession({ focus: true });
-        }
-      };
-      instance.onstart = () => {
-        if (!isCurrentSession()) return;
-        listening = true;
-        input.placeholder = "Listening…";
-        void startAudioMeter().catch((error) => {
-          if (isCurrentSession()) {
-            stopAudioMeter();
-            console.warn("[Xmanius voice meter]", error);
-          }
-        });
-      };
-      instance.onresult = (event) => {
-        if (!isCurrentSession()) return;
-        let interimText = "";
-        for (let index = event.resultIndex; index < event.results.length; index += 1) {
-          const alternatives = [...event.results[index]].filter((alternative) => alternative?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-          const transcript = alternatives[0]?.transcript || "";
-          if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
-          else interimText += transcript;
-        }
-        input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
-      };
-      instance.onerror = (event) => {
-        if (!isCurrentSession()) return;
-        if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
-        finishVoiceSession({ focus: true });
-      };
-      instance.onend = () => {
-        if (!isCurrentSession()) return;
-        listening = false;
-        if (voiceStopRequested) {
-          finishVoiceSession({ focus: true });
+    let audioStarted = false;
+    if (hasMedia) {
+      try {
+        await startAudioMeter();
+        audioStarted = true;
+      } catch (err) {
+        console.warn("[XManius voice meter error]", err);
+        if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+          finishVoiceSession({ focus: true, abort: true });
+          showVoiceNotice("Microphone permission was denied. Please allow microphone in browser settings.");
           return;
         }
-        window.clearTimeout(voiceRestartTimer);
-        voiceRestartTimer = window.setTimeout(restart, 100);
-      };
-      try {
-        instance.start();
-      } catch {
-        void startAudioMeter();
       }
-    } else {
-      void startAudioMeter();
+    }
+
+    if (Recognition) {
+      try {
+        const instance = new Recognition();
+        recognition = instance;
+        instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
+        instance.interimResults = true;
+        instance.continuous = true;
+        instance.maxAlternatives = 3;
+        const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
+
+        instance.onstart = () => {
+          if (!isCurrentSession()) return;
+          listening = true;
+          input.placeholder = "Listening…";
+        };
+
+        instance.onresult = (event) => {
+          if (!isCurrentSession()) return;
+          let interimText = "";
+          for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const alternatives = [...event.results[index]].filter((alt) => alt?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+            const transcript = alternatives[0]?.transcript || "";
+            if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
+            else interimText += transcript;
+          }
+          input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
+          updateHasText();
+          adjustInputHeight();
+        };
+
+        instance.onerror = (event) => {
+          if (!isCurrentSession()) return;
+          console.warn("[XManius speech recognition error]", event.error);
+          if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
+          if (audioStarted && voiceMediaRecorder && voiceMediaRecorder.state === "recording") {
+            return;
+          }
+          if (event.error === "not-allowed") {
+            finishVoiceSession({ focus: true, abort: true });
+            showVoiceNotice("Microphone access was denied. Please allow microphone in browser settings.");
+          } else {
+            finishVoiceSession({ focus: true });
+          }
+        };
+
+        instance.onend = () => {
+          if (!isCurrentSession()) return;
+          if (voiceStopRequested) {
+            finishVoiceSession({ focus: true });
+            return;
+          }
+          if (listening && form.classList.contains("is-listening")) {
+            window.clearTimeout(voiceRestartTimer);
+            voiceRestartTimer = window.setTimeout(() => {
+              if (isCurrentSession() && !voiceStopRequested) {
+                try { instance.start(); } catch {}
+              }
+            }, 100);
+          }
+        };
+
+        instance.start();
+      } catch (recErr) {
+        console.warn("[XManius SpeechRecognition start]", recErr);
+      }
     }
   };
   attachFilesButton?.addEventListener("click", () => {
@@ -2744,15 +2949,60 @@
     const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean);
     if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); }
   });
-  form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
-  input.addEventListener("input", () => form.classList.toggle("has-text", Boolean(input.value.trim())));
+  const adjustInputHeight = () => {
+    if (input && input.tagName === "TEXTAREA") {
+      input.style.height = "auto";
+      const newHeight = Math.min(input.scrollHeight, 200);
+      input.style.height = `${Math.max(28, newHeight)}px`;
+    }
+  };
+  const updateHasText = () => {
+    if (form && input) {
+      form.classList.toggle("has-text", Boolean(input.value && input.value.trim().length > 0));
+    }
+  };
+  updateHasText();
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (input.tagName === "TEXTAREA") input.style.height = "28px";
+    form.classList.remove("has-text");
+    ask(input.value);
+  });
+  input.addEventListener("input", () => {
+    updateHasText();
+    adjustInputHeight();
+  });
+  input.addEventListener("change", updateHasText);
+  input.addEventListener("keyup", updateHasText);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (form.requestSubmit) form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
+  });
   sendButton?.addEventListener("click", (event) => {
     if (!activeRequestController) return;
     event.preventDefault();
     activeRequestStopReason = "user";
     activeRequestController.abort();
   });
-  document.querySelector("[data-chat-mic]")?.addEventListener("click", startVoice);
+  const micBtn = document.querySelector("[data-chat-mic]");
+  if (micBtn) {
+    micBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void startVoice();
+    });
+  }
+  document.addEventListener("click", (event) => {
+    const mic = event.target.closest?.("[data-chat-mic], .composer-mic");
+    if (mic && !event.defaultPrevented) {
+      event.preventDefault();
+      event.stopPropagation();
+      void startVoice();
+    }
+  });
 
   const handleDictationSend = () => {
     const textToSend = input.value.trim();
