@@ -1182,7 +1182,7 @@ html.performance-phone .ai-guide-toggle {
   .ai-guide__form { margin: 0 0.7rem 0.7rem; }
 }
 
-/* ChatGPT-inspired opening state: keep only the mic and voice controls. */
+/* Gemini-inspired opening state: keep only the mic and voice controls. */
 .ai-guide__dialog { background: #000; }
 .ai-guide:not(.is-voice-mode) .ai-guide__messages.ai-guide__subtitle {
   padding: 3.8rem 2rem 1.4rem;
