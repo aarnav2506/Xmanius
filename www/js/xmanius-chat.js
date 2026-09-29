@@ -374,14 +374,14 @@
   const positionChatMenu = (menu, button) => {
     if (!menu || !button) return;
     const rect = button.getBoundingClientRect();
-    const menuWidth = menu.offsetWidth || 138;
-    const menuHeight = menu.offsetHeight || 150;
-    const gap = 6;
-    const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
-    const below = rect.bottom + gap;
-    const top = below + menuHeight <= window.innerHeight - 8
-      ? below
-      : Math.max(8, rect.top - menuHeight - gap);
+    const menuWidth = menu.offsetWidth || 200;
+    const menuHeight = menu.offsetHeight || 160;
+    const gap = 8;
+    let left = rect.right + gap;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = Math.max(8, rect.left - menuWidth - gap);
+    }
+    const top = Math.max(8, Math.min(window.innerHeight - menuHeight - 8, rect.top - 6));
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
   };
@@ -423,23 +423,19 @@
       menu.className = "conversation-menu";
       menu.innerHTML = `
         <button type="button" data-chat-action="share">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           <span>Share conversation</span>
         </button>
-        <button type="button" data-chat-action="files">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-          <span>Files in this chat</span>
-        </button>
         <button type="button" data-chat-action="pin">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-2-7V4h1V2H6v2h1v6l-2 7z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-2-7V4h1V2H6v2h1v6l-2 7z"/></svg>
           <span>${chat.pinned ? "Unpin" : "Pin"}</span>
         </button>
         <button type="button" data-chat-action="rename">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           <span>Rename</span>
         </button>
         <button type="button" data-chat-action="delete" style="color: #ff6b6b;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           <span>Delete</span>
         </button>
       `;
@@ -469,7 +465,11 @@
       if (!item || !refs.length) continue;
       item.dataset.attachmentRefs = JSON.stringify(refs);
       const restored = [];
-      for (const reference of refs) { const saved = await attachmentDb.get(reference.id); if (saved) restored.push(saved); }
+      for (const reference of refs) {
+        let saved = null;
+        try { saved = await attachmentDb.get(reference.id); } catch (_) {}
+        restored.push(saved ? Object.assign({}, reference, saved) : reference);
+      }
       if (restored.length) renderMessageAttachmentPreviews(item, restored);
     }
     scrollChatToBottom({ force: true });
@@ -516,6 +516,9 @@
     pendingAttachments = [];
     if (attachments) attachments.replaceChildren();
     app?.classList.remove("has-attachments");
+    document.body.classList.remove("has-attachments");
+    form?.classList.remove("has-attachments");
+    renderPendingAttachments();
     document.querySelectorAll(".conversation-row").forEach((row) => {
       row.classList.remove("is-selected", "is-active");
     });
@@ -816,13 +819,13 @@
       .replace(/([A-Za-z0-9α-ωΑ-Ωπ)])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}^{${[...power].map((character) => superscripts[character] || character).join("")}}`)
       .replace(/\bsqrt\s*\(([^()\n]+)\)/gi, "\\sqrt{$1}")
       .replace(/\bexp\s*\(([^()\n]+)\)/gi, "\\exp{$1}")
-      .replace(/\b(?:determinant|det)\s*\(\s*([A-Za-z][A-Za-z0-9_]*)\s*\)/gi, "\\det{$1}")
+      .replace(/\b(?:determinant|det)\s*\(\s*([A-Za-z][A-Za-z0-9_]*)\s*\)/g, "\\det{$1}")
       .replace(/\b(?:arcsin|asin)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\sin^{-1}")
       .replace(/\b(?:arccos|acos)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\cos^{-1}")
       .replace(/\b(?:arctan|atan)\s*(?=\(?\s*[A-Za-z0-9{])/gi, "\\tan^{-1}")
       .replace(/\b(sin|cos|tan)\s+inverse\b/gi, "\\$1^{-1}")
-      .replace(/\b(?:determinant|det)\s+([A-Za-z])\b/gi, "\\det{$1}")
-      .replace(/\b(?:determinant|det)\s+(?=[A-Za-z0-9{])/gi, "\\det ")
+      .replace(/\b(?:determinant|det)\s+([A-Z])\b/g, "\\det{$1}")
+      .replace(/\bdet\s+([A-Z]\b|[0-9{])/g, "\\det ")
       .replace(/1\s*\/\s*\\det\s*\{?([A-Za-z])\}?/g, "\\frac{1}{\\det{$1}}")
       .replace(/\b(?:π|\\pi)\s*\/\s*(\d+)\b/g, "\\frac{\\pi}{$1}")
       .replace(/(?<![A-Za-z0-9])(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)(?![A-Za-z0-9])/g, "\\frac{$1}{$2}")
@@ -833,6 +836,12 @@
       .replace(/\b(log|lg|ln)\s*_\s*\{?([0-9a-zA-Z]+)\}?\s*\(([^()\n]+)\)/gi, "\\$1_{$2}($3)")
       .replace(/\b(log|lg|ln)\s*_\s*\{?([0-9a-zA-Z]+)\}?\s*([0-9a-zA-Z]+)/gi, "\\$1_{$2}{$3}")
       .replace(/\blim\s*_\s*\{?([^}\n]+)\}?/gi, "\\lim_{$1}")
+      .replace(/\\(sum|prod|coprod|bigcup|bigcap)\s+\{([^}]+)\}\^/gi, "\\$1_{$2}^")
+      .replace(/\\(int|iint|iiint|oint)\s+([0-9a-zA-Z]+)\^/gi, "\\$1_{$2}^")
+      .replace(/\\(int|iint|iiint|oint)\s+\{([^}]+)\}\^/gi, "\\$1_{$2}^")
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])\s*([0-9a-zA-Z]+|\{[^{}]+\})/g, "$1{}^{$2}$3_{$4}")
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])/g, "$1{}^{$2}$3")
+      .replace(/\b([a-zA-Z])\s*\{(\d+)\}/g, "$1_{$2}")
       .replace(/(?<![A-Za-z0-9\\])([a-zA-Z0-9α-ωΑ-Ω]+)\s*\^\s*([0-9a-zA-Zα-ωΑ-Ω+\-]+|\{[^{}]+\})/g, "$1^{$2}");
     return source;
   };
@@ -1152,20 +1161,107 @@
     }
     return output;
   };
-  const renderMathMarkup = (value) => renderMathExpression(value);
+  const autoCloseLatex = (input) => {
+    if (typeof input !== "string") return "";
+    let text = input;
+    const envRegex = /\\(begin|end)\s*\{([a-zA-Z*]+)\}/g;
+    const stack = [];
+    let m;
+    while ((m = envRegex.exec(text)) !== null) {
+      if (m[1] === "begin") stack.push(m[2]);
+      else if (m[1] === "end") {
+        const idx = stack.lastIndexOf(m[2]);
+        if (idx !== -1) stack.splice(idx, 1);
+      }
+    }
+    let openBraces = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "{" && (i === 0 || text[i-1] !== "\\")) openBraces++;
+      else if (text[i] === "}" && (i === 0 || text[i-1] !== "\\")) openBraces = Math.max(0, openBraces - 1);
+    }
+    text += "}".repeat(openBraces);
+    while (stack.length > 0) {
+      const env = stack.pop();
+      text += "\\end{" + env + "}";
+    }
+    return text;
+  };
+  const renderMathMarkup = (value, displayMode = false) => {
+    if (typeof value !== "string") return "";
+    let raw = value.trim();
+    if (raw.startsWith("$$") && raw.endsWith("$$")) raw = raw.slice(2, -2).trim();
+    else if (raw.startsWith("\\[") && raw.endsWith("\\]")) raw = raw.slice(2, -2).trim();
+    else if (raw.startsWith("\\(") && raw.endsWith("\\)")) raw = raw.slice(2, -2).trim();
+    else if (raw.startsWith("$") && raw.endsWith("$") && raw.length >= 2) raw = raw.slice(1, -1).trim();
+
+    // Normalize leading superscripts like ^n P_r or ^n C_r for KaTeX
+    raw = raw
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])\s*([0-9a-zA-Z]+|\{[^{}]+\})/g, "$1{}^{$2}$3_{$4}")
+      .replace(/(^|[^\w{}])\^([0-9a-zA-Z]+|\{[^{}]+\})\s*([PCpc])/g, "$1{}^{$2}$3");
+
+    const closedRaw = autoCloseLatex(raw);
+
+    if (window.katex && typeof window.katex.renderToString === "function") {
+      try {
+        return window.katex.renderToString(closedRaw, {
+          displayMode: Boolean(displayMode),
+          throwOnError: false,
+          errorColor: "currentColor",
+          strict: false,
+          trust: true,
+          macros: {
+            "\\implies": "\\Longrightarrow",
+            "\\iff": "\\Longleftrightarrow",
+            "\\adj": "\\operatorname{adj}"
+          }
+        });
+      } catch (_) {}
+    }
+    return renderMathExpression(closedRaw);
+  };
+  const isSafeImageUrl = (value) => {
+    if (!value || typeof value !== "string") return false;
+    const trimmed = value.trim();
+    if (/^(?:https?:\/\/|\/|\.\.?\/|data:image\/|blob:)/i.test(trimmed)) {
+      return !/^\s*javascript:/i.test(trimmed);
+    }
+    return false;
+  };
   const isSafeHttpUrl = (value) => {
-    try {
-      const url = new URL(String(value || ""));
-      return url.protocol === "http:" || url.protocol === "https:";
-    } catch (_) { return false; }
+    if (!value || typeof value !== "string") return false;
+    const trimmed = value.trim();
+    if (/^(?:https?:\/\/)/i.test(trimmed)) {
+      return !/^\s*javascript:/i.test(trimmed);
+    }
+    return false;
   };
   const isImageUrl = (value) => {
-    if (!isSafeHttpUrl(value)) return false;
-    try { return /\.(?:png|jpe?g|webp|gif|avif|svg)(?:$|[?#])/i.test(new URL(value).pathname); } catch (_) { return false; }
+    if (!isSafeImageUrl(value)) return false;
+    try {
+      const clean = value.split(/[?#]/)[0];
+      return /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(clean) || /^data:image\//i.test(value);
+    } catch (_) { return false; }
   };
   const cleanEmbeddedLabel = (value) => String(value || "Image").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim() || "Image";
+  const renderSingleImage = (url, alt = "") => {
+    if (!isSafeImageUrl(url)) return escapeHtml(alt || url);
+    const safeUrl = escapeHtml(url);
+    const safeAlt = escapeHtml(cleanEmbeddedLabel(alt));
+    return `<figure class="chat-image-card"><a class="chat-image-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeAlt || 'View full image'}"><img class="chat-image-img" src="${safeUrl}" alt="${safeAlt || 'Image'}" loading="lazy" referrerpolicy="no-referrer"></a>${safeAlt ? `<figcaption class="chat-image-caption">${safeAlt}</figcaption>` : ""}</figure>`;
+  };
+  const renderImageCarousel = (items) => {
+    if (!items || !items.length) return "";
+    if (items.length === 1) return renderSingleImage(items[0].url, items[0].alt);
+    const slidesHtml = items.map((item, idx) => {
+      const safeUrl = escapeHtml(item.url);
+      const safeAlt = escapeHtml(cleanEmbeddedLabel(item.alt) || `Image ${idx + 1}`);
+      return `<figure class="chat-image-card carousel-slide"><a class="chat-image-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeAlt}"><img class="chat-image-img" src="${safeUrl}" alt="${safeAlt}" loading="lazy" referrerpolicy="no-referrer"></a>${safeAlt ? `<figcaption class="chat-image-caption">${safeAlt}</figcaption>` : ""}</figure>`;
+    }).join("");
+    const dotsHtml = items.map((_, idx) => `<button type="button" class="carousel-dot${idx === 0 ? " is-active" : ""}" data-carousel-dot="${idx}" aria-label="Go to slide ${idx + 1}"></button>`).join("");
+    return `<div class="chat-image-carousel" data-carousel="true"><div class="carousel-track">${slidesHtml}</div><button type="button" class="carousel-nav-btn carousel-prev" aria-label="Previous image" data-carousel-prev><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button><button type="button" class="carousel-nav-btn carousel-next" aria-label="Next image" data-carousel-next><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button><div class="carousel-indicators">${dotsHtml}</div></div>`;
+  };
   const normalizeEmbeddedMarkup = (value) => normalizeResponseText(value)
-    .replace(/<img\b[^>]*?\bsrc\s*=\s*["'](https?:\/\/[^"']+)["'][^>]*>/gi, (tag, url) => {
+    .replace(/<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi, (tag, url) => {
       const alt = tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] || "Image preview";
       return `![${cleanEmbeddedLabel(alt)}](${url})`;
     })
@@ -1181,27 +1277,14 @@
       .replace(/(^|\n)\s*#{1,6}\s+/g, "$1")
       .replace(/\\([{}])/g, "$1");
     // Keep paired Markdown emphasis available for the formatter below.
-    // Unmatched markers are removed after paired markers have been turned
-    // into <strong>, so raw `**` never leaks into the visible answer.
-    // Models sometimes emit a Markdown blockquote marker for ordinary
-    // prompt labels or prose. The app does not render blockquotes, so the
-    // marker should never leak into the visible answer as a stray `>`.
     source = source.replace(/(^|\n)[ \t]*>[ \t]+(?=[^<>])/g, "$1");
-    // Keep common video specifications readable and consistent while leaving
-    // fenced code untouched (code is rendered by highlightCode separately).
     source = source.replace(/\b(\d+(?:[.,]\d+)?)\s*(?:fps|frames?\s+per\s+second)\b/gi, "$1 FPS");
-    const imageCard = (url, label) => {
-      if (!isSafeHttpUrl(url)) return escapeHtml(label || url);
-      const safeUrl = escapeHtml(url);
-      const safeLabel = escapeHtml(cleanEmbeddedLabel(label));
-      return `<a class="inline-image-preview-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="Open image: ${safeLabel}"><img class="inline-image-preview" src="${safeUrl}" alt="${safeLabel}" loading="lazy" referrerpolicy="no-referrer"><span class="inline-image-caption">${safeLabel}</span></a>`;
-    };
     const sourceLink = (url, label = url) => {
       if (!isSafeHttpUrl(url)) return escapeHtml(label);
       return `<a class="inline-source-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(cleanEmbeddedLabel(label))}</a>`;
     };
-    source = source.replace(/!\[([^\]]*)\]\(\s*(https?:\/\/[^\s)]+)(?:\s+["'][^)]*["'])?\s*\)/gi, (_, label, url) => tokenFor(imageCard(url, label || "Image preview")));
-    source = source.replace(/\[([^\]]+)\]\(\s*(https?:\/\/[^\s)]+)\s*\)/gi, (_, label, url) => tokenFor(isImageUrl(url) ? imageCard(url, label) : sourceLink(url, label)));
+    source = source.replace(/!\[([^\]]*)\]\(\s*([^\s)]+)(?:\s+["'][^)]*["'])?\s*\)/gi, (_, label, url) => tokenFor(renderSingleImage(url, label || "Image preview")));
+    source = source.replace(/\[([^\]]+)\]\(\s*([^\s)]+)\s*\)/gi, (_, label, url) => tokenFor(isImageUrl(url) ? renderSingleImage(url, label) : sourceLink(url, label)));
     source = source.replace(/https?:\/\/[^\s<>"')]+/gi, (url, offset, whole) => {
       const trailing = url.match(/[.,;:!?]+$/)?.[0] || "";
       const cleanUrl = trailing ? url.slice(0, -trailing.length) : url;
@@ -1213,6 +1296,8 @@
     let output = escapeHtml(source)
       .replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>")
       .replace(/__(.+?)__/gs, "<strong>$1</strong>")
+      .replace(/(?<![*\w])\*([^*\n]+?)\*(?![*\w])/g, "<em>$1</em>")
+      .replace(/(?<![_\w])_([^_\n]+?)_(?![_\w])/g, "<em>$1</em>")
       .replace(/~~(.+?)~~/gs, "<del>$1</del>")
       .replace(/`([^`\n]+)`/g, "<code>$1</code>")
       .replace(/([A-Za-z0-9α-ωΑ-Ωπ\)\]])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+)/g, (_, base, power) => `${base}<sup>${[...power].map((c) => superscripts[c] || c).join("")}</sup>`)
@@ -1229,9 +1314,9 @@
       /^(?:[A-Za-zα-ωΑ-ΩπθλμσφΔΩ])\s*[\^_]\s*(?:\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-Ω+\-]+)/,
       /^(?:mm|cm|dm|km|m|µm|um|nm|in|ft|yd|kg|mg|g|L|mL)\s*[\^_]\s*(?:\{[^{}\n]+\}|[0-9+\-]+)/i,
       /^(?:e|π|\\pi)\s*\^\s*(?:\{[^{}\n]+\}|\([^()\n]+\)|[A-Za-z0-9+\-]+)/i,
-      /^(?:determinant|det)\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z][A-Za-z0-9]*)/i,
-      /^(?:sin|cos|tan|cot|sec|csc|cosec|sinh|cosh|tanh|coth|arcsin|arccos|arctan)\s*(?:\^\s*(?:\{[^{}\n]+\}|-?\d+))?\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-ΩπθλμσφΔΩ]+)/i,
-      /^(?:log|lg|ln|lb)(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)?\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Za-z0-9α-ωΑ-Ω]+)/i,
+      /^(?:det)\s*(?:\([^()\n]+\)|\{[^{}\n]+\}|[A-Z]\b)/,
+      /^(?:sin|cos|tan|cot|sec|csc|cosec|sinh|cosh|tanh|coth|arcsin|arccos|arctan)(?:\s*(?:\^\s*(?:\{[^{}\n]+\}|-?\d+))?\s*(?:\([^()\n]+\)|\{[^{}\n]+\})|\s+(?:\^\s*(?:\{[^{}\n]+\}|-?\d+)\s*)?[A-Za-z0-9α-ωΑ-ΩπθλμσφΔΩ]{1,4}(?![A-Za-z0-9]))/i,
+      /^(?:log|lg|ln|lb)(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)?(?:\s*(?:\([^()\n]+\)|\{[^{}\n]+\})|\s+[A-Za-z0-9α-ωΑ-Ω]{1,4}(?![A-Za-z0-9]))/i,
       /^(?:lim)\s*(?:_\{[^{}\n]+\}|_[A-Za-z0-9]+)/i,
       /^(?:adj|adjugate)\s*\(\s*[A-Za-z]\s*\)/i,
       /^(?:sqrt|exp)\s*\([^()\n]+\)/i,
@@ -1299,18 +1384,149 @@
     return output;
   };
   const inlineMarkdown = (value) => {
-    const mathPattern = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
+    const mathPattern = /(\$\$[\s\S]+?\$\$|\$(?:\\\$|[^\$\n]|\n(?!\s*\n))+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
     let output = "";
     let cursor = 0;
     for (const match of String(value).matchAll(mathPattern)) {
       output += renderTextWithMath(value.slice(cursor, match.index));
-      output += `<span class="math-inline">${renderMathMarkup(match[0])}</span>`;
+      const isDisplay = match[0].startsWith("$$") || match[0].startsWith("\\[");
+      output += `<span class="${isDisplay ? "math-block" : "math-inline"}">${renderMathMarkup(match[0], isDisplay)}</span>`;
       cursor = match.index + match[0].length;
     }
     output += renderTextWithMath(String(value).slice(cursor));
     return output;
   };
-  const highlightCode = (value) => escapeHtml(value).replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="syntax-comment">$1</span>').replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span class="syntax-string">$1</span>').replace(/\b(const|let|var|function|return|if|else|for|while|new|class|async|await|import|from|true|false|null|undefined)\b/g, '<span class="syntax-keyword">$1</span>').replace(/(&lt;\/?)([A-Za-z][\w-]*)/g, '$1<span class="syntax-tag">$2</span>');
+  const highlightFStringToken = (token) => {
+    const match = token.match(/^([frbFRB]{1,2}(?:"""|'''|"|'))([\s\S]*?)("""|'''|"|')$/);
+    if (!match) return `<span class="syntax-string">${escapeHtml(token)}</span>`;
+    const prefix = match[1];
+    const inner = match[2];
+    const closing = match[3];
+
+    let result = `<span class="syntax-string">${escapeHtml(prefix)}`;
+    let cursor = 0;
+    const interpRegex = /\{([^{}\r\n]+)\}/g;
+    let m;
+    while ((m = interpRegex.exec(inner)) !== null) {
+      if (m.index > cursor) {
+        result += escapeHtml(inner.slice(cursor, m.index));
+      }
+      result += `</span><span class="syntax-punctuation">{</span><span class="syntax-variable">${escapeHtml(m[1])}</span><span class="syntax-punctuation">}</span><span class="syntax-string">`;
+      cursor = m.index + m[0].length;
+    }
+    if (cursor < inner.length) {
+      result += escapeHtml(inner.slice(cursor));
+    }
+    result += `${escapeHtml(closing)}</span>`;
+    return result;
+  };
+
+  const highlightHtmlSyntax = (code) => {
+    const htmlRegex = /(<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<\/?[a-zA-Z0-9:-]+(?:\s+[^>]*)?\/?>)/gi;
+    let out = "";
+    let last = 0;
+    let m;
+    while ((m = htmlRegex.exec(code)) !== null) {
+      if (m.index > last) out += escapeHtml(code.slice(last, m.index));
+      const token = m[0];
+      if (token.startsWith("<!--")) {
+        out += `<span class="syntax-comment">${escapeHtml(token)}</span>`;
+      } else if (/^<!DOCTYPE/i.test(token)) {
+        out += `<span class="syntax-keyword">${escapeHtml(token)}</span>`;
+      } else {
+        const tagMatch = token.match(/^(<\/?[a-zA-Z0-9:-]+)([\s\S]*?)(\/?>)$/);
+        if (tagMatch) {
+          const bracket = tagMatch[1].startsWith("</") ? "</" : "<";
+          const tagName = tagMatch[1].slice(bracket.length);
+          out += `<span class="syntax-punctuation">${escapeHtml(bracket)}</span><span class="syntax-tag">${escapeHtml(tagName)}</span>`;
+          if (tagMatch[2]) {
+            out += tagMatch[2].replace(/([a-zA-Z0-9_:-]+)(\s*=\s*)("[^"]*"|'[^']*')/g, (_, attr, eq, val) => {
+              return `<span class="syntax-attr">${escapeHtml(attr)}</span><span class="syntax-punctuation">${escapeHtml(eq)}</span><span class="syntax-string">${escapeHtml(val)}</span>`;
+            });
+          }
+          out += `<span class="syntax-punctuation">${escapeHtml(tagMatch[3])}</span>`;
+        } else {
+          out += escapeHtml(token);
+        }
+      }
+      last = htmlRegex.lastIndex;
+    }
+    if (last < code.length) out += escapeHtml(code.slice(last));
+    return out;
+  };
+
+  const highlightCssSyntax = (code) => {
+    return escapeHtml(code)
+      .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
+      .replace(/([a-zA-Z-]+\s*)(:)/g, '<span class="syntax-attr">$1</span><span class="syntax-punctuation">$2</span>')
+      .replace(/("[^"]*"|'[^']*')/g, '<span class="syntax-string">$1</span>')
+      .replace(/(#[a-fA-F0-9]{3,8}|\b\d+(?:px|rem|em|%|vh|vw|ms|s)?\b)/g, '<span class="syntax-number">$1</span>');
+  };
+
+  const highlightGeneralCode = (code, lang = "") => {
+    const tokenRegex = new RegExp(
+      [
+        /(\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|#[^\r\n]*)/.source,
+        /(\b[frbFRB]{1,2}(?:"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'))/.source,
+        /(?:"""[\s\S]*?"""|'''[\s\S]*?''')/.source,
+        /(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)/.source,
+        /\b(?:0[xX][0-9a-fA-F]+|0[bB][01]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/.source,
+        /\b(?:True|False|None|true|false|null|undefined|NaN|Infinity|nil)\b/.source,
+        /\b(?:def|class|return|if|elif|else|for|while|try|except|finally|with|as|import|from|async|await|yield|break|continue|pass|lambda|raise|assert|global|nonlocal|in|is|not|and|or|function|const|let|var|switch|case|default|throw|catch|new|typeof|instanceof|interface|type|public|private|protected|readonly|export|extends|implements|static|package|void|enum|struct|fn|pub|impl|trait|mut|match|select|where|insert|delete|update|join|table|into|values)\b/.source,
+        /\b(?:int|float|str|bool|list|dict|set|tuple|bytes|bytearray|object|self|cls|super|print|len|range|enumerate|zip|map|filter|sum|min|max|sorted|open|isinstance|issubclass|type|id|input|any|all|abs|round|eval|exec|repr|format|Array|String|Number|Boolean|Object|Promise|Map|Set|Date|RegExp|Error|Exception|Console|console)\b/.source,
+        /\b[A-Z][A-Za-z0-9_]*\b/.source,
+        /\b([a-zA-Z_]\w*)(?=\s*\()/.source
+      ].join("|"),
+      "g"
+    );
+
+    let output = "";
+    let lastIndex = 0;
+    let match;
+
+    while ((match = tokenRegex.exec(code)) !== null) {
+      if (match.index > lastIndex) {
+        output += escapeHtml(code.slice(lastIndex, match.index));
+      }
+      const token = match[0];
+
+      if (/^(\/\/|\/\*|#)/.test(token)) {
+        output += `<span class="syntax-comment">${escapeHtml(token)}</span>`;
+      } else if (/^[frbFRB]{1,2}['"]/.test(token)) {
+        output += highlightFStringToken(token);
+      } else if (/^("""|'''|"|'|`)/.test(token)) {
+        output += `<span class="syntax-string">${escapeHtml(token)}</span>`;
+      } else if (/^\d|^0[xXbB]/.test(token)) {
+        output += `<span class="syntax-number">${escapeHtml(token)}</span>`;
+      } else if (/^(?:True|False|None|true|false|null|undefined|NaN|Infinity|nil)$/.test(token)) {
+        output += `<span class="syntax-constant">${escapeHtml(token)}</span>`;
+      } else if (/^(?:def|class|return|if|elif|else|for|while|try|except|finally|with|as|import|from|async|await|yield|break|continue|pass|lambda|raise|assert|global|nonlocal|in|is|not|and|or|function|const|let|var|switch|case|default|throw|catch|new|typeof|instanceof|interface|type|public|private|protected|readonly|export|extends|implements|static|package|void|enum|struct|fn|pub|impl|trait|mut|match|select|where|insert|delete|update|join|table|into|values)$/.test(token)) {
+        output += `<span class="syntax-keyword">${escapeHtml(token)}</span>`;
+      } else if (/^(?:int|float|str|bool|list|dict|set|tuple|bytes|bytearray|object|self|cls|super|print|len|range|enumerate|zip|map|filter|sum|min|max|sorted|open|isinstance|issubclass|type|id|input|any|all|abs|round|eval|exec|repr|format|Array|String|Number|Boolean|Object|Promise|Map|Set|Date|RegExp|Error|Exception|Console|console)$/.test(token) || /^[A-Z]/.test(token)) {
+        output += `<span class="syntax-class">${escapeHtml(token)}</span>`;
+      } else if (/^\s*\(/.test(code.slice(match.index + token.length))) {
+        output += `<span class="syntax-function">${escapeHtml(token)}</span>`;
+      } else {
+        output += `<span class="syntax-variable">${escapeHtml(token)}</span>`;
+      }
+
+      lastIndex = tokenRegex.lastIndex;
+    }
+
+    if (lastIndex < code.length) {
+      output += escapeHtml(code.slice(lastIndex));
+    }
+
+    return output;
+  };
+
+  const highlightCode = (code, rawLanguage = "") => {
+    if (!code) return "";
+    const lang = (rawLanguage || "").toLowerCase().trim();
+    if (/^(?:html|xml|svg|htm)$/i.test(lang)) return highlightHtmlSyntax(code);
+    if (/^(?:css|scss|less)$/i.test(lang)) return highlightCssSyntax(code);
+    return highlightGeneralCode(code, lang);
+  };
   const youtubeSourcesFromText = (value) => [...value.matchAll(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)[A-Za-z0-9_-]{6,}|youtu\.be\/[A-Za-z0-9_-]{6,})[^\s)<>]*/gi)].map((match) => ({ title: "YouTube video", url: match[0].replace(/[.,]$/, ""), snippet: "Open or watch this video preview", displayLink: "youtube.com" }));
   const readAsDataUrl = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || "")); reader.onerror = () => reject(new Error("The selected file could not be read.")); reader.readAsDataURL(file); });
   const normalizeMimeType = (mimeType, name = "") => {
@@ -1777,15 +1993,29 @@
     renderPendingAttachments();
     input?.focus();
   };
-  const handleAttachmentSelection = async (event) => { const selected = [...(event.target.files || [])]; event.target.value = ""; await addSelectedFiles(selected); };
-  const renderMessageAttachmentPreviews = (message, items) => { const container = message?.querySelector(".message-attachments"); if (!container || !items?.length) return; container.replaceChildren(); items.forEach((attachment) => { attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7); const card = createAttachmentCard(attachment); card.classList.add("message-image-preview"); container.append(card); }); };
+  const handleAttachmentSelection = async (event) => {
+    const selected = [...(event.target.files || [])];
+    event.target.value = "";
+    await addSelectedFiles(selected);
+  };
+  const renderMessageAttachmentPreviews = (message, items) => {
+    const container = message?.classList?.contains("message-attachments") ? message : message?.querySelector(".message-attachments");
+    if (!container || !items?.length) return;
+    container.replaceChildren();
+    items.forEach((attachment) => {
+      attachment.id ||= "xmanius-image-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+      const card = createAttachmentCard(attachment);
+      card.classList.add("message-image-preview");
+      container.append(card);
+    });
+  };
   let cameraStream = null;
   let cameraDialog = null;
   const stopCamera = () => { cameraStream?.getTracks().forEach((track) => { try { track.stop(); } catch {} }); cameraStream = null; if (cameraDialog) { const video = cameraDialog.querySelector("video"); if (video) video.srcObject = null; cameraDialog.classList.remove("is-open"); cameraDialog.setAttribute("aria-hidden", "true"); } };
   const openCamera = async () => { if (!navigator.mediaDevices?.getUserMedia) { showAttachmentNotice("Live camera capture is unavailable here. Use a camera-enabled browser or Android app."); return; } if (!cameraDialog) { cameraDialog = document.createElement("section"); cameraDialog.className = "camera-dialog"; cameraDialog.setAttribute("aria-hidden", "true"); cameraDialog.innerHTML = `<div class="camera-dialog-panel" role="dialog" aria-modal="true" aria-label="Capture a photo"><div class="camera-dialog-header"><strong>Use camera</strong><button type="button" data-camera-close aria-label="Close camera">×</button></div><video autoplay playsinline muted></video><p data-camera-status>Allow camera access to take a photo.</p><div class="camera-dialog-actions"><button type="button" data-camera-cancel>Cancel</button><button type="button" data-camera-capture>Capture photo</button></div></div>`; document.body.append(cameraDialog); cameraDialog.querySelectorAll("[data-camera-close],[data-camera-cancel]").forEach((button) => button.addEventListener("click", stopCamera)); cameraDialog.querySelector("[data-camera-capture]").addEventListener("click", async () => { const video = cameraDialog.querySelector("video"); if (!video?.videoWidth) return; if (pendingAttachments.length >= maxAttachments) { showAttachmentNotice(`You can attach up to ${maxAttachments} files per message.`); return; } const canvas = document.createElement("canvas"); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext("2d").drawImage(video, 0, 0); const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", .88)); if (!blob) return; try { pendingAttachments.push(await prepareAttachment(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }))); renderPendingAttachments(); stopCamera(); input?.focus(); } catch (error) { showAttachmentNotice(error.message || "The photo could not be added."); } }); } cameraDialog.classList.add("is-open"); cameraDialog.setAttribute("aria-hidden", "false"); const video = cameraDialog.querySelector("video"); try { cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }); video.srcObject = cameraStream; await video.play(); cameraDialog.querySelector("[data-camera-status]").textContent = "Ready. Position the image and capture it."; } catch { stopCamera(); showAttachmentNotice("Camera permission was denied or the camera is unavailable. Allow camera access and try again."); } };
   const tableCells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
   const isTableDivider = (line) => /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line.trim());
-  const renderTable = (header, rows) => `<div class="table-scroll"><table><thead><tr>${header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, index) => `<td>${inlineMarkdown(row[index] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  const renderTable = (header, rows) => `<div class="table-scroll table-container"><table><thead><tr>${header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, index) => `<td>${inlineMarkdown(row[index] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const renderMarkdown = (element, text) => {
     text = normalizeResponseText(text);
     const lines = text.split(/\r?\n/);
@@ -1798,20 +2028,74 @@
     const flushNumbered = () => { if (!numbered.length) return; output.push(`<ol>${numbered.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ol>`); numbered = []; };
     while (index < lines.length) {
       const line = lines[index];
-      // Flatten accidental blockquote syntax into normal prose. Do this at
-      // line level so fenced code keeps its original `>` characters.
-      const displayLine = line.replace(/^[ \t]*>[ \t]+(?=[^<>])/g, "");
-      const trimmed = displayLine.trim();
+      const trimmed = line.trim();
       if (!trimmed) { flushBullets(); flushNumbered(); index += 1; continue; }
       const fence = trimmed.match(/^```\s*([\w+#.-]*)\s*$/);
       if (fence) {
-        flushBullets();
-        const language = fence[1] || "code";
+        flushBullets(); flushNumbered();
+        const rawLang = (fence[1] || "").trim();
+        const language = rawLang || "code";
+        const displayLabel = (!rawLang || /^(?:code|latex|tex|math|plain|text)$/i.test(rawLang))
+          ? "Code snippet"
+          : (rawLang.charAt(0).toUpperCase() + rawLang.slice(1));
         const codeLines = [];
         index += 1;
         while (index < lines.length && !/^```\s*$/.test(lines[index].trim())) { codeLines.push(lines[index]); index += 1; }
         if (index < lines.length) index += 1;
-        output.push(`<section class="code-block" data-code-block data-language="${escapeHtml(language)}"><header><span>${escapeHtml(language)}</span><div><button type="button" data-code-action="copy">Copy</button><button type="button" data-code-action="download">Download</button><button type="button" data-code-action="run">Run</button></div></header><pre><code>${highlightCode(codeLines.join("\n"))}</code></pre></section>`);
+        const codeContent = codeLines.join("\n");
+        output.push(`<section class="code-block" data-code-block data-language="${escapeHtml(language)}">` +
+          `<header>` +
+            `<span class="code-block-title">${escapeHtml(displayLabel)}</span>` +
+            `<div class="code-block-actions">` +
+              (/^(?:python|py)$/i.test(language) ? `<button type="button" class="code-action-btn code-action-colab" data-code-action="colab" aria-label="Open in Google Colab" title="Open in Google Colab"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M10 8l6 4-6 4V8z"></path></svg></button>` : "") +
+              `<button type="button" class="code-action-btn" data-code-action="download" aria-label="Download code" title="Download">` +
+                `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M4 20h16"/></svg>` +
+              `</button>` +
+              `<button type="button" class="code-action-btn" data-code-action="copy" aria-label="Copy code" title="Copy">` +
+                `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>` +
+              `</button>` +
+              (/^html?$/i.test(language) ? `<button type="button" class="code-action-btn code-action-run" data-code-action="run" aria-label="Run HTML" title="Run HTML"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>` : "") +
+            `</div>` +
+          `</header>` +
+          `<pre class="code-viewport"><code>${highlightCode(codeContent, language)}</code></pre>` +
+        `</section>`);
+        continue;
+      }
+      const bqMatch = line.match(/^[ \t]*>[ \t]?(.*)$/);
+      if (bqMatch) {
+        flushBullets(); flushNumbered();
+        const bqLines = [];
+        while (index < lines.length) {
+          const match = lines[index].match(/^[ \t]*>[ \t]?(.*)$/);
+          if (!match) break;
+          bqLines.push(match[1]);
+          index += 1;
+        }
+        const bqFull = bqLines.join("\n").trim();
+        if (bqFull.includes("📁") && (bqFull.includes("Open Viewer") || bqFull.includes("Download File"))) {
+          const nameLine = bqLines.find((l) => l.includes("📁")) || "";
+          const filename = nameLine.replace(/^\s*\*\*📁\s*/, "").replace(/📁/, "").replace(/\*\*\s*$/, "").trim() || "Document.pdf";
+          const metaLine = bqLines.find((l) => l !== nameLine && (l.includes("•") || l.includes("MB") || l.includes("KB") || l.includes("PDF") || l.includes("Uploaded"))) || "";
+          const meta = metaLine.replace(/^\s*\*+/, "").replace(/\*+\s*$/, "").trim() || "PDF Document • Uploaded Today";
+          output.push(`
+            <div class="message-file-card" data-file-card="true">
+              <div class="message-file-card-info">
+                <div class="message-file-card-title"><span>📁</span> <strong>${escapeHtml(filename)}</strong></div>
+                <div class="message-file-card-meta">${escapeHtml(meta)}</div>
+              </div>
+              <div class="message-file-card-actions">
+                <button type="button" class="message-file-card-btn" data-action="open-viewer">Open Viewer</button>
+                <button type="button" class="message-file-card-btn" data-action="download">Download File</button>
+              </div>
+            </div>
+          `);
+        } else {
+          let calloutClass = "";
+          if (/security warning/i.test(bqFull)) calloutClass = " callout-security";
+          else if (/warning|caution/i.test(bqFull)) calloutClass = " callout-warning";
+          else if (/tip|note/i.test(bqFull)) calloutClass = " callout-tip";
+          output.push(`<blockquote class="${calloutClass.trim()}">${bqLines.map((l) => `<p>${inlineMarkdown(l)}</p>`).join("")}</blockquote>`);
+        }
         continue;
       }
       if (index + 1 < lines.length && trimmed.includes("|") && isTableDivider(lines[index + 1])) {
@@ -1830,10 +2114,52 @@
       flushBullets(); flushNumbered();
       if (/^(-{3,}|_{3,}|\*{3,})$/.test(trimmed)) { output.push("<hr>"); index += 1; continue; }
       const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
-      if (heading) { output.push(`<h3>${inlineMarkdown(heading[2])}</h3>`); highlightNextMath = /final answer/i.test(heading[2]); index += 1; continue; }
+      if (heading) {
+        const level = Math.min(3, heading[1].length);
+        output.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+        highlightNextMath = /final answer/i.test(heading[2]);
+        index += 1;
+        continue;
+      }
+      // Standalone markdown image line or image series carousel
+      const imgLineRegex = /^!\[([^\]]*)\]\(\s*([^\s)]+)(?:\s+["'][^)]*["'])?\s*\)$/;
+      const imgLineMatch = trimmed.match(imgLineRegex);
+      if (imgLineMatch) {
+        flushBullets(); flushNumbered();
+        const imageSeries = [{ alt: imgLineMatch[1], url: imgLineMatch[2] }];
+        index += 1;
+        while (index < lines.length) {
+          const nextTrim = lines[index].trim();
+          if (!nextTrim) {
+            let peek = index + 1;
+            while (peek < lines.length && !lines[peek].trim()) peek++;
+            if (peek < lines.length && imgLineRegex.test(lines[peek].trim())) {
+              index = peek;
+              const nextM = lines[index].trim().match(imgLineRegex);
+              imageSeries.push({ alt: nextM[1], url: nextM[2] });
+              index += 1;
+              continue;
+            }
+            break;
+          }
+          const nextM = nextTrim.match(imgLineRegex);
+          if (nextM) {
+            imageSeries.push({ alt: nextM[1], url: nextM[2] });
+            index += 1;
+          } else {
+            break;
+          }
+        }
+        if (imageSeries.length > 1) {
+          output.push(renderImageCarousel(imageSeries));
+        } else {
+          output.push(renderSingleImage(imageSeries[0].url, imageSeries[0].alt));
+        }
+        continue;
+      }
       if (/^\s*(\$\$|\\\[)/.test(trimmed)) {
         const close = trimmed.startsWith("$$") ? "$$" : "\\]";
-        const openingLength = trimmed.startsWith("$$") ? 2 : 2;
+        const openingLength = 2;
         const sameLineEnd = trimmed.indexOf(close, openingLength);
         let math = trimmed.slice(openingLength, sameLineEnd >= 0 ? sameLineEnd : undefined);
         index += 1;
@@ -1841,16 +2167,33 @@
         if (sameLineEnd < 0 && index < lines.length) math += `\n${lines[index].slice(0, lines[index].indexOf(close))}`;
         if (sameLineEnd < 0 && index < lines.length) index += 1;
         const important = /\\boxed|final answer/i.test(math) || highlightNextMath;
-        output.push(`<div class="math-block${important ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(math)}</div>`);
+        output.push(`<div class="math-block${important ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(math, true)}</div>`);
         highlightNextMath = false;
         continue;
       }
-      const mathWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we)\b/i;
+      const envBlockMatch = trimmed.match(/^\\begin\s*\{([a-zA-Z*]+)\}/);
+      if (envBlockMatch) {
+        const envName = envBlockMatch[1];
+        const endTag = `\\end{${envName}}`;
+        let math = trimmed;
+        if (!trimmed.includes(endTag)) {
+          index += 1;
+          while (index < lines.length && !lines[index].includes(endTag)) { math += `\n${lines[index]}`; index += 1; }
+          if (index < lines.length) { math += `\n${lines[index]}`; index += 1; }
+        } else {
+          index += 1;
+        }
+        output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(math, true)}</div>`);
+        highlightNextMath = false;
+        continue;
+      }
+      const proseWords = /\b(?:the|given|set|substitute|since|this|test|step|solution|final|answer|positive|integer|into|inequality|yields|valid|number|possible|must|there|need|is|are|for|from|and|only|check|we|to|find|of|matrix|matrices|determinant|determinants|expand|row|column|calculate|calculation|let|where|when|with|using|hence|therefore|thus|note|suppose|assume|consider|gives|have|get|shows|first|second|third|along|by)\b/i;
       const normalizedMathLine = normalizeExtendedMathNotation(trimmed);
       const hasMatrix = /(?:\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\}|\\(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b|(?<!\\)\b(?:pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array)\b)/.test(normalizedMathLine);
-      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\in\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\Delta|\\pi|\\longrightarrow|\^|(?<![A-Za-z0-9])[0-9]+!|≤|≥|∈|(?<![A-Za-z0-9])(?:\d+\s*[CPcp]\s*\d+|[nNkKmM]\s*[CPcp]\s*[rRkKmM0-9]|\d+\s*[CPcp]\s*[rRkKmM])(?![A-Za-z0-9])|(?<![A-Za-z0-9])[CPcp]\s*\([0-9a-zA-Z\s+\-*/^_.]+,[0-9a-zA-Z\s+\-*/^_.]+\))).{2,900}$/.test(trimmed);
-      if ((hasMatrix || hasScalarMath) && (hasMatrix || (!mathWords.test(trimmed) && !/[.!?]$/.test(trimmed)))) {
-        output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed)}</div>`);
+      const hasScalarMath = /^(?=.*(?:=|\\leq?|\\geq?|\\neq|\\approx|\\in\b|\\subset\b|\\cap\b|\\cup\b|\\forall\b|\\exists\b|\\implies\b|\\iff\b|\\frac|\\binom|\\(?:comb|choose|perm|permutation|factorial)\b|\\sqrt|\\boxed|\\exp|\\log|\\ln|\\lim|\\int|\\sum|\\prod|\\vec|\\hat|\\bar|\\Delta|\\pi|\\theta|\\longrightarrow|\^|_|(?<![A-Za-z0-9])[0-9]+!|≤|≥|∈|⊂|∩|∪|∀|∃|⇒|⇔|≠|≈|(?<![A-Za-z0-9])(?:\d+\s*[CPcp]\s*\d+|[nNkKmM]\s*[CPcp]\s*[rRkKmM0-9]|\d+\s*[CPcp]\s*[rRkKmM])(?![A-Za-z0-9])|(?<![A-Za-z0-9])[CPcp]\s*\([0-9a-zA-Z\s+\-*/^_.]+,[0-9a-zA-Z\s+\-*/^_.]+\))).{2,900}$/.test(trimmed);
+      const isProseLine = trimmed.includes("![") || proseWords.test(trimmed) || /[.!?:]$/.test(trimmed) || /^[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(trimmed) || (trimmed.includes("$") && !(trimmed.startsWith("$") && trimmed.endsWith("$")));
+      if ((hasMatrix || hasScalarMath) && !isProseLine) {
+        output.push(`<div class="math-block${highlightNextMath ? " math-highlight" : ""}" data-math="true">${renderMathMarkup(trimmed, true)}</div>`);
         highlightNextMath = false;
         index += 1;
         continue;
@@ -1999,7 +2342,7 @@
       .replace(/\bXmanius\s+(Sonnet|Opus|Haiku)\b/g, "Claude $1")
       .trim();
   };
-  const addMessage = (text, type, { animate = false, persist = true, sources = [], artifacts = [], task = null, searchError = "", attachmentNames = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false, memoryUpdated = false } = {}) => {
+  const addMessage = (text, type, { animate = false, persist = true, sources = [], artifacts = [], task = null, searchError = "", attachmentNames = [], attachments = [], reasoningSummary = "", reasoningSeconds = 0, thinkMode = false, memoryUpdated = false } = {}) => {
     const answerEnvelope = stripAnswerSummaryTags(text);
     text = answerEnvelope.text;
     if (type === "assistant") text = sanitizeClientBranding(text);
@@ -2016,21 +2359,86 @@
     if (reasoningSeconds) item.dataset.reasoningSeconds = String(reasoningSeconds);
     const body = document.createElement("div");
     body.className = "message-body";
-    if (type === "assistant") renderMarkdown(body, text); else body.textContent = text;
-    const responseCursor = type === "assistant" && animate ? document.createElement("span") : null;
-    if (responseCursor) { responseCursor.className = "xmanius-typing-cursor"; responseCursor.setAttribute("aria-hidden", "true"); body.append(responseCursor); }
-    item.append(body);
+    let responseCursor = null;
+    if (type === "assistant") {
+      renderMarkdown(body, text);
+      responseCursor = animate ? document.createElement("span") : null;
+      if (responseCursor) { responseCursor.className = "xmanius-typing-cursor"; responseCursor.setAttribute("aria-hidden", "true"); body.append(responseCursor); }
+      item.append(body);
+    } else {
+      body.textContent = text;
+      const bubble = document.createElement("div");
+      bubble.className = "user-message-bubble";
+      bubble.append(body);
+      item.append(bubble);
+
+      const userActions = document.createElement("div");
+      userActions.className = "user-message-actions";
+      userActions.innerHTML = `
+        <button type="button" class="user-action-btn" data-action="copy" aria-label="Copy prompt" title="Copy">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+        <button type="button" class="user-action-btn" data-action="edit" aria-label="Edit message" title="Edit">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+        </button>
+      `;
+
+      const copyBtn = userActions.querySelector('[data-action="copy"]');
+      copyBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(text);
+          const origSvg = copyBtn.innerHTML;
+          copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#a8c7fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          copyBtn.title = "Copied!";
+          setTimeout(() => {
+            copyBtn.innerHTML = origSvg;
+            copyBtn.title = "Copy";
+          }, 1500);
+        } catch {
+          copyBtn.title = "Copy failed";
+        }
+      });
+
+      const editBtn = userActions.querySelector('[data-action="edit"]');
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof window.__xmaniusBeginEdit === "function") {
+          window.__xmaniusBeginEdit(item);
+        } else if (input) {
+          input.value = text;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.focus();
+          input.selectionStart = input.selectionEnd = input.value.length;
+          input.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+
+      item.dataset.xmaniusActions = "true";
+      item.append(userActions);
+    }
     if (type === "assistant" && memoryUpdated) {
       const badge = document.createElement("div");
       badge.className = "memory-updated-badge";
       badge.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> <span>Memory updated</span>`;
       item.prepend(badge);
     }
-    if (type === "user" && attachmentNames.length) {
+    if (type === "user" && (attachmentNames.length || attachments.length)) {
       const attached = document.createElement("div");
       attached.className = "message-attachments";
-      attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = name; attached.append(chip); });
-      item.append(attached);
+      if (attachments.length) {
+        item.dataset.attachmentRefs = JSON.stringify(attachments.map(attachmentReference));
+        renderMessageAttachmentPreviews(attached, attachments);
+      } else {
+        attachmentNames.forEach((name) => { const chip = document.createElement("span"); chip.className = "message-attachment"; chip.textContent = name; attached.append(chip); });
+      }
+      item.prepend(attached);
     }
     if (type === "assistant" && (thinkMode || reasoningSeconds)) {
       const summary = document.createElement("details");
@@ -2046,9 +2454,56 @@
       body.querySelectorAll("[data-code-block]").forEach((block) => {
         const code = block.querySelector("code")?.textContent || "";
         const language = block.dataset.language || "code";
-        block.querySelector('[data-code-action="copy"]')?.addEventListener("click", async (event) => { try { await navigator.clipboard.writeText(code); event.currentTarget.textContent = "Copied"; window.setTimeout(() => { event.currentTarget.textContent = "Copy"; }, 1300); } catch { event.currentTarget.textContent = "Copy failed"; } });
-        block.querySelector('[data-code-action="download"]')?.addEventListener("click", () => { const extension = language === "html" ? "html" : language === "javascript" || language === "js" ? "js" : language === "css" ? "css" : "txt"; const blob = new Blob([code], { type: "text/plain;charset=utf-8" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `xmanius-code.${extension}`; link.click(); URL.revokeObjectURL(link.href); });
-        block.querySelector('[data-code-action="run"]')?.addEventListener("click", () => { if (!/^html?$/i.test(language)) { window.alert("Run is available for HTML code blocks."); return; } const preview = window.open("about:blank", "_blank"); if (!preview) return; preview.document.open(); preview.document.write(code); preview.document.close(); });
+        const copyBtn = block.querySelector('[data-code-action="copy"]');
+        if (copyBtn) {
+          const originalHtml = copyBtn.innerHTML;
+          copyBtn.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(code);
+              copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#a8c7fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+              copyBtn.title = "Copied!";
+              window.setTimeout(() => {
+                copyBtn.innerHTML = originalHtml;
+                copyBtn.title = "Copy";
+              }, 1400);
+            } catch {
+              copyBtn.title = "Copy failed";
+            }
+          });
+        }
+        const downloadBtn = block.querySelector('[data-code-action="download"]');
+        if (downloadBtn) {
+          downloadBtn.addEventListener("click", () => {
+            const extension = language === "html" ? "html" : language === "javascript" || language === "js" ? "js" : language === "css" ? "css" : language === "python" || language === "py" ? "py" : language === "tex" || language === "latex" ? "tex" : "txt";
+            const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `code-snippet.${extension}`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+          });
+        }
+        const colabBtn = block.querySelector('[data-code-action="colab"]');
+        if (colabBtn) {
+          colabBtn.addEventListener("click", () => {
+            navigator.clipboard.writeText(code).then(() => {
+              window.open("https://colab.research.google.com/#create=true", "_blank");
+            }).catch(() => {
+              window.open("https://colab.research.google.com/#create=true", "_blank");
+            });
+          });
+        }
+        const runBtn = block.querySelector('[data-code-action="run"]');
+        if (runBtn) {
+          runBtn.addEventListener("click", () => {
+            if (!/^html?$/i.test(language)) { window.alert("Run is available for HTML code blocks."); return; }
+            const preview = window.open("about:blank", "_blank");
+            if (!preview) return;
+            preview.document.open();
+            preview.document.write(code);
+            preview.document.close();
+          });
+        }
       });
       if (searchError) { const notice = document.createElement("p"); notice.className = "search-error"; notice.textContent = searchError; item.append(notice); }
       if (displaySources.length) {
@@ -2096,19 +2551,45 @@
       }
       const actions = document.createElement("div");
       actions.className = "message-actions";
-      actions.innerHTML = '<button type="button" data-copy-message aria-label="Copy response" title="Copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" data-read-message aria-label="Read response aloud" title="Read aloud"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"></path><path d="M16 9.5a4 4 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"></path></svg></button>';
-      actions.querySelector("[data-copy-message]").addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(text); actions.querySelector("[data-copy-message]").textContent = "✓"; } catch { /* Clipboard may be unavailable on file:// pages. */ }
+      actions.innerHTML = `
+        <button type="button" data-copy-message aria-label="Copy response" title="Copy">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+        <button type="button" data-read-message aria-label="Read response aloud" title="Read aloud">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 9v6h4l5 4V5L8 9H4Z"></path>
+            <path d="M16 9.5a4 4 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"></path>
+          </svg>
+        </button>
+      `;
+      const copyMsgBtn = actions.querySelector("[data-copy-message]");
+      copyMsgBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          const origSvg = copyMsgBtn.innerHTML;
+          copyMsgBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#a8c7fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          copyMsgBtn.title = "Copied!";
+          setTimeout(() => {
+            copyMsgBtn.innerHTML = origSvg;
+            copyMsgBtn.title = "Copy";
+          }, 1500);
+        } catch { /* Clipboard unavailable */ }
       });
       const shareButton = document.createElement("button");
       shareButton.type = "button";
       shareButton.dataset.shareMessage = "true";
       shareButton.setAttribute("aria-label", "Share response");
       shareButton.title = "Share";
-      shareButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"></path><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path></svg>';
+      shareButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"></path><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path></svg>';
       actions.append(shareButton);
       actions.querySelector("[data-read-message]").addEventListener("click", () => speak(text));
-      shareButton.addEventListener("click", async () => { if (navigator.share) await navigator.share({ title: "Xmanius response", text }).catch(() => {}); else await navigator.clipboard?.writeText(text); });
+      shareButton.addEventListener("click", async () => {
+        if (navigator.share) await navigator.share({ title: "XManius response", text }).catch(() => {});
+        else await navigator.clipboard?.writeText(text);
+      });
 
       // ─── Cortex Agent UI ───────────────────────────────────────────────
       if (task && task.steps && task.steps.length) {
@@ -2219,11 +2700,8 @@
     if (memoryTriggered) {
       updateMemoryFromUserPrompt(q);
     }
-    addMessage(q || "Please analyze the attached file(s).", "user", { attachmentNames: requestAttachments.map((attachment) => attachment.name) });
-    renderMessageAttachmentPreviews(list.lastElementChild, requestAttachments);
+    addMessage(q || "Please analyze the attached file(s).", "user", { attachmentNames: requestAttachments.map((attachment) => attachment.name), attachments: requestAttachments });
     persistAttachmentPayloads(requestAttachments).catch(() => {});
-    const sentMessage = list.lastElementChild;
-    if (sentMessage && requestAttachments.length) sentMessage.dataset.attachmentRefs = JSON.stringify(requestAttachments.map(attachmentReference));
     if (isTemporaryChatMode) {
       const tempView = document.getElementById("temporary-chat-view");
       if (tempView) {
@@ -2234,13 +2712,16 @@
       saveCurrentChat();
     }
     input.value = "";
+    if (input.tagName === "TEXTAREA") input.style.height = "28px";
+    form.classList.remove("has-text");
     pendingAttachments = [];
     renderPendingAttachments();
     updateUsage(true);
     const thinking = document.createElement("article");
     thinking.className = "message assistant thinking ai-message--thinking";
     thinking.setAttribute("role", "status");
-    thinking.innerHTML = `<span>${requestAttachments.length ? "Reviewing the attachment" : thinkMode ? "Thinking carefully" : webSearch ? "Searching multiple sources" : rethink ? "Checking the previous code" : "Thinking"}</span><i></i><i></i><i></i>`;
+    const thinkingText = requestAttachments.length ? "Reviewing the attachment" : thinkMode ? "Thinking carefully" : webSearch ? "Searching multiple sources" : rethink ? "Checking the previous code" : "Thinking";
+    thinking.innerHTML = `<span class="gemini-thinking-label">${thinkingText}</span><div class="gemini-thinking-stage" aria-hidden="true"><div class="gemini-thinking-dot gemini-dot-1"></div><div class="gemini-thinking-dot gemini-dot-2"></div><div class="gemini-thinking-dot gemini-dot-3"></div></div>`;
     list.append(thinking);
     scrollChatToBottom({ force: true });
     activeRequestController = new AbortController();
@@ -2464,7 +2945,8 @@
       });
       if (!base64Data) return;
 
-      let transcribeUrl = "/api/xmanius-transcribe";
+      const base = readApiBase();
+      let transcribeUrl = base ? `${base}/api/xmanius-transcribe` : "/api/xmanius-transcribe";
       if (typeof window.XmaniusApiEndpoint === "function") {
         const ep = window.XmaniusApiEndpoint();
         if (ep.includes("/api/xmanius-chat")) transcribeUrl = ep.replace("/api/xmanius-chat", "/api/xmanius-transcribe");
@@ -2479,6 +2961,8 @@
         const data = await res.json().catch(() => ({}));
         if (data.text && typeof data.text === "string" && data.text.trim()) {
           input.value = data.text.trim();
+          updateHasText();
+          adjustInputHeight();
         }
       }
     } catch (e) {
@@ -2500,7 +2984,7 @@
     audioContext = null;
     if (context && context.state !== "closed") void context.close().catch(() => {});
   };
-  const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); dictationBar?.style.setProperty("display", active ? "flex" : "none", "important"); if (active) { const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } return; } input.placeholder = "Ask anything"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); };
+  const setDictation = (active) => { form.classList.toggle("is-listening", active); dictationBar?.setAttribute("aria-hidden", String(!active)); dictationBar?.style.setProperty("display", active ? "flex" : "none", "important"); if (active) { const waveform = document.querySelector(".dictation-waveform"); if (waveform && waveform.children.length < 80) { waveform.replaceChildren(); for (let index = 0; index < 96; index += 1) waveform.append(document.createElement("i")); } return; } input.placeholder = "Ask XManius"; document.querySelector("[data-chat-mic]")?.classList.remove("active"); stopAudioMeter(); };
   const finishVoiceSession = ({ clearText = false, focus = true, abort = false } = {}) => {
     voiceStopRequested = true;
     window.clearTimeout(voiceRestartTimer);
@@ -2520,7 +3004,7 @@
     }
 
     setDictation(false);
-    input.placeholder = "Ask anything";
+    input.placeholder = "Ask XManius";
     if (focus) input.focus();
   };
   const startAudioMeter = async () => {
@@ -2599,88 +3083,115 @@
     };
     audioFrame = window.requestAnimationFrame(meter);
   };
-  const startVoice = () => {
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition && typeof MediaRecorder === "undefined") {
-      finishVoiceSession({ focus: true });
-      showVoiceNotice("Voice input is not supported here.");
+  const startVoice = async () => {
+    // If currently listening, toggle off (finish session)
+    if (listening || form.classList.contains("is-listening") || recognition || (voiceMediaRecorder && voiceMediaRecorder.state === "recording")) {
+      finishVoiceSession({ clearText: false, focus: true, abort: false });
       return;
     }
-    if (recognition || form.classList.contains("is-listening")) return;
+
+    // Microphone requires HTTPS. When opened from file:// the browser blocks getUserMedia.
+    if (window.location.protocol === "file:") {
+      showVoiceNotice("Microphone requires a secure connection (HTTPS). Open XManius at https://xmanius.vercel.app to use voice input.");
+      return;
+    }
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const hasMedia = Boolean(navigator.mediaDevices?.getUserMedia);
+
+    if (!Recognition && !hasMedia) {
+      showVoiceNotice("Voice input is not supported in this browser.");
+      return;
+    }
 
     voiceStopRequested = false;
     const sessionId = ++voiceSessionId;
     let finalText = "";
-    listening = false;
+    listening = true;
     setDictation(true);
-    input.placeholder = "Listening (Gemini 3.5 Live)…";
+    input.placeholder = "Listening…";
     document.querySelector("[data-chat-mic]")?.classList.add("active");
 
-    if (Recognition) {
-      const instance = new Recognition();
-      recognition = instance;
-      instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
-      instance.interimResults = true;
-      instance.continuous = true;
-      instance.maxAlternatives = 3;
-      const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
-      const restart = () => {
-        voiceRestartTimer = 0;
-        if (!isCurrentSession() || voiceStopRequested) return;
-        try {
-          instance.start();
-        } catch (error) {
-          if (error?.name === "InvalidStateError") {
-            voiceRestartTimer = window.setTimeout(restart, 180);
-            return;
-          }
-          finishVoiceSession({ focus: true });
-        }
-      };
-      instance.onstart = () => {
-        if (!isCurrentSession()) return;
-        listening = true;
-        input.placeholder = "Listening…";
-        void startAudioMeter().catch((error) => {
-          if (isCurrentSession()) {
-            stopAudioMeter();
-            console.warn("[Xmanius voice meter]", error);
-          }
-        });
-      };
-      instance.onresult = (event) => {
-        if (!isCurrentSession()) return;
-        let interimText = "";
-        for (let index = event.resultIndex; index < event.results.length; index += 1) {
-          const alternatives = [...event.results[index]].filter((alternative) => alternative?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-          const transcript = alternatives[0]?.transcript || "";
-          if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
-          else interimText += transcript;
-        }
-        input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
-      };
-      instance.onerror = (event) => {
-        if (!isCurrentSession()) return;
-        if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
-        finishVoiceSession({ focus: true });
-      };
-      instance.onend = () => {
-        if (!isCurrentSession()) return;
-        listening = false;
-        if (voiceStopRequested) {
-          finishVoiceSession({ focus: true });
+    let audioStarted = false;
+    if (hasMedia) {
+      try {
+        await startAudioMeter();
+        audioStarted = true;
+      } catch (err) {
+        console.warn("[XManius voice meter error]", err);
+        if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+          finishVoiceSession({ focus: true, abort: true });
+          showVoiceNotice("Microphone permission was denied. Please allow microphone in browser settings.");
           return;
         }
-        window.clearTimeout(voiceRestartTimer);
-        voiceRestartTimer = window.setTimeout(restart, 100);
-      };
-      try {
-        instance.start();
-      } catch {
-        void startAudioMeter();
       }
-    } else {
-      void startAudioMeter();
+    }
+
+    if (Recognition) {
+      try {
+        const instance = new Recognition();
+        recognition = instance;
+        instance.lang = appSettings.language === "auto" ? (navigator.language || "en-US") : appSettings.language;
+        instance.interimResults = true;
+        instance.continuous = true;
+        instance.maxAlternatives = 3;
+        const isCurrentSession = () => recognition === instance && voiceSessionId === sessionId;
+
+        instance.onstart = () => {
+          if (!isCurrentSession()) return;
+          listening = true;
+          input.placeholder = "Listening…";
+        };
+
+        instance.onresult = (event) => {
+          if (!isCurrentSession()) return;
+          let interimText = "";
+          for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const alternatives = [...event.results[index]].filter((alt) => alt?.transcript).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+            const transcript = alternatives[0]?.transcript || "";
+            if (event.results[index].isFinal) finalText = `${finalText.trim()} ${transcript.trim()}`.trim();
+            else interimText += transcript;
+          }
+          input.value = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
+          updateHasText();
+          adjustInputHeight();
+        };
+
+        instance.onerror = (event) => {
+          if (!isCurrentSession()) return;
+          console.warn("[XManius speech recognition error]", event.error);
+          if (event.error === "no-speech" || event.error === "network" || event.error === "aborted") return;
+          if (audioStarted && voiceMediaRecorder && voiceMediaRecorder.state === "recording") {
+            return;
+          }
+          if (event.error === "not-allowed") {
+            finishVoiceSession({ focus: true, abort: true });
+            showVoiceNotice("Microphone access was denied. Please allow microphone in browser settings.");
+          } else {
+            finishVoiceSession({ focus: true });
+          }
+        };
+
+        instance.onend = () => {
+          if (!isCurrentSession()) return;
+          if (voiceStopRequested) {
+            finishVoiceSession({ focus: true });
+            return;
+          }
+          if (listening && form.classList.contains("is-listening")) {
+            window.clearTimeout(voiceRestartTimer);
+            voiceRestartTimer = window.setTimeout(() => {
+              if (isCurrentSession() && !voiceStopRequested) {
+                try { instance.start(); } catch {}
+              }
+            }, 100);
+          }
+        };
+
+        instance.start();
+      } catch (recErr) {
+        console.warn("[XManius SpeechRecognition start]", recErr);
+      }
     }
   };
   attachFilesButton?.addEventListener("click", () => {
@@ -2725,15 +3236,106 @@
     const pastedFiles = [...(event.clipboardData?.items || [])].map((item) => item.kind === "file" ? item.getAsFile() : null).filter(Boolean);
     if (pastedFiles.length) { event.preventDefault(); void addSelectedFiles(pastedFiles); }
   });
-  form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
-  input.addEventListener("input", () => form.classList.toggle("has-text", Boolean(input.value.trim())));
+  const adjustInputHeight = () => {
+    if (input && input.tagName === "TEXTAREA") {
+      input.style.height = "auto";
+      const newHeight = Math.min(input.scrollHeight, 200);
+      input.style.height = `${Math.max(28, newHeight)}px`;
+    }
+  };
+  const updateHasText = () => {
+    if (form && input) {
+      form.classList.toggle("has-text", Boolean(input.value && input.value.trim().length > 0));
+    }
+  };
+  updateHasText();
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (input.tagName === "TEXTAREA") input.style.height = "28px";
+    form.classList.remove("has-text");
+    ask(input.value);
+  });
+  input.addEventListener("input", () => {
+    updateHasText();
+    adjustInputHeight();
+  });
+  input.addEventListener("change", updateHasText);
+  input.addEventListener("keyup", updateHasText);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (form.requestSubmit) form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
+  });
   sendButton?.addEventListener("click", (event) => {
     if (!activeRequestController) return;
     event.preventDefault();
     activeRequestStopReason = "user";
     activeRequestController.abort();
   });
-  document.querySelector("[data-chat-mic]")?.addEventListener("click", startVoice);
+  const micBtn = document.querySelector("[data-chat-mic]");
+  if (micBtn) {
+    micBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void startVoice();
+    });
+  }
+  document.addEventListener("click", (event) => {
+    const mic = event.target.closest?.("[data-chat-mic], .composer-mic");
+    if (mic && !event.defaultPrevented) {
+      event.preventDefault();
+      event.stopPropagation();
+      void startVoice();
+      return;
+    }
+    const prevBtn = event.target.closest?.("[data-carousel-prev]");
+    if (prevBtn) {
+      event.preventDefault();
+      const carousel = prevBtn.closest("[data-carousel]");
+      const track = carousel?.querySelector(".carousel-track");
+      if (track) track.scrollBy({ left: -track.clientWidth * 0.75, behavior: "smooth" });
+      return;
+    }
+    const nextBtn = event.target.closest?.("[data-carousel-next]");
+    if (nextBtn) {
+      event.preventDefault();
+      const carousel = nextBtn.closest("[data-carousel]");
+      const track = carousel?.querySelector(".carousel-track");
+      if (track) track.scrollBy({ left: track.clientWidth * 0.75, behavior: "smooth" });
+      return;
+    }
+    const dotBtn = event.target.closest?.("[data-carousel-dot]");
+    if (dotBtn) {
+      event.preventDefault();
+      const idx = parseInt(dotBtn.dataset.carouselDot, 10);
+      const carousel = dotBtn.closest("[data-carousel]");
+      const track = carousel?.querySelector(".carousel-track");
+      const slides = track?.querySelectorAll(".carousel-slide");
+      if (track && slides && slides[idx]) {
+        slides[idx].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+      }
+      return;
+    }
+  });
+  document.addEventListener("scroll", (event) => {
+    const track = event.target.closest?.(".carousel-track");
+    if (!track) return;
+    const carousel = track.closest("[data-carousel]");
+    if (!carousel) return;
+    const slides = track.querySelectorAll(".carousel-slide");
+    const dots = carousel.querySelectorAll(".carousel-dot");
+    if (!slides.length || !dots.length) return;
+    const scrollLeft = track.scrollLeft;
+    let activeIdx = 0;
+    slides.forEach((slide, i) => {
+      if (slide.offsetLeft - track.offsetLeft <= scrollLeft + track.clientWidth * 0.4) {
+        activeIdx = i;
+      }
+    });
+    dots.forEach((dot, i) => dot.classList.toggle("is-active", i === activeIdx));
+  }, { passive: true, capture: true });
 
   const handleDictationSend = () => {
     const textToSend = input.value.trim();
@@ -2832,9 +3434,13 @@
       else pillText.textContent = "Flash";
     }
 
+    const modelBtnText = document.querySelector("#header-model-btn [data-active-model-name]");
+    if (modelBtnText) {
+      modelBtnText.textContent = getModelDisplayName(selectedModel);
+    }
     const brandHeader = document.getElementById("header-brand-guest");
     if (brandHeader) {
-      brandHeader.textContent = getModelDisplayName(selectedModel);
+      brandHeader.style.display = "none";
     }
 
     const geminiDropdown = document.getElementById("gemini-model-dropdown");
@@ -3019,21 +3625,67 @@
 
     listEl.replaceChildren();
 
+    if (!chat || !chat.messages?.length) {
+      chat = readChats().find((item) => item.id === currentChatId) || chat;
+    }
+
     const allAttachments = [];
     const seenIds = new Set();
+
+    // 1. Collect from saved chat messages
     if (chat && Array.isArray(chat.messages)) {
       chat.messages.forEach((msg) => {
         if (Array.isArray(msg.attachments)) {
           msg.attachments.forEach((att) => {
-            if (att && att.id && !seenIds.has(att.id)) {
-              seenIds.add(att.id);
-              allAttachments.push(att);
-            } else if (att && !att.id) {
+            const id = att?.id || att?.name;
+            if (id && !seenIds.has(id)) {
+              seenIds.add(id);
               allAttachments.push(att);
             }
           });
         }
       });
+    }
+
+    // 2. Collect from live DOM messages in active chat
+    document.querySelectorAll(".message").forEach((msgEl) => {
+      try {
+        const refs = JSON.parse(msgEl.dataset.attachmentRefs || "[]");
+        refs.forEach((att) => {
+          const id = att?.id || att?.name;
+          if (id && !seenIds.has(id)) {
+            seenIds.add(id);
+            allAttachments.push(att);
+          }
+        });
+      } catch (_) {}
+    });
+
+    // 3. Collect from current pending attachments
+    if (Array.isArray(pendingAttachments)) {
+      pendingAttachments.forEach((att) => {
+        const id = att?.id || att?.name;
+        if (id && !seenIds.has(id)) {
+          seenIds.add(id);
+          allAttachments.push(att);
+        }
+      });
+    }
+
+    // 4. Fallback: check Library files
+    if (!allAttachments.length && window.XmaniusLibrary?.getMediaFiles) {
+      try {
+        const libFiles = await window.XmaniusLibrary.getMediaFiles();
+        if (Array.isArray(libFiles)) {
+          libFiles.forEach((file) => {
+            const id = file?.id || file?.name;
+            if (id && !seenIds.has(id)) {
+              seenIds.add(id);
+              allAttachments.push(file);
+            }
+          });
+        }
+      } catch (_) {}
     }
 
     if (!allAttachments.length) {
@@ -3045,7 +3697,7 @@
         if (!full.data && full.id) {
           try {
             const saved = await attachmentDb.get(full.id);
-            if (saved) full = saved;
+            if (saved) full = Object.assign({}, ref, saved);
           } catch (_) {}
         }
 
@@ -3055,17 +3707,21 @@
         const iconBox = document.createElement("div");
         iconBox.className = "files-drawer-icon-box";
 
-        const isImg = full.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(full.name || "");
+        const isImg = full.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(full.name || "") || full.type === "image";
         const isPdf = full.mimeType === "application/pdf" || /\.pdf$/i.test(full.name || "");
 
-        if (isImg) {
+        const imgSrc = full.blobUrl || full.thumbnail || full.url || (full.data ? (full.data.startsWith("data:") ? full.data : `data:${full.mimeType || "image/png"};base64,${full.data}`) : "");
+        if (isImg && imgSrc) {
+          iconBox.style.background = "#1e1f20";
+          iconBox.innerHTML = `<img src="${imgSrc}" alt="${escapeHtml(full.name || 'image')}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;display:block;">`;
+        } else if (isImg) {
           iconBox.style.background = "#c5221f";
           iconBox.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`;
         } else if (isPdf) {
           iconBox.style.background = "#ea4335";
           iconBox.textContent = "PDF";
         } else {
-          iconBox.style.background = "#5f6368";
+          iconBox.style.background = "#3c4043";
           const ext = (full.name || "").split(".").pop()?.toUpperCase() || "DOC";
           iconBox.textContent = ext.slice(0, 4);
         }
@@ -3080,7 +3736,7 @@
 
         const ext = document.createElement("div");
         ext.className = "files-drawer-item-ext";
-        const extText = (full.name || "").split(".").pop()?.toUpperCase() || (isPdf ? "PDF" : "FILE");
+        const extText = (full.name || "").split(".").pop()?.toUpperCase() || (isPdf ? "PDF" : (isImg ? "IMAGE" : "FILE"));
         ext.textContent = extText;
 
         info.appendChild(title);
@@ -4196,7 +4852,20 @@
     });
     return menu;
   };
-  accountButton?.addEventListener("click", (event) => { event.stopPropagation(); if (profileMenu) { closeProfileMenu(); return; } profileMenu = createProfileMenu(); accountButton.parentElement.append(profileMenu); });
+  accountButton?.addEventListener("click", (event) => {
+    if (event.target.closest(".account-settings-btn, [data-open-settings]")) return;
+    event.stopPropagation();
+    const isGuest = window.XmaniusAuth ? window.XmaniusAuth.getUserProfile().isGuest : true;
+    if (isGuest) {
+      if (typeof window.XmaniusAuth?.openAuthModal === "function") {
+        window.XmaniusAuth.openAuthModal("signin");
+        return;
+      }
+    }
+    if (profileMenu) { closeProfileMenu(); return; }
+    profileMenu = createProfileMenu();
+    accountButton.parentElement.append(profileMenu);
+  });
   document.addEventListener("click", (event) => { if (profileMenu && !event.target.closest("[data-account-button], .profile-menu")) closeProfileMenu(); });
   document.addEventListener("click", (event) => { if (settingsChoiceMenu && !event.target.closest("[data-setting-choice], .settings-choice-menu-portal")) closeSettingsChoiceMenu(); });
   window.addEventListener("resize", positionSettingsChoiceMenu);
@@ -4333,13 +5002,13 @@
       uploadPopover.classList.add("is-open");
       uploadPopover.setAttribute("aria-hidden", "false");
       composerPlusBtn?.setAttribute("aria-expanded", "true");
-      if (composerPlusBtn) composerPlusBtn.textContent = "×";
+      composerPlusBtn?.classList.add("is-active");
     } else {
       uploadPopover.setAttribute("hidden", "");
       uploadPopover.classList.remove("is-open");
       uploadPopover.setAttribute("aria-hidden", "true");
       composerPlusBtn?.setAttribute("aria-expanded", "false");
-      if (composerPlusBtn) composerPlusBtn.textContent = "+";
+      composerPlusBtn?.classList.remove("is-active");
     }
   };
 
@@ -4355,7 +5024,11 @@
 
   uploadPopover?.querySelector("[data-popover-camera]")?.addEventListener("click", () => {
     setUploadPopover(false);
-    cameraInput?.click();
+    if (typeof openCamera === "function") {
+      openCamera();
+    } else {
+      cameraInput?.click();
+    }
   });
 
   uploadPopover?.querySelector("[data-popover-live-voice]")?.addEventListener("click", () => {

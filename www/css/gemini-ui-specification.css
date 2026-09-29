@@ -1,0 +1,1011 @@
+/* ==========================================================================
+   Google Gemini UI Design System Specification & Architecture
+   Exact Pixel-Perfect Match to Gemini Reference Image (media_1790609958288.png)
+   ========================================================================== */
+
+:root {
+  /* --------------------------------------------------------------------------
+     1. Design System Tokens & Surface Palette (Material You / M3)
+     -------------------------------------------------------------------------- */
+  --gem-sys-color-surface: #0f0f10;
+  --gem-sys-color-surface-container: #1e1f20;
+  --gem-sys-color-surface-container-high: #282a2c;
+  --gem-sys-color-surface-variant: #333537;
+  --gem-sys-color-outline: #8e918f;
+  --gem-sys-color-outline-variant: #444746;
+  --gem-sys-color-primary: #a8c7fa;
+  --gem-sys-color-primary-container: #004a77;
+  --gem-sys-color-on-surface: #e3e3e3;
+  --gem-sys-color-on-surface-variant: #c4c7c5;
+
+  /* Aliases mapped to component variables */
+  --bg-primary: #0f0f10;
+  --surface-input: #1e1f20;
+  --surface-input-hover: #282a2c;
+  --surface-sidebar: #1e1f20;
+  --surface-code: #1e1f20;
+  --surface-code-header: #282a2c;
+  --surface-hover: #282a2c;
+  --text-primary: #e3e3e3;
+  --text-secondary: #c4c7c5;
+  --text-tertiary: #8e918f;
+  --text-white: #ffffff;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-outline: #444746;
+  --accent-blue: #a8c7fa;
+  --chat-bg: #0f0f10;
+
+  /* --------------------------------------------------------------------------
+     2. Typography Stacks
+     -------------------------------------------------------------------------- */
+  --gem-font-primary: "Google Sans", "Google Sans Text", "Product Sans", sans-serif;
+  --gem-font-body: "Google Sans Text", "Google Sans", "Product Sans", sans-serif;
+  --gem-font-mono: "Roboto Mono", Consolas, monospace;
+  --gem-font-math: "KaTeX_Math", "KaTeX_Main", "Google Sans", sans-serif;
+
+  /* --------------------------------------------------------------------------
+     3. Sidenav Metrics
+     -------------------------------------------------------------------------- */
+  --bard-sidenav-open-width: 260px;
+  --bard-sidenav-closed-width: 72px;
+  --bard-transition-easing: cubic-bezier(0.2, 0, 0, 1);
+  --bard-transition-duration: 250ms;
+}
+
+/* --------------------------------------------------------------------------
+   4. Application Shell & Background
+   -------------------------------------------------------------------------- */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: var(--gem-sys-color-surface) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  font-family: var(--gem-font-primary) !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+  overflow: hidden !important;
+}
+
+.chat-app {
+  display: flex !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  position: relative !important;
+  background-color: var(--gem-sys-color-surface) !important;
+  overflow: hidden !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. Sidenav Navigation
+   -------------------------------------------------------------------------- */
+.chat-sidebar {
+  width: var(--bard-sidenav-open-width) !important;
+  flex: 0 0 var(--bard-sidenav-open-width) !important;
+  max-width: var(--bard-sidenav-open-width) !important;
+  height: 100vh !important;
+  background-color: var(--gem-sys-color-surface-container) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.04) !important;
+  box-sizing: border-box !important;
+  padding: 12px 12px 8px 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: width var(--bard-transition-duration) var(--bard-transition-easing),
+              flex-basis var(--bard-transition-duration) var(--bard-transition-easing),
+              max-width var(--bard-transition-duration) var(--bard-transition-easing) !important;
+  z-index: 100 !important;
+  overflow-x: hidden !important;
+}
+
+.chat-app.sidebar-collapsed .chat-sidebar {
+  width: var(--bard-sidenav-closed-width) !important;
+  flex: 0 0 var(--bard-sidenav-closed-width) !important;
+  max-width: var(--bard-sidenav-closed-width) !important;
+  padding: 12px 8px 8px 8px !important;
+}
+
+.sidebar-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 48px !important;
+  padding: 0 4px 8px 8px !important;
+}
+
+.sidebar-panel-button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.sidebar-panel-button:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+/* Mode Switcher (Chat / Cortex) */
+.sidebar-mode-switcher {
+  display: flex !important;
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  border-radius: 20px !important;
+  padding: 4px !important;
+  margin: 8px 0 16px 0 !important;
+  gap: 2px !important;
+}
+
+.sidebar-mode-switcher .mode-tab {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  height: 32px !important;
+  border-radius: 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.sidebar-mode-switcher .mode-tab.is-active {
+  background-color: var(--gem-sys-color-surface-container-high) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+.sidebar-mode-switcher .mode-beta-badge {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  background-color: var(--gem-sys-color-primary-container) !important;
+  color: var(--gem-sys-color-primary) !important;
+  padding: 1px 5px !important;
+  border-radius: 8px !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Primary Navigation Items */
+.sidebar-primary-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin-bottom: 12px !important;
+}
+
+.sidebar-nav-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  height: 40px !important;
+  padding: 0 12px !important;
+  border-radius: 20px !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+  text-align: left !important;
+}
+
+.sidebar-nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+.sidebar-nav-item.is-new-chat {
+  height: 44px !important;
+  border-radius: 22px !important;
+  background-color: var(--gem-sys-color-surface-container-high) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  font-weight: 500 !important;
+}
+
+.sidebar-nav-item.is-new-chat:hover {
+  background-color: var(--gem-sys-color-surface-variant) !important;
+}
+
+/* History List / Recents */
+.sidebar-recents {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  margin: 0 -4px !important;
+  padding: 0 4px !important;
+}
+
+.sidebar-label {
+  padding: 16px 12px 6px 12px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  color: var(--gem-sys-color-outline) !important;
+  margin: 0 !important;
+}
+
+.recent-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.recent-list .recent-item,
+.recent-list .conversation-row,
+.recent-list button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  height: 40px !important;
+  padding: 0 12px !important;
+  border-radius: 20px !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  background: transparent !important;
+  border: none !important;
+  width: 100% !important;
+  text-align: left !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.recent-list .recent-item:hover,
+.recent-list .conversation-row:hover,
+.recent-list button:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+.recent-list .recent-item.is-active,
+.recent-list .conversation-row.is-active {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  font-weight: 500 !important;
+}
+
+/* User Account Drawer */
+.sidebar-account {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 52px !important;
+  padding: 6px 8px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.04) !important;
+  margin-top: auto !important;
+  background: transparent !important;
+}
+
+.sidebar-account-info b {
+  font-size: 14px !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  font-weight: 500 !important;
+}
+
+.sidebar-account-info small {
+  font-size: 12px !important;
+  color: var(--gem-sys-color-outline) !important;
+}
+
+.account-settings-btn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.account-settings-btn:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. Main Stage & Ambient Sapphire Glow (Exact Match to Reference)
+   -------------------------------------------------------------------------- */
+body.is-empty-state:not(.is-temporary-chat-mode) .chat-main,
+body:not(.is-temporary-chat-mode) .chat-main,
+.chat-main {
+  flex: 1 !important;
+  height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  background-color: #0f0f10 !important;
+  background-image: radial-gradient(ellipse 960px 540px at 50% 52%, rgba(24, 44, 115, 0.65) 0%, rgba(20, 36, 96, 0.45) 32%, rgba(16, 26, 72, 0.24) 58%, rgba(15, 15, 16, 0) 84%) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Header */
+.chat-header {
+  flex: 0 0 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 56px !important;
+  padding: 0 20px !important;
+  background: transparent !important;
+  z-index: 10 !important;
+}
+
+/* Redundant hamburger button: strictly hidden on desktop when sidebar is open */
+.sidebar-open,
+.chat-header .sidebar-open,
+.chat-header button.sidebar-open,
+.chat-header .icon-button.sidebar-open,
+.header-left-group .sidebar-open,
+.header-left-group button.sidebar-open,
+.chat-app:not(.sidebar-collapsed) .sidebar-open,
+.chat-app:not(.sidebar-collapsed) .chat-header .sidebar-open,
+.chat-app:not(.sidebar-collapsed) .chat-header button.sidebar-open,
+.chat-app:not(.sidebar-collapsed) .chat-header .icon-button.sidebar-open {
+  display: none !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.chat-app.sidebar-collapsed .sidebar-open,
+.chat-app.sidebar-collapsed .chat-header .sidebar-open,
+.chat-app.sidebar-collapsed .chat-header button.sidebar-open,
+.chat-app.sidebar-collapsed .chat-header .icon-button.sidebar-open,
+.chat-app.sidebar-collapsed .header-left-group .sidebar-open {
+  display: grid !important;
+}
+
+.chat-header .sidebar-open:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+.chat-header .model-name {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-family: var(--gem-font-primary) !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  transition: background-color 150ms ease !important;
+}
+
+.chat-header .model-name:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.chat-header .icon-button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.chat-header .icon-button:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+/* Chat Content & Stage */
+.chat-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  padding: 0 20px !important;
+  scroll-behavior: smooth !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. Center Empty State: Greeting & Input Box (Exact Reference Alignment)
+   -------------------------------------------------------------------------- */
+body.is-empty-state .empty-state {
+  position: absolute !important;
+  top: calc(50% - 58px) !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(760px, calc(100% - 36px)) !important;
+  max-width: 760px !important;
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+body.is-empty-state .normal-chat-center {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
+  pointer-events: none !important;
+}
+
+/* Reference Exact Font Color: Pure Clean Solid White (#ffffff / #f0f4f9) */
+body.is-empty-state .greeting-text,
+.greeting-text,
+.greeting-text.gradient-text,
+.gradient-text {
+  font-family: var(--gem-font-primary) !important;
+  font-size: clamp(30px, 3.2vw, 36px) !important;
+  font-weight: 400 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.3px !important;
+  margin: 0 !important;
+  text-align: center !important;
+  display: block !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: none !important;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5) !important;
+  pointer-events: none !important;
+}
+
+/* Reference Exact Location, Width, Length & Shape of Text Box in Empty State */
+body.is-empty-state .chat-composer {
+  position: absolute !important;
+  top: calc(50% + 26px) !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(740px, calc(100% - 40px)) !important;
+  max-width: 740px !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  border-radius: 9999px !important;
+  background-color: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+  margin: 0 !important;
+  padding: 0 10px 0 16px !important;
+  z-index: 50 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important;
+  transition: top 0.28s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+body.is-empty-state .chat-composer:focus-within {
+  background-color: #282a2c !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* In empty state, no disclaimer matching reference image */
+body.is-empty-state .chat-disclaimer {
+  display: none !important;
+}
+
+/* In empty state, hide send button until text is entered */
+body.is-empty-state .send-button:not(.is-active) {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   8. Active Chat State (When Conversation Starts)
+   -------------------------------------------------------------------------- */
+body:not(.is-empty-state) .empty-state {
+  display: none !important;
+}
+
+body:not(.is-empty-state) .chat-composer {
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: min(840px, calc(100% - 32px)) !important;
+  max-width: 840px !important;
+  margin: 8px auto 0 auto !important;
+  padding: 6px 14px 6px 16px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 56px !important;
+  background-color: var(--gem-sys-color-surface-container) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 28px !important;
+  transition: background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease !important;
+  flex-shrink: 0 !important;
+  z-index: 50 !important;
+}
+
+body:not(.is-empty-state) .chat-composer:focus-within {
+  background-color: var(--gem-sys-color-surface-container-high) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+body:not(.is-empty-state) .chat-disclaimer {
+  display: block !important;
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  color: var(--gem-sys-color-outline) !important;
+  text-align: center !important;
+  margin: 8px auto 8px auto !important;
+  padding: 0 16px !important;
+  width: 100% !important;
+  max-width: 840px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* --------------------------------------------------------------------------
+   9. Composer Controls Styling (Matching Reference Image)
+   -------------------------------------------------------------------------- */
+.composer-plus {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  color: #c4c7c5 !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.composer-plus:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.chat-input {
+  flex: 1 !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  font-family: var(--gem-font-primary) !important;
+  font-size: 15px !important;
+  line-height: 24px !important;
+  color: #e3e3e3 !important;
+  padding: 0 8px !important;
+}
+
+.chat-input::placeholder {
+  color: #8e918f !important;
+}
+
+.composer-right-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.composer-model-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #c4c7c5 !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  cursor: pointer !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.composer-model-pill:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.composer-mic {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  color: #c4c7c5 !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.composer-mic:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.composer-mic.is-active,
+.chat-composer.is-listening .composer-mic {
+  color: var(--gem-sys-color-primary) !important;
+  background-color: rgba(168, 199, 250, 0.12) !important;
+}
+
+.send-button {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--gem-sys-color-outline) !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.send-button:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+/* --------------------------------------------------------------------------
+   10. Conversational Stream & Message Hierarchy
+   -------------------------------------------------------------------------- */
+.message-list {
+  width: 100% !important;
+  max-width: 840px !important;
+  margin: 0 auto !important;
+  padding: 24px 20px 40px 20px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+}
+
+/* User Message Query: Right-aligned elevated bubble */
+.message.user {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  width: 100% !important;
+  max-width: 840px !important;
+  margin: 16px auto !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.user-message-bubble {
+  max-width: 80% !important;
+  background-color: var(--gem-sys-color-surface-container-high) !important;
+  border-radius: 22px !important;
+  padding: 12px 20px !important;
+  box-sizing: border-box !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  font-family: var(--gem-font-body) !important;
+  font-size: 16px !important;
+  line-height: 24px !important;
+  letter-spacing: 0.15px !important;
+  word-break: break-word !important;
+}
+
+.user-message-bubble .message-body {
+  color: var(--gem-sys-color-on-surface) !important;
+  font-size: 16px !important;
+  line-height: 24px !important;
+}
+
+/* Assistant Message: Open, uncontained flowing stream */
+.message.assistant {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  max-width: 840px !important;
+  margin: 12px auto 32px auto !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.message.assistant .message-body {
+  width: 100% !important;
+  font-family: var(--gem-font-body) !important;
+  font-size: 16px !important;
+  line-height: 1.625 !important;
+  letter-spacing: 0.15px !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  word-break: break-word !important;
+}
+
+.message.assistant .message-body h1 {
+  font-family: var(--gem-font-primary) !important;
+  font-size: 24px !important;
+  font-weight: 500 !important;
+  line-height: 32px !important;
+  margin: 28px 0 12px 0 !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+.message.assistant .message-body h2 {
+  font-family: var(--gem-font-primary) !important;
+  font-size: 20px !important;
+  font-weight: 500 !important;
+  line-height: 28px !important;
+  margin: 24px 0 10px 0 !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+.message.assistant .message-body h3 {
+  font-family: var(--gem-font-primary) !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  line-height: 24px !important;
+  margin: 20px 0 8px 0 !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+.message.assistant .message-body p {
+  margin: 0 0 16px 0 !important;
+}
+
+.message.assistant .message-body ul,
+.message.assistant .message-body ol {
+  padding-left: 24px !important;
+  margin: 0 0 16px 0 !important;
+}
+
+.message.assistant .message-body li {
+  margin-bottom: 8px !important;
+}
+
+.message.assistant .message-body blockquote {
+  border-left: 3px solid var(--gem-sys-color-outline-variant) !important;
+  padding: 8px 16px !important;
+  margin: 16px 0 !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+}
+
+.message.assistant .message-body strong,
+.message.assistant .message-body b {
+  font-weight: 600 !important;
+  color: #ffffff !important;
+}
+
+.message.assistant .message-body a {
+  color: var(--gem-sys-color-primary) !important;
+  text-decoration: none !important;
+}
+
+.message.assistant .message-body a:hover {
+  text-decoration: underline !important;
+}
+
+/* --------------------------------------------------------------------------
+   11. Subsystems: Tables, Code Blocks, KaTeX
+   -------------------------------------------------------------------------- */
+.table-block,
+table {
+  width: 100% !important;
+  margin: 20px 0 !important;
+  border: 1px solid var(--gem-sys-color-outline-variant) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background-color: var(--gem-sys-color-surface) !important;
+  border-collapse: collapse !important;
+  text-align: left !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+}
+
+thead {
+  background-color: var(--gem-sys-color-surface-container) !important;
+  border-bottom: 1px solid var(--gem-sys-color-outline-variant) !important;
+}
+
+th {
+  padding: 12px 16px !important;
+  font-weight: 500 !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  white-space: nowrap !important;
+  border-bottom: 1px solid var(--gem-sys-color-outline-variant) !important;
+}
+
+td {
+  padding: 12px 16px !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  vertical-align: top !important;
+}
+
+tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+pre {
+  margin: 16px 0 !important;
+  border-radius: 8px !important;
+  background-color: var(--gem-sys-color-surface-container) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.code-block-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 8px 16px !important;
+  background-color: var(--gem-sys-color-surface-container-high) !important;
+  font-size: 12px !important;
+  color: var(--gem-sys-color-on-surface-variant) !important;
+}
+
+pre code {
+  display: block !important;
+  padding: 16px !important;
+  overflow-x: auto !important;
+  font-family: var(--gem-font-mono) !important;
+  font-size: 13.5px !important;
+  line-height: 22px !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  background: transparent !important;
+}
+
+:not(pre) > code {
+  font-family: var(--gem-font-mono) !important;
+  font-size: 13.5px !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  background-color: var(--gem-sys-color-surface-container-high) !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+/* Syntax Highlighting */
+.token.keyword, .hljs-keyword { color: #f28b82 !important; }
+.token.string, .hljs-string { color: #81c995 !important; }
+.token.function, .hljs-title.function_, .hljs-function { color: #8ab4f8 !important; }
+.token.number, .hljs-number { color: #fdd663 !important; }
+.token.comment, .hljs-comment { color: #80868b !important; }
+.token.operator, .hljs-operator { color: #e8eaed !important; }
+.token.class-name, .hljs-title.class_ { color: #c58af9 !important; }
+
+/* Mathematical Displays (KaTeX) */
+.katex-display {
+  display: block !important;
+  margin: 16px 0 !important;
+  text-align: center !important;
+  overflow-x: auto !important;
+  padding: 8px 0 !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+.katex {
+  font-family: var(--gem-font-math) !important;
+  font-size: 1.1em !important;
+  color: var(--gem-sys-color-on-surface) !important;
+}
+
+/* --------------------------------------------------------------------------
+   12. Popovers & Menus
+   -------------------------------------------------------------------------- */
+.composer-upload-popover,
+.header-chat-menu-dropdown,
+.conversation-menu {
+  background-color: var(--gem-sys-color-surface-container-high) !important;
+  border: 1px solid var(--gem-sys-color-outline-variant) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  padding: 6px !important;
+}
+
+.upload-popover-item,
+.header-chat-menu-dropdown button,
+.conversation-menu button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 14px !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--gem-sys-color-on-surface) !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: background-color 120ms ease !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.upload-popover-item:hover,
+.header-chat-menu-dropdown button:hover,
+.conversation-menu button:hover {
+  background-color: var(--gem-sys-color-surface-variant) !important;
+  color: #ffffff !important;
+}
+
+/* --------------------------------------------------------------------------
+   13. Responsive Adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .chat-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: min(85vw, 280px) !important;
+    transform: translateX(-100%) !important;
+    transition: transform var(--bard-transition-duration) var(--bard-transition-easing) !important;
+    z-index: 1000 !important;
+    box-shadow: 16px 0 40px rgba(0, 0, 0, 0.5) !important;
+  }
+  .chat-app.sidebar-visible .chat-sidebar {
+    transform: translateX(0) !important;
+  }
+  .sidebar-open,
+  .chat-header .sidebar-open,
+  .header-left-group .sidebar-open {
+    display: grid !important;
+  }
+  body.is-empty-state .chat-composer {
+    width: calc(100% - 24px) !important;
+  }
+  .message-list {
+    padding: 16px 12px 30px 12px !important;
+  }
+}

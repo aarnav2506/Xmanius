@@ -669,9 +669,9 @@ body.xmanius-theme-light .message-body .inline-source-link {
 
 .message.assistant.long-response .message-body p,
 .message.assistant.long-response .message-body li {
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Google Sans Text", "Google Sans", Roboto, sans-serif;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 24px;
 }
 
 .message.assistant.long-response .message-body h3 {
@@ -952,7 +952,7 @@ body.xmanius-theme-light .message-body .inline-source-link {
   border-radius: 0 !important;
   background: transparent !important;
   color: inherit !important;
-  font-family: "Cambria Math", "STIX Two Math", "Segoe UI Symbol", ui-sans-serif, sans-serif !important;
+  font-family: "Google Sans", "KaTeX_Math", "KaTeX_Main", "Cambria Math", sans-serif !important;
   font-size: clamp(.9rem, 1.85vw, 1.06rem) !important;
   font-weight: 500;
   line-height: 1.5;
@@ -972,7 +972,7 @@ body.xmanius-theme-light .message-body .inline-source-link {
   max-width: 100%;
   overflow-wrap: anywhere;
   color: inherit;
-  font-family: "Cambria Math", "STIX Two Math", "Segoe UI Symbol", ui-sans-serif, sans-serif;
+  font-family: "Google Sans", "KaTeX_Math", "KaTeX_Main", "Cambria Math", sans-serif;
   vertical-align: baseline;
 }
 
@@ -1442,7 +1442,7 @@ body.xmanius-theme-light .settings-memory-card {
   border: 0;
   align-items: center;
   justify-content: center;
-  font-family: "Cambria Math", "STIX Two Math", "Segoe UI Symbol", sans-serif;
+  font-family: "KaTeX_Math", "STIX Two Math", "Cambria Math", sans-serif;
   font-size: 1.5em;
   line-height: 1;
 }
@@ -1538,7 +1538,7 @@ body.xmanius-theme-light .math-matrix {
   display: inline-flex;
   align-items: baseline;
   color: inherit;
-  font-family: "Cambria Math", "STIX Two Math", "Segoe UI Symbol", ui-sans-serif, sans-serif;
+  font-family: "Google Sans", "KaTeX_Math", "KaTeX_Main", "Cambria Math", sans-serif;
   vertical-align: baseline;
 }
 

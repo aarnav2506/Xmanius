@@ -143,7 +143,7 @@
   };
 
   const addUserActions = (article) => {
-    if (!article || !article.classList.contains("user") || article.dataset.xmaniusActions === "true") return;
+    if (!article || !article.classList.contains("user") || article.dataset.xmaniusActions === "true" || article.querySelector(".user-message-actions, .xmanius-user-actions")) return;
     article.dataset.xmaniusActions = "true";
 
     const actions = document.createElement("div");
@@ -193,6 +193,7 @@
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   };
+  window.__xmaniusBeginEdit = beginEdit;
 
   const collectHistoryBefore = (article) => {
     const articles = [...list.querySelectorAll(":scope > .message")];
@@ -354,9 +355,7 @@
     button.type = "button";
     button.className = "xmanius-scroll-bottom";
     button.setAttribute("aria-label", "Scroll to latest message");
-    button.title = "Scroll to latest message";
-    button.innerHTML = "↓";
-    button.hidden = true;
+    button.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
     chatMain.append(button);
 
     const update = () => {

@@ -1,20 +1,42 @@
 /* Center Layout, Wide Spread Glow & Theme Fixes */
-@import url('https://fonts.cdnfonts.com/css/google-sans');
+@import url('./google-sans.css');
 
-@font-face {
-  font-family: 'Google Sans';
-  font-style: normal;
-  font-weight: 400;
-  src: local('Google Sans'), local('Product Sans'), url('https://fonts.cdnfonts.com/s/14955/ProductSans-Regular.woff') format('woff');
-}
-@font-face {
-  font-family: 'Google Sans';
-  font-style: normal;
-  font-weight: 500;
-  src: local('Google Sans Medium'), local('Product Sans Medium'), url('https://fonts.cdnfonts.com/s/14955/ProductSans-Medium.woff') format('woff');
+:root {
+  --gemini-text-primary: #e3e3e3;
+  --gemini-text-secondary: #c4c7c5;
+  --gemini-surface-container: #1e1f20;
 }
 
 [hidden] { display: none !important; }
+
+/* ─── Global Google Sans Typography Everywhere ─── */
+*,
+*::before,
+*::after {
+  font-family: "Google Sans Text", "Google Sans", "Product Sans", Roboto, sans-serif !important;
+}
+
+html, body, button, input, textarea, select, .chat-app, .chat-main, .chat-content, .message, .message-body, .sidebar-recents, .conversation, .conversation-row, .settings-shell, .settings-main, .settings-nav {
+  font-family: "Google Sans Text", "Google Sans", "Product Sans", Roboto, sans-serif !important;
+}
+
+/* ─── Sidebar Width (Expanded 280px) ─── */
+.chat-sidebar {
+  transition: width 0.25s cubic-bezier(0.2, 0, 0, 1), flex-basis 0.25s cubic-bezier(0.2, 0, 0, 1), max-width 0.25s cubic-bezier(0.2, 0, 0, 1), padding 0.25s cubic-bezier(0.2, 0, 0, 1) !important;
+  will-change: width, flex-basis;
+  overflow-x: hidden !important;
+}
+.chat-sidebar,
+.chat-app:not(.sidebar-collapsed) .chat-sidebar {
+  flex: 0 0 280px !important;
+  width: 280px !important;
+  max-width: 280px !important;
+}
+.chat-app.sidebar-collapsed .chat-sidebar {
+  flex: 0 0 60px !important;
+  width: 60px !important;
+  max-width: 60px !important;
+}
 
 /* Definite clickability & display guards */
 .model-picker:not(.is-open) {
@@ -96,6 +118,7 @@
 }
 
 /* Clean up empty state overlays — keep only greeting & type box like Gemini */
+body.is-empty-state .header-left-group #header-model-btn,
 body.is-empty-state .header-left-group .header-brand-title,
 body.is-empty-state .header-left-group #header-brand-guest,
 body.is-empty-state .header-tools .usage-indicator,
@@ -103,14 +126,20 @@ body.is-empty-state .chat-disclaimer {
   display: none !important;
 }
 
-/* Normal Chat Empty State: Subtle, deep nocturnal sapphire glow matching Gemini */
+/* Redundant guest title element permanently hidden */
+.header-brand-title,
+#header-brand-guest {
+  display: none !important;
+}
+
+/* Normal Chat Empty State: Exact Gemini midnight blue to obsidian radial gradient */
 body.is-empty-state:not(.is-temporary-chat-mode) .chat-main {
   display: flex !important;
   flex-direction: column !important;
   position: relative !important;
   overflow: hidden !important;
   background:
-    radial-gradient(ellipse 750px 440px at 50% 43%, #18284c 0%, #152240 28%, #131a2e 54%, #13151a 78%, #131314 100%) !important;
+    radial-gradient(ellipse 720px 440px at 50% 42%, #131b2e 0%, #0e0e11 80%, #08080a 100%) !important;
 }
 
 /* Temporary Chat Empty State: Clean Gemini ambient GREY/MONOCHROME glow (strictly no blue) */
@@ -120,7 +149,8 @@ body.is-temporary-chat-mode.is-empty-state .chat-main {
   position: relative !important;
   overflow: hidden !important;
   background:
-    radial-gradient(ellipse 750px 440px at 50% 43%, #262729 0%, #202123 28%, #1a1b1d 54%, #151617 78%, #131314 100%) !important;
+    radial-gradient(ellipse 640px 350px at 50% 43%, rgba(65, 68, 75, 0.55) 0%, rgba(45, 48, 54, 0.35) 28%, rgba(28, 30, 34, 0.16) 58%, rgba(20, 21, 23, 0.04) 80%, transparent 100%),
+    #131314 !important;
 }
 
 body.xmanius-theme-light .chat-app,
@@ -131,16 +161,14 @@ body.xmanius-theme-light .chat-main {
 /* Light Theme Normal Chat: Luminous celestial sky-blue ambient glow around text box */
 body.xmanius-theme-light.is-empty-state:not(.is-temporary-chat-mode) .chat-main {
   background:
-    radial-gradient(ellipse 700px 380px at 50% 43%, rgba(147, 197, 253, 0.45) 0%, rgba(186, 220, 255, 0.28) 40%, transparent 80%),
-    radial-gradient(ellipse 1100px 650px at 50% 43%, rgba(200, 225, 255, 0.55) 0%, rgba(220, 238, 255, 0.35) 35%, rgba(238, 246, 255, 0.15) 65%, #ffffff 85%),
+    radial-gradient(ellipse 640px 350px at 50% 43%, rgba(175, 210, 255, 0.45) 0%, rgba(205, 228, 255, 0.25) 35%, rgba(230, 242, 255, 0.08) 70%, transparent 100%),
     #ffffff !important;
 }
 
 /* Light Theme Temporary Chat: Soft neutral light grey ambient glow around text box */
 body.xmanius-theme-light.is-temporary-chat-mode.is-empty-state .chat-main {
   background:
-    radial-gradient(ellipse 700px 380px at 50% 43%, rgba(190, 195, 200, 0.45) 0%, rgba(210, 215, 220, 0.25) 40%, transparent 80%),
-    radial-gradient(ellipse 1100px 650px at 50% 43%, rgba(225, 228, 232, 0.55) 0%, rgba(235, 238, 240, 0.32) 35%, rgba(245, 246, 248, 0.15) 65%, #ffffff 85%),
+    radial-gradient(ellipse 640px 350px at 50% 43%, rgba(200, 204, 210, 0.45) 0%, rgba(220, 224, 228, 0.25) 35%, rgba(240, 242, 245, 0.08) 70%, transparent 100%),
     #ffffff !important;
 }
 
@@ -188,18 +216,26 @@ body.is-empty-state .normal-chat-center {
 }
 
 body.is-empty-state .greeting-text {
-  font-family: 'Google Sans', 'Product Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: "Google Sans", "Google Sans Display", "Product Sans", sans-serif !important;
   font-size: 32px !important;
   font-weight: 400 !important;
-  color: #ffffff !important; /* Pure white, bright and clean like Gemini */
-  letter-spacing: -0.012em !important;
-  line-height: 1.25 !important;
+  color: #e3e3e3 !important; /* Material Dark Surface On-Surface token #E3E3E3 */
+  letter-spacing: -0.5px !important;
+  line-height: 40px !important;
   margin: 0 !important;
   text-align: center !important;
   pointer-events: none !important;
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5) !important;
+  text-shadow: none !important;
   -webkit-font-smoothing: antialiased !important;
   -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+@media (min-width: 1440px) {
+  body.is-empty-state .greeting-text {
+    font-size: 36px !important;
+    line-height: 44px !important;
+  }
 }
 
 /* Unnecessary greeting subtitles strictly removed */
@@ -248,46 +284,52 @@ body.is-temporary-chat-mode.is-empty-state .chat-composer {
   top: calc(44% + 45px) !important;
 }
 
-/* Centered Text Bar (Gemini exact width & height, shifted upward) */
-body.is-empty-state .chat-composer {
+/* Centered Text Bar (Gemini exact compact length & 52px height, shifted upward) */
+body.is-empty-state .chat-composer,
+body.is-empty-state .chat-input-container {
   position: absolute !important;
   top: calc(44% + 32px) !important;
   left: 50% !important;
   right: auto !important;
   bottom: auto !important;
   transform: translate(-50%, -50%) !important;
-  width: min(760px, calc(100% - 36px)) !important;
-  max-width: 760px !important;
-  height: 52px !important;
+  width: min(590px, calc(100% - 48px)) !important;
+  max-width: 590px !important;
+  height: auto !important;
   min-height: 52px !important;
-  border-radius: 9999px !important;
-  background-color: #1e1f20 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 26px !important;
+  background-color: var(--md-sys-color-surface-container-high, #1e1f20) !important;
+  border: 1px solid var(--md-sys-color-outline-variant, rgba(255, 255, 255, 0.1)) !important;
   margin: 0 !important;
-  padding: 0 10px 0 16px !important;
+  padding: 8px 14px 8px 16px !important;
   z-index: 50 !important;
   pointer-events: auto !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
   gap: 8px !important;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35) !important;
-  transition: top 0.28s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.2s ease, min-height 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              top 0.28s cubic-bezier(0.25, 1, 0.5, 1),
+              border-radius 0.2s ease, min-height 0.2s ease, width 0.2s ease !important;
+  box-sizing: border-box !important;
 }
 
-body.is-empty-state:not(.is-temporary-chat-mode) .chat-composer {
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 35px rgba(28, 56, 120, 0.16) !important;
+body.is-empty-state:not(.is-temporary-chat-mode) .chat-composer,
+body.is-empty-state:not(.is-temporary-chat-mode) .chat-input-container {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 35px rgba(28, 56, 120, 0.16) !important;
 }
 
-body.is-temporary-chat-mode.is-empty-state .chat-composer {
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 30px rgba(100, 105, 115, 0.12) !important;
+body.is-temporary-chat-mode.is-empty-state .chat-composer,
+body.is-temporary-chat-mode.is-empty-state .chat-input-container {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 30px rgba(100, 105, 115, 0.12) !important;
 }
 
-/* When image/file attachments are added, morph into a rectangular box with smooth edges (Screenshot 4) */
-body.is-empty-state:has(.attachment-preview-card) .chat-composer,
-body.is-empty-state:has(.composer-attachments.is-visible) .chat-composer,
+/* When image/file attachments are added in empty state, morph into a rectangular box with smooth edges */
 body.is-empty-state.has-attachments .chat-composer,
-.chat-composer.has-attachments {
-  border-radius: 24px !important; /* Rectangular with smooth edges */
+body.is-empty-state:has(.composer-attachments.is-visible) .chat-composer {
+  border-radius: 24px !important;
   height: auto !important;
   min-height: 140px !important;
   padding: 14px 18px 12px 18px !important;
@@ -299,19 +341,17 @@ body.is-empty-state.has-attachments .chat-composer,
   grid-template-columns: auto 1fr !important;
   row-gap: 10px !important;
   column-gap: 12px !important;
-  top: calc(50% + 45px) !important;
+  position: absolute !important;
+  top: calc(44% + 64px) !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  bottom: auto !important;
 }
 
-body.is-empty-state:has(.attachment-preview-card) .empty-state,
-body.is-empty-state:has(.composer-attachments.is-visible) .empty-state,
-body.is-empty-state.has-attachments .empty-state {
-  top: calc(50% - 150px) !important;
-}
-
-body.is-empty-state:has(.attachment-preview-card) .chat-disclaimer,
-body.is-empty-state:has(.composer-attachments.is-visible) .chat-disclaimer,
-body.is-empty-state.has-attachments .chat-disclaimer {
-  top: calc(50% + 160px) !important;
+body.is-empty-state.has-attachments .empty-state,
+body.is-empty-state:has(.composer-attachments.is-visible) .empty-state {
+  top: calc(44% - 64px) !important;
+  transform: translate(-50%, -50%) !important;
 }
 
 /* Ensure model picker pops up cleanly above the composer without causing layout distortion */
@@ -365,23 +405,26 @@ body.xmanius-theme-light .chat-composer.is-listening {
   border-color: #dadce0 !important;
 }
 
-/* Centered Disclaimer Text Below Composer in Empty State */
-body.is-empty-state .chat-disclaimer {
-  position: absolute !important;
-  top: calc(50% + 72px) !important;
+/* Pinned Disclaimer Text Fixed at Bottom (Gemini exact) */
+.chat-disclaimer,
+body.is-empty-state .chat-disclaimer,
+body:not(.is-empty-state) .chat-disclaimer {
+  position: fixed !important;
+  bottom: 8px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   margin: 0 !important;
+  top: auto !important;
   text-align: center !important;
   white-space: nowrap !important;
   z-index: 5 !important;
-  color: #858585 !important;
-  font-size: 12px !important;
+  color: #71767b !important;
+  font-size: 11.5px !important;
   pointer-events: none !important;
 }
 
-body.xmanius-theme-light.is-empty-state .chat-disclaimer {
-  color: #6b7280 !important;
+body.xmanius-theme-light .chat-disclaimer {
+  color: #707078 !important;
 }
 
 /* -------------------------------------------------------------
@@ -494,19 +537,18 @@ body.xmanius-theme-light .composer-tool {
   align-items: center !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  overflow: hidden !important;
 }
 
 .conversation {
   flex: 1 1 auto !important;
   min-width: 0 !important;
-  max-width: calc(100% - 30px) !important;
+  max-width: 100% !important;
   display: block !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   text-align: left !important;
-  font-size: 14px !important;
+  font-size: 13.5px !important;
   line-height: 1.4 !important;
 }
 
@@ -1055,12 +1097,14 @@ body.xmanius-theme-light .attachment-file-preview {
 }
 
 .sidebar-label {
-  margin: 6px 12px 6px !important;
-  color: #8e8e93 !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.08em !important;
-  text-transform: uppercase !important;
+  font-family: "Google Sans Text", sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.2px !important;
+  color: #8e918f !important;
+  padding: 16px 16px 6px 16px !important;
+  margin: 0 !important;
+  text-transform: none !important;
 }
 
 .recent-list {
@@ -1070,8 +1114,8 @@ body.xmanius-theme-light .attachment-file-preview {
   overflow-x: hidden !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 3px !important;
-  padding: 0 4px !important;
+  gap: 2px !important;
+  padding: 0 8px !important;
 }
 
 .conversation-row {
@@ -1079,38 +1123,65 @@ body.xmanius-theme-light .attachment-file-preview {
   display: flex !important;
   align-items: center !important;
   width: 100% !important;
-  min-height: 38px !important;
-  height: 38px !important;
+  min-height: 36px !important;
+  height: 36px !important;
   padding: 0 10px !important;
-  border-radius: 10px !important;
+  border-radius: 9999px !important;
   box-sizing: border-box !important;
-  transition: background 0.12s ease !important;
+  transition: background 0.15s ease !important;
+  overflow: hidden !important;
 }
 
-.conversation-row:hover,
+.conversation-row.is-pinned {
+  padding-left: 15px !important;
+}
+.conversation-row.is-pinned::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 5px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  background: #8edcff !important;
+}
+
+.conversation-row:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+.conversation-row.is-active,
+.conversation-row.is-selected,
 .conversation-row.is-menu-open {
-  background: #212124 !important;
+  background: #282a2d !important;
 }
 
 .conversation {
-  flex: 1 1 auto !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
   min-width: 0 !important;
+  max-width: 100% !important;
   display: block !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   text-align: left !important;
-  font-size: 14px !important;
+  font-family: "Google Sans Text", "Google Sans", sans-serif !important;
+  font-size: 14.5px !important;
   font-weight: 450 !important;
-  color: #e3e3e3 !important;
+  color: #c4c7c5 !important;
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
   cursor: pointer !important;
+  line-height: 36px !important;
+  box-sizing: border-box !important;
+  transition: color 0.15s ease, padding-right 0.15s ease !important;
 }
 
 .conversation-row:hover .conversation {
   color: #ffffff !important;
+  padding-right: 28px !important;
 }
 
 body.xmanius-theme-light .conversation-row:hover,
@@ -1722,11 +1793,12 @@ body.xmanius-theme-light .model-key-opt.is-selected {
 
 /* 2. Sidebar */
 .chat-sidebar {
-  background: #1e1f20 !important;
+  background: #1c1b18 !important;
   border-right: none !important;
   box-shadow: none !important;
-  width: 272px !important;
-  flex: 0 0 272px !important;
+  width: 280px !important;
+  max-width: 280px !important;
+  flex: 0 0 280px !important;
   box-sizing: border-box !important;
 }
 
@@ -1753,9 +1825,9 @@ body.xmanius-theme-light .chat-sidebar {
 .chat-logo-full {
   display: block !important;
   width: auto !important;
-  max-width: 96px !important;
-  height: 15px !important;
-  max-height: 15px !important;
+  max-width: 100px !important;
+  height: 16px !important;
+  max-height: 16px !important;
   object-fit: contain !important;
   object-position: left center !important;
   transition: opacity 0.15s ease !important;
@@ -1790,49 +1862,54 @@ body.xmanius-theme-light .sidebar-panel-button:hover {
   color: #1f1f1f !important;
 }
 
-/* Segmented Mode Switcher: [ Chat | Cortex BETA ] */
+/* Segmented Mode Switcher: [ Chat | Cortex/Spark BETA ] */
 .sidebar-mode-switcher {
   display: flex !important;
-  background: #131314 !important;
-  border: 1px solid #282a2d !important;
-  border-radius: 9999px !important;
-  padding: 4px !important;
+  background: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  border-radius: 24px !important;
+  padding: 3px !important;
   margin: 6px 12px 12px !important;
-  gap: 4px !important;
+  gap: 2px !important;
 }
 .mode-tab {
   flex: 1 !important;
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
-  padding: 6px 12px !important;
-  border-radius: 9999px !important;
-  font-size: 13px !important;
+  padding: 6px 16px !important;
+  border-radius: 24px !important;
+  font-family: "Google Sans Text", "Google Sans", Roboto, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
   font-weight: 500 !important;
-  color: #9aa0a6 !important;
+  color: #8e918f !important;
   background: transparent !important;
   border: 0 !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+              color 150ms cubic-bezier(0.2, 0, 0, 1) !important;
 }
 .mode-tab:hover {
-  color: #e3e3e3 !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.05) !important;
 }
 .mode-tab.is-active {
   background: #282a2c !important;
   color: #ffffff !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 .mode-beta-badge {
-  font-size: 9px !important;
-  font-weight: 700 !important;
+  font-family: "Google Sans Text", "Google Sans", Roboto, sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
   letter-spacing: 0.5px !important;
-  padding: 1px 5px !important;
+  padding: 2px 5px !important;
   border-radius: 4px !important;
-  background: rgba(138, 180, 248, 0.2) !important;
-  color: #8ab4f8 !important;
+  background: rgba(168, 199, 250, 0.12) !important;
+  color: #a8c7fa !important;
   text-transform: uppercase !important;
 }
 
@@ -1840,60 +1917,74 @@ body.xmanius-theme-light .sidebar-panel-button:hover {
 .sidebar-primary-nav {
   display: flex !important;
   flex-direction: column !important;
-  gap: 3px !important;
-  padding: 0 10px !important;
-  margin-bottom: 8px !important;
+  gap: 2px !important;
+  padding: 0 6px !important;
+  margin-bottom: 6px !important;
 }
 .sidebar-nav-item {
   display: flex !important;
   align-items: center !important;
-  gap: 14px !important;
+  gap: 12px !important;
   width: 100% !important;
   min-height: 40px !important;
-  padding: 8px 14px !important;
-  border-radius: 9999px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  border-radius: 20px !important;
   background: transparent !important;
   border: 0 !important;
   color: #e3e3e3 !important;
+  font-family: "Google Sans Text", Roboto, sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   text-align: left !important;
   cursor: pointer !important;
-  transition: background 0.15s ease !important;
+  transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+              color 150ms cubic-bezier(0.2, 0, 0, 1) !important;
   box-sizing: border-box !important;
 }
 .sidebar-nav-item:hover {
-  background: #282a2d !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
 }
 .sidebar-nav-item svg {
   flex-shrink: 0 !important;
-  width: 18px !important;
-  height: 18px !important;
-  color: #9aa0a6 !important;
+  width: 20px !important;
+  height: 20px !important;
+  color: #c4c7c5 !important;
 }
 .sidebar-nav-item:hover svg {
   color: #ffffff !important;
 }
 
-/* "New chat" pill button matches user reference media_1789104265698.png */
+/* "New chat" pill button matches Gemini specification */
 .sidebar-nav-item.is-new-chat,
 .sidebar-nav-item[data-new-chat] {
-  background: #282a2d !important;
-  color: #ffffff !important;
+  background: #1e1f20 !important;
+  color: #e3e3e3 !important;
+  font-family: "Google Sans Text", Roboto, sans-serif !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
+  border-radius: 20px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
   cursor: pointer !important;
   pointer-events: auto !important;
   position: relative !important;
   z-index: 10 !important;
+  transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+              color 150ms cubic-bezier(0.2, 0, 0, 1) !important;
 }
 .sidebar-nav-item.is-new-chat:hover,
 .sidebar-nav-item[data-new-chat]:hover {
-  background: #333539 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
 }
 .sidebar-nav-item.is-new-chat svg,
 .sidebar-nav-item[data-new-chat] svg {
+  color: #e3e3e3 !important;
+}
+.sidebar-nav-item.is-new-chat:hover svg,
+.sidebar-nav-item[data-new-chat]:hover svg {
   color: #ffffff !important;
 }
 
@@ -1907,108 +1998,196 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   color: #1f2937 !important;
 }
 
-/* Guest footer — minimal, row-style items */
-.sidebar-guest-footer {
-  margin-top: auto !important;
-  padding: 8px 10px !important;
+/* Scrollable Recent Chats Container (prevents pushing footer off-screen) */
+.sidebar-recents {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin-bottom: 8px !important;
+  padding-right: 2px !important;
+  padding-bottom: 24px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #444746 transparent !important;
+}
+
+.sidebar-recents::-webkit-scrollbar {
+  width: 4px !important;
+}
+.sidebar-recents::-webkit-scrollbar-track {
+  background: transparent !important;
+  margin: 10px 0 !important;
+}
+.sidebar-recents::-webkit-scrollbar-thumb {
+  background: #444746 !important;
+  border-radius: 9999px !important;
+}
+.sidebar-recents::-webkit-scrollbar-thumb:hover {
+  background: #747775 !important;
+}
+
+body.xmanius-theme-light .sidebar-recents {
+  scrollbar-color: #c4c7c5 transparent !important;
+}
+body.xmanius-theme-light .sidebar-recents::-webkit-scrollbar-thumb {
+  background: #c4c7c5 !important;
+}
+body.xmanius-theme-light .sidebar-recents::-webkit-scrollbar-thumb:hover {
+  background: #8e918f !important;
+}
+
+.recent-list {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
+  padding: 0 8px !important;
 }
-.sidebar-guest-menu-btn {
-  display: flex !important;
-  align-items: center !important;
-  gap: 14px !important;
-  width: 100% !important;
-  min-height: 40px !important;
-  padding: 8px 14px !important;
-  border-radius: 9999px !important;
-  background: transparent !important;
-  border: 0 !important;
-  color: #e3e3e3 !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  text-align: left !important;
-  cursor: pointer !important;
-  transition: background 0.15s ease !important;
+
+/* Guest footer removed — unified into persistent sidebar-account */
+.sidebar-guest-footer {
+  display: none !important;
 }
-.sidebar-guest-menu-btn:hover {
-  background: #282a2d !important;
-  color: #ffffff !important;
-}
-.sidebar-guest-menu-btn svg {
-  flex-shrink: 0 !important;
-  color: #9aa0a6 !important;
-}
-/* Hide the card (login card not needed as sidebar item) */
 .sidebar-guest-card {
   display: none !important;
 }
 
-/* Sidebar Account Button (logged-in) */
-.sidebar-account[style*="display: none"],
-.sidebar-account[style*="display:none"],
-.sidebar-account[hidden] {
-  display: none !important;
-}
+/* Persistent Sidebar Account / Profile Card (Gemini Reference Identical) */
 .sidebar-account {
-  display: flex;
+  display: flex !important;
   align-items: center !important;
   gap: 10px !important;
-  width: 100% !important;
-  padding: 8px 14px !important;
-  margin-top: auto !important;
+  width: calc(100% - 12px) !important;
+  margin: auto 6px 6px 6px !important;
+  padding: 6px 8px !important;
+  border-radius: 9999px !important;
   background: transparent !important;
   border: 0 !important;
   color: #e3e3e3 !important;
   cursor: pointer !important;
   text-align: left !important;
-  border-radius: 9999px !important;
+  flex-shrink: 0 !important;
   transition: background 0.15s ease !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
 }
+
 .sidebar-account:hover {
   background: #282a2d !important;
 }
+
 .sidebar-account .avatar {
   width: 32px !important;
   height: 32px !important;
   border-radius: 50% !important;
-  background: #8ab4f8 !important;
+  background: #9c27b0 !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  display: grid !important;
+  place-items: center !important;
   flex-shrink: 0 !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
 }
+
+.sidebar-account .avatar svg {
+  width: 20px !important;
+  height: 20px !important;
+  display: block !important;
+}
+
 .sidebar-account-info {
   flex: 1 !important;
   min-width: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  gap: 2px !important;
 }
+
 .sidebar-account-info b {
-  font-size: 13.5px !important;
-  font-weight: 600 !important;
-  color: #f1f3f4 !important;
+  font-family: "Google Sans Text", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #e3e3e3 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  line-height: 1.25 !important;
 }
+
 .sidebar-account-info small {
-  font-size: 11.5px !important;
-  color: #9aa0a6 !important;
+  font-family: "Google Sans Text", sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: #c4c7c5 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.25 !important;
 }
-.account-more {
-  font-size: 15px !important;
+
+.account-settings-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 0 !important;
   color: #9aa0a6 !important;
-  letter-spacing: 0.5px !important;
-  padding: 4px !important;
-  border-radius: 6px !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
 }
-.account-more:hover {
-  background: #282a2d !important;
+
+.account-settings-btn svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: currentColor !important;
+  display: block !important;
+}
+
+.account-settings-btn:hover {
+  background: #383a3e !important;
   color: #ffffff !important;
+}
+
+/* Light Theme Sidebar Account */
+body.xmanius-theme-light .sidebar-account:hover {
+  background: #e8eaed !important;
+}
+body.xmanius-theme-light .sidebar-account-info b {
+  color: #1f1f1f !important;
+}
+body.xmanius-theme-light .sidebar-account-info small {
+  color: #5f6368 !important;
+}
+body.xmanius-theme-light .account-settings-btn {
+  color: #5f6368 !important;
+}
+body.xmanius-theme-light .account-settings-btn:hover {
+  background: #dadce0 !important;
+  color: #1f1f1f !important;
 }
 
 /* Collapsed Settings Gear: Hide in expanded state */
 .sidebar-collapsed-footer {
   display: none !important;
+}
+
+/* Smooth Transitions for Collapsible Sidebar Items */
+.chat-sidebar .nav-item-label,
+.chat-sidebar .sidebar-recents,
+.chat-sidebar .sidebar-account-info,
+.chat-sidebar .chat-logo-full {
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 /* Collapsed Sidebar */
@@ -2019,7 +2198,7 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   background: transparent !important;
   border-right: none !important;
   align-items: center !important;
-  overflow: visible !important;
+  overflow-x: hidden !important;
 }
 .chat-app.sidebar-collapsed .chat-logo-text,
 .chat-app.sidebar-collapsed .chat-logo-full,
@@ -2102,29 +2281,87 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
 .chat-app.sidebar-collapsed .sidebar-guest-menu-btn span {
   display: none !important;
 }
-.chat-app.sidebar-collapsed .sidebar-collapsed-footer {
-  margin-top: auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  align-items: center !important;
-  width: 100% !important;
+/* Hide extra icons of Settings and Help, and collapsed redundant buttons */
+.sidebar-guest-footer,
+.sidebar-guest-menu-btn,
+.sidebar-collapsed-footer,
+.sidebar-nav-bottom {
+  display: none !important;
 }
-.chat-app.sidebar-collapsed .sidebar-collapsed-gear-btn {
-  width: 40px !important;
-  height: 40px !important;
+
+/* ─── Profile Row (Avatar, Name/Subtitle & Setting Gear Icon on Right) ─── */
+.sidebar-account {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  min-height: 52px !important;
+  margin-top: auto !important;
+  padding: 8px 10px !important;
+  border: 0 !important;
   border-radius: 12px !important;
   background: transparent !important;
-  border: 0 !important;
-  color: #9aa0a6 !important;
+  color: #ffffff !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: background 0.15s ease !important;
+}
+.sidebar-account:hover {
+  background: #282a2d !important;
+}
+.sidebar-account .avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
   display: grid !important;
   place-items: center !important;
-  cursor: pointer !important;
 }
-.chat-app.sidebar-collapsed .sidebar-collapsed-gear-btn:hover {
-  background: #282a2d !important;
+.sidebar-account-info {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  overflow: hidden !important;
+}
+.sidebar-account-info b {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #f1f3f4 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.sidebar-account-info small {
+  font-size: 11px !important;
+  color: #9aa0a6 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.account-settings-btn {
+  display: grid !important;
+  place-items: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: #c4c7c5 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+  flex-shrink: 0 !important;
+}
+.account-settings-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
 }
+
+/* In collapsed rail mode, show only avatar at bottom */
 .chat-app.sidebar-collapsed .sidebar-account {
   width: 40px !important;
   height: 40px !important;
@@ -2134,53 +2371,107 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   border: 0 !important;
   border-radius: 50% !important;
 }
+.chat-app.sidebar-collapsed .sidebar-account-info,
+.chat-app.sidebar-collapsed .account-settings-btn {
+  display: none !important;
+}
 
-/* 3. Conversation 3-Dots Menu */
+/* 3. Conversation 3-Dots Menu & Spreading Chat Titles */
 .conversation-row {
   position: relative !important;
   display: flex !important;
   align-items: center !important;
-  padding: 2px 4px !important;
+  width: 100% !important;
+  padding: 0 10px !important;
   border-radius: 9999px !important;
-  min-height: 38px !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  box-sizing: border-box !important;
   transition: background 0.15s ease !important;
+  overflow: hidden !important;
+}
+.conversation-row.is-pinned {
+  padding-left: 15px !important;
+}
+.conversation-row.is-pinned::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 5px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  background: #8edcff !important;
 }
 .conversation-row:hover,
 .conversation-row.is-menu-open {
-  background: #282a2d !important;
+  background: #212327 !important;
+  border-radius: 8px !important;
+}
+.conversation-row.is-active,
+.conversation-row.is-selected {
+  background: #2d2f31 !important;
+  border-radius: 8px !important;
 }
 .conversation-row .conversation {
-  flex: 1 !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  font-family: "Google Sans Text", Roboto, sans-serif !important;
   font-size: 13.5px !important;
-  color: #e3e3e3 !important;
+  line-height: 36px !important;
+  font-weight: 400 !important;
+  color: #c4c7c5 !important;
   background: transparent !important;
   border: 0 !important;
   text-align: left !important;
-  padding: 8px 12px !important;
+  padding: 0 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: color 150ms cubic-bezier(0.2, 0, 0, 1), padding-right 150ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+.conversation-row:hover .conversation {
+  color: #ffffff !important;
+  padding-right: 28px !important;
+}
+.conversation-row.is-active .conversation,
+.conversation-row.is-selected .conversation {
+  color: #e3e3e3 !important;
+  font-weight: 500 !important;
 }
 .conversation-more {
+  position: absolute !important;
+  right: 6px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
   display: grid !important;
   place-items: center !important;
-  width: 32px !important;
-  height: 32px !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
   border-radius: 50% !important;
-  background: transparent !important;
+  background: #282a2d !important;
   border: 0 !important;
   color: #9aa0a6 !important;
-  font-size: 18px !important;
+  font-size: 16px !important;
   letter-spacing: 0 !important;
   opacity: 0 !important;
+  pointer-events: none !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
-  margin-right: 4px !important;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease !important;
+  z-index: 5 !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
 }
 .conversation-row:hover .conversation-more,
 .conversation-row.is-menu-open .conversation-more {
   opacity: 1 !important;
+  pointer-events: auto !important;
 }
 .conversation-more:hover {
   background: #37393b !important;
@@ -2192,12 +2483,12 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   z-index: 1000 !important;
   display: flex !important;
   flex-direction: column !important;
-  width: 215px !important;
+  width: 200px !important;
   padding: 6px !important;
-  border: 1px solid #3c4043 !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
   border-radius: 16px !important;
   background: #1e1f20 !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
   gap: 2px !important;
 }
 .conversation-menu-portal button,
@@ -2206,26 +2497,32 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   align-items: center !important;
   gap: 12px !important;
   width: 100% !important;
-  padding: 9px 12px !important;
+  padding: 10px 14px !important;
   border-radius: 10px !important;
   background: transparent !important;
   border: 0 !important;
   color: #e3e3e3 !important;
   font-size: 14px !important;
-  font-weight: 500 !important;
+  font-weight: 400 !important;
   cursor: pointer !important;
   text-align: left !important;
-  transition: background 0.12s ease !important;
+  transition: background 0.12s ease, color 0.12s ease !important;
 }
 .conversation-menu-portal button:hover,
 .conversation-menu button:hover {
-  background: #2a2b2e !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
 }
 .conversation-menu-portal button svg,
 .conversation-menu button svg {
-  color: #9aa0a6 !important;
+  color: #c4c7c5 !important;
   flex-shrink: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+.conversation-menu-portal button:hover svg,
+.conversation-menu button:hover svg {
+  color: #ffffff !important;
 }
 
 /* 4. Right-Side Files Drawer */
@@ -2256,21 +2553,29 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
 }
 .files-drawer-header h2 {
   margin: 0 !important;
-  font-size: 20px !important;
-  font-weight: 600 !important;
-  color: #ffffff !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  color: #f1f3f4 !important;
 }
 .files-drawer-close {
   background: transparent !important;
   border: 0 !important;
-  color: #9aa0a6 !important;
-  font-size: 18px !important;
-  width: 32px !important;
-  height: 32px !important;
+  color: #c4c7c5 !important;
+  width: 36px !important;
+  height: 36px !important;
   border-radius: 50% !important;
   cursor: pointer !important;
   display: grid !important;
   place-items: center !important;
+  padding: 0 !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+.files-drawer-close svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: currentColor !important;
+  display: block !important;
 }
 .files-drawer-close:hover {
   background: #282a2d !important;
@@ -2282,20 +2587,20 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   padding: 18px 20px !important;
 }
 .files-drawer-section-title {
-  font-family: 'Google Sans', Roboto, sans-serif !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  color: #e3e3e3 !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #c4c7c5 !important;
   margin: 16px 0 8px 0 !important;
-  text-transform: none !important;
-  letter-spacing: normal !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
 }
 .files-drawer-created-empty {
   font-family: 'Google Sans Text', Roboto, sans-serif !important;
-  font-size: 13.5px !important;
-  color: #8e918f !important;
-  text-align: center !important;
-  padding: 24px 12px !important;
+  font-size: 14px !important;
+  color: #9aa0a6 !important;
+  text-align: left !important;
+  padding: 6px 0 16px 0 !important;
   font-style: normal !important;
 }
 .files-drawer-list {
@@ -2307,18 +2612,21 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
   display: flex !important;
   align-items: center !important;
   gap: 12px !important;
-  padding: 8px 10px !important;
+  padding: 10px 12px !important;
   border-radius: 12px !important;
+  background: #282a2d !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   cursor: pointer !important;
-  transition: background 0.15s ease !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
   text-decoration: none !important;
 }
 .files-drawer-item:hover {
-  background: #282a2d !important;
+  background: #383a3e !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 .files-drawer-icon-box {
-  width: 34px !important;
-  height: 34px !important;
+  width: 38px !important;
+  height: 38px !important;
   border-radius: 8px !important;
   background: #c5221f !important;
   display: grid !important;
@@ -2370,7 +2678,131 @@ body.xmanius-theme-light .sidebar-nav-item[data-new-chat] svg {
 }
 .files-drawer-empty svg {
   margin-bottom: 12px !important;
-  color: #64748b !important;
+  color: #8e918f !important;
+  width: 44px !important;
+  height: 44px !important;
+  opacity: 0.85 !important;
+}
+
+/* Header Model Title / Pill — Clean Gemini Medium Contrast */
+#header-model-btn.model-name {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: #e3e3e3 !important;
+  font-family: 'Google Sans', 'Google Sans Text', Roboto, sans-serif !important;
+  font-size: 17px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.1px !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+#header-model-btn.model-name:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.header-chevron-svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: #9aa0a6 !important;
+  stroke-width: 2 !important;
+  transition: color 0.15s ease !important;
+  flex-shrink: 0 !important;
+}
+
+#header-model-btn.model-name:hover .header-chevron-svg {
+  color: #ffffff !important;
+}
+
+body.xmanius-theme-light #header-model-btn.model-name {
+  color: #1f1f1f !important;
+}
+body.xmanius-theme-light #header-model-btn.model-name:hover {
+  background: #e8eaed !important;
+}
+body.xmanius-theme-light .header-chevron-svg {
+  color: #5f6368 !important;
+}
+
+/* Message Attachments Grid in Chat Messages */
+.message.user .message-attachments {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+  margin-top: 8px !important;
+  width: 100% !important;
+}
+
+.message.user .message-attachments .attachment-preview-card {
+  width: 180px !important;
+  height: 130px !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  border: 1px solid #3c4043 !important;
+  background: #1e1f20 !important;
+  cursor: pointer !important;
+}
+
+.message.user .message-attachments .attachment-preview-card img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+body.xmanius-theme-light .message.user .message-attachments .attachment-preview-card {
+  border-color: #dadce0 !important;
+  background: #f1f2f4 !important;
+}
+
+/* Floating Scroll-to-Bottom Button (Matches Send button style, downward arrow) */
+.xmanius-scroll-bottom {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: 88px !important;
+  transform: translateX(-50%) !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #e3e3e3 !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5) !important;
+  display: grid !important;
+  place-items: center !important;
+  z-index: 60 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease !important;
+}
+
+.xmanius-scroll-bottom:hover {
+  background: #282a2d !important;
+  color: #ffffff !important;
+  transform: translateX(-50%) translateY(-2px) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.xmanius-scroll-bottom[hidden] {
+  display: none !important;
+}
+
+body.xmanius-theme-light .xmanius-scroll-bottom {
+  background: #ffffff !important;
+  border: 1px solid #dadce0 !important;
+  color: #444746 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+}
+body.xmanius-theme-light .xmanius-scroll-bottom:hover {
+  background: #f1f3f4 !important;
+  color: #1f1f1f !important;
 }
 
 /* 5. Temporary Chat Hero & Header Controls */
@@ -2400,7 +2832,7 @@ body.is-temporary-chat-mode.is-empty-state #temporary-chat-hero {
 }
 .temporary-chat-center h1,
 .temporary-chat-title {
-  font-family: 'Google Sans', 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+  font-family: 'Google Sans', 'Google Sans Text', 'Product Sans', sans-serif !important;
   font-size: 32px !important;
   font-weight: 400 !important;
   color: #e3e3e3 !important;
@@ -2408,7 +2840,7 @@ body.is-temporary-chat-mode.is-empty-state #temporary-chat-hero {
   letter-spacing: -0.01em !important;
 }
 .temporary-chat-desc {
-  font-family: 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+  font-family: 'Google Sans Text', 'Google Sans', 'Product Sans', sans-serif !important;
   font-size: 14px !important;
   line-height: 1.55 !important;
   color: #9aa0a6 !important;
@@ -2584,21 +3016,63 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
    6. COMPOSER — Single-row pill (Gemini-accurate)
    [+ icon]  [input fills space]  [Flash v]  [mic]  [send]
 ------------------------------------------------------- */
-.chat-composer {
-  max-width: 760px !important;
-  width: min(760px, calc(100% - 36px)) !important;
-  border-radius: 9999px !important;
-  background-color: #1e1f20 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  height: 52px !important;
+.chat-composer,
+.chat-input-container {
+  max-width: 590px !important;
+  width: min(590px, calc(100% - 48px)) !important;
+  border-radius: 26px !important;
+  background-color: var(--md-sys-color-surface-container-high, #1e1f20) !important;
+  border: 1px solid var(--md-sys-color-outline-variant, rgba(255, 255, 255, 0.1)) !important;
+  height: auto !important;
   min-height: 52px !important;
-  padding: 0 10px 0 16px !important;
+  padding: 8px 14px 8px 16px !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
   gap: 8px !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
-  transition: border-radius 0.2s ease, min-height 0.2s ease, padding 0.2s ease !important;
-  position: relative !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-radius 0.2s ease, min-height 0.2s ease, padding 0.2s ease !important;
+  position: absolute !important;
+  bottom: 34px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+  right: auto !important;
+  z-index: 50 !important;
+  box-sizing: border-box !important;
+}
+
+body:not(.is-empty-state) .chat-composer,
+body:not(.is-empty-state) .chat-input-container {
+  position: absolute !important;
+  bottom: 34px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+  right: auto !important;
+  z-index: 50 !important;
+  width: min(590px, calc(100% - 48px)) !important;
+  max-width: 590px !important;
+}
+
+body:not(.is-empty-state) .chat-composer.has-attachments,
+body:not(.is-empty-state) .chat-composer:has(.composer-attachments.is-visible) {
+  position: absolute !important;
+  bottom: 34px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+}
+
+body:not(.is-empty-state) .chat-content {
+  padding-bottom: 96px !important;
+}
+
+body:not(.is-empty-state).has-attachments .chat-content,
+body:not(.is-empty-state):has(.composer-attachments.is-visible) .chat-content {
+  padding-bottom: 200px !important;
 }
 
 /* Expanded (with attachments): morph to rounded rectangle */
@@ -2663,23 +3137,42 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   cursor: pointer !important;
 }
 
-/* Text input — flex: 1 to stretch between + and right controls */
-.chat-input {
+/* Text input & textarea — matching general output text typography verbatim */
+.chat-input,
+.chat-input-textarea {
   flex: 1 !important;
   grid-area: input !important;
-  font-family: 'Google Sans', 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
-  font-size: 16px !important;
-  font-weight: 400 !important;
-  line-height: 22px !important;
-  color: #e3e3e3 !important;
-  background: transparent !important;
-  border: 0 !important;
+  border: none !important;
   outline: none !important;
-  min-width: 0 !important;
-}
-.chat-input::placeholder {
-  color: #8e918f !important;
+  background: transparent !important;
+  color: #f1f3f4 !important;
+  font-family: "Google Sans Text", "Google Sans", "Product Sans", sans-serif !important;
+  font-size: 1.0625rem !important; /* 17px base, increased slightly for readability */
+  line-height: 1.625 !important; /* ~28px optimal line height, matching general output text */
   font-weight: 400 !important;
+  letter-spacing: 0.01rem !important;
+  resize: none !important;
+  overflow-y: auto !important;
+  max-height: 200px !important;
+  height: 28px !important;
+  padding: 0 10px !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+.chat-input::placeholder,
+.chat-input-textarea::placeholder,
+.chat-input::-webkit-input-placeholder,
+.chat-input-textarea::-webkit-input-placeholder,
+.chat-input::-moz-placeholder,
+.chat-input-textarea::-moz-placeholder {
+  font-family: "Google Sans Text", "Google Sans", "Product Sans", sans-serif !important;
+  font-size: 1.0625rem !important;
+  line-height: 1.625 !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01rem !important;
+  color: #c4c7c5 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #c4c7c5 !important;
 }
 
 /* + icon button: clean and transparent matching Gemini reference */
@@ -2706,6 +3199,12 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   stroke: currentColor !important;
   stroke-width: 2 !important;
   display: block !important;
+  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1) !important;
+  transform-origin: center center !important;
+}
+.composer-plus[aria-expanded="true"] svg,
+.composer-plus.is-active svg {
+  transform: rotate(45deg) !important;
 }
 .composer-plus:hover {
   background: rgba(255, 255, 255, 0.08) !important;
@@ -2729,12 +3228,16 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
 }
 
 /* Upload Popover: opens above + from left */
+.composer-upload-popover[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
 .composer-upload-popover {
   position: absolute !important;
   left: 14px !important;
   bottom: calc(100% + 10px) !important;
   z-index: 500 !important;
-  /* display controlled by [hidden] attribute — do NOT set display here */
   flex-direction: column !important;
   width: 220px !important;
   padding: 6px !important;
@@ -2808,12 +3311,16 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
 }
 
 /* Model Dropdown — right-anchored, opens upward (accurate to reference) */
+.gemini-model-dropdown[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
 .gemini-model-dropdown {
   position: absolute !important;
   right: 14px !important;
   bottom: calc(100% + 10px) !important;
   z-index: 500 !important;
-  /* display controlled by [hidden] attribute — do NOT set display here */
   flex-direction: column !important;
   width: 250px !important;
   padding: 8px 6px !important;
@@ -3026,22 +3533,37 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   display: grid !important;
   place-items: center !important;
   cursor: pointer !important;
-  transition: background 0.15s ease, color 0.15s ease !important;
+  transition: background 0.15s ease, color 0.15s ease, filter 0.15s ease !important;
   flex-shrink: 0 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 20 !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
 .composer-mic:hover {
   background: #282a2d !important;
   color: #e3e3e3 !important;
 }
+.composer-mic.active,
+.chat-composer.is-listening .composer-mic {
+  color: #8be9ff !important;
+  background: rgba(139, 233, 255, 0.15) !important;
+  filter: drop-shadow(0 0 8px rgba(139, 233, 255, 0.45)) !important;
+}
 .composer-mic svg {
   width: 20px !important;
   height: 20px !important;
+  pointer-events: none !important;
 }
 
-/* 10. Blue Send Button */
+/* 10. Blue Send Button — Hidden by default, smoothly appears when input has text or when streaming (stop) */
 .send-button {
-  width: 32px !important;
+  width: 0 !important;
   height: 32px !important;
+  max-width: 0 !important;
   border-radius: 50% !important;
   background: #1a73e8 !important;
   border: 0 !important;
@@ -3049,43 +3571,91 @@ body.xmanius-theme-light .header-chat-menu-dropdown button:hover {
   display: grid !important;
   place-items: center !important;
   cursor: pointer !important;
-  transition: transform 0.15s ease, background 0.15s ease !important;
   flex-shrink: 0 !important;
-}
-.send-button:hover {
-  background: #1b66c9 !important;
-  transform: scale(1.04) !important;
+  opacity: 0 !important;
+  padding: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  transform: translateX(10px) scale(0.6) !important;
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1),
+              transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+              max-width 0.2s cubic-bezier(0.2, 0, 0, 1),
+              width 0.2s cubic-bezier(0.2, 0, 0, 1),
+              margin 0.2s cubic-bezier(0.2, 0, 0, 1),
+              background 0.15s ease !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
 }
 .send-button svg {
   width: 17px !important;
   height: 17px !important;
 }
+.send-button:hover {
+  background: #1b66c9 !important;
+  transform: scale(1.05) !important;
+}
 
-/* Hide send button when composer is empty — matches Gemini reference */
-.chat-composer:not(.has-text):not(:has(.chat-input:not(:placeholder-shown))) .send-button {
-  display: none !important;
+/* Smooth slide in when composer has text, or when streaming (stop button) */
+.chat-composer.has-text .send-button,
+.chat-composer:has(.chat-input:not(:placeholder-shown)) .send-button,
+.chat-composer:has(.chat-input-textarea:not(:placeholder-shown)) .send-button,
+.chat-composer:has(textarea:not(:placeholder-shown)) .send-button,
+.send-button.is-stop {
+  width: 32px !important;
+  max-width: 32px !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  margin-left: 2px !important;
+  transform: translateX(0) scale(1) !important;
 }
 
 /* 11. Message Typography */
 .message.assistant .message-body {
-  font-size: 15.5px !important;
-  line-height: 1.65 !important;
+  font-family: "Google Sans Text", "Google Sans", "Product Sans", sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 24px !important;
   color: #e3e3e3 !important;
 }
-.message.assistant .message-body h1,
-.message.assistant .message-body h2,
-.message.assistant .message-body h3,
-.message.assistant .message-body h4 {
-  font-size: 17.5px !important;
-  font-weight: 600 !important;
-  color: #f1f3f4 !important;
-  margin: 22px 0 10px 0 !important;
-  letter-spacing: -0.01em !important;
+.message.assistant .message-body p {
+  margin-block: 0 16px !important;
 }
-.message.assistant .message-body h1:first-child,
-.message.assistant .message-body h2:first-child,
-.message.assistant .message-body h3:first-child {
-  margin-top: 0 !important;
+.message.assistant .message-body strong,
+.message.assistant .message-body b {
+  font-weight: 600 !important;
+  color: #ffffff !important;
+}
+.message.assistant .message-body h1 {
+  font-family: "Google Sans", "Google Sans Display", sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  line-height: 32px !important;
+  color: #f2f2f2 !important;
+  margin: 24px 0 12px 0 !important;
+}
+.message.assistant .message-body h2 {
+  font-family: "Google Sans", sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  line-height: 28px !important;
+  color: #e8eaed !important;
+  margin: 20px 0 8px 0 !important;
+}
+.message.assistant .message-body h3 {
+  font-family: "Google Sans Text", sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 24px !important;
+  color: #e3e3e3 !important;
+  margin: 16px 0 6px 0 !important;
+}
+.message.assistant .message-body h4 {
+  font-family: "Google Sans Text", sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  line-height: 22px !important;
+  color: #c4c7c5 !important;
+  margin: 14px 0 6px 0 !important;
 }
 .message.assistant .message-body ul {
   margin: 8px 0 16px 20px !important;
@@ -3134,8 +3704,11 @@ body.xmanius-theme-light .message.assistant .message-body h4 {
   color: #1f1f1f !important;
 }
 body.xmanius-theme-light .message.assistant .message-body strong,
-body.xmanius-theme-light .message.assistant .message-body b {
-  color: #000000 !important;
+body.xmanius-theme-light .message.assistant .message-body b,
+body.xmanius-theme-light .message-body strong,
+body.xmanius-theme-light .message-body b {
+  color: #2c3036 !important; /* Soft dark charcoal, avoiding harsh pitch black */
+  font-weight: 550 !important; /* Reduced boldness: balanced medium weight */
 }
 body.xmanius-theme-light .doc-citation-badge,
 body.xmanius-theme-light .pdf-badge {
@@ -3144,10 +3717,12 @@ body.xmanius-theme-light .pdf-badge {
   color: #444746 !important;
 }
 body.xmanius-theme-light .message.user {
-  background: #f0f4f9 !important;
-  color: #1f1f1f !important;
+  background: transparent !important; /* Eliminates full-width blue/gray strip */
+  box-shadow: none !important;
+  border: 0 !important;
 }
 body.xmanius-theme-light .message.user .message-body {
+  background: #e9eef6 !important; /* Gemini soft user message pill */
   color: #1f1f1f !important;
 }
 
@@ -3693,14 +4268,26 @@ body.xmanius-theme-light .files-drawer-item-sub {
   color: #5e5e5e !important;
 }
 body.xmanius-theme-light .conversation-row:hover,
-body.xmanius-theme-light .conversation-row.is-menu-open {
-  background: #e8eaed !important;
+body.xmanius-theme-light .conversation-row.is-menu-open,
+body.xmanius-theme-light .conversation-row.is-active,
+body.xmanius-theme-light .conversation-row.is-selected {
+  background: #e0e2e5 !important;
+}
+body.xmanius-theme-light .conversation-row.is-active .conversation,
+body.xmanius-theme-light .conversation-row.is-selected .conversation {
+  color: #1f1f1f !important;
+  font-weight: 500 !important;
 }
 body.xmanius-theme-light .conversation-row .conversation {
   color: #1f1f1f !important;
 }
 body.xmanius-theme-light .conversation-more {
   color: #5e5e5e !important;
+  background: #e8eaed !important;
+}
+body.xmanius-theme-light .conversation-row:hover .conversation-more,
+body.xmanius-theme-light .conversation-row.is-menu-open .conversation-more {
+  background: #e8eaed !important;
 }
 body.xmanius-theme-light .conversation-more:hover {
   background: #dadce0 !important;
@@ -3739,3 +4326,1258 @@ body.xmanius-theme-light .sidebar-primary-nav .sidebar-nav-item:hover {
   background: #e8eaed !important;
   color: #1f1f1f !important;
 }
+
+/* =============================================================
+   13. ANTIGRAVITY APP CONTENT FORMATTING REFERENCE RULES
+   Sections 1-5: Typography, KaTeX Math, Tables, Media, Callouts
+============================================================= */
+
+/* ─── 1. General Typography & Long-Form Prose (Gemini Front-End UI Architecture) ─── */
+:root {
+  --color-surface-on: #e3e3e3;
+  --gemini-text-primary: #e3e3e3;
+  --gemini-text-secondary: #c4c7c5;
+  --md-sys-color-surface-container-high: #1e1f20;
+  --md-sys-color-outline-variant: rgba(255, 255, 255, 0.1);
+  --md-sys-color-primary: #a8c7fa;
+}
+
+.message-list {
+  display: grid !important;
+  direction: ltr !important;
+  text-align: left !important;
+  width: min(100%, 820px) !important;
+  max-width: 820px !important;
+  gap: 24px !important;
+  padding: 24px 16px 140px !important;
+  margin: 0 auto !important;
+}
+
+.message {
+  box-sizing: border-box !important;
+}
+
+.message.assistant {
+  width: 100% !important;
+  max-width: 100% !important;
+  justify-self: start !important;
+}
+
+.message.assistant .message-body {
+  max-width: 820px !important;
+  font-family: "Google Sans Text", "Google Sans", "Product Sans", sans-serif !important;
+  font-size: 16px !important;
+  line-height: 24px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.015em !important;
+  color: #e3e3e3 !important;
+  overflow-wrap: break-word !important;
+}
+
+.message.assistant .message-body h1 {
+  font-family: "Google Sans", "Google Sans Display", sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  line-height: 32px !important;
+  color: #f2f2f2 !important;
+  margin: 24px 0 12px 0 !important;
+}
+
+.message.assistant .message-body h2 {
+  font-family: "Google Sans", sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  line-height: 28px !important;
+  color: #e8eaed !important;
+  margin: 20px 0 8px 0 !important;
+}
+
+.message.assistant .message-body h3 {
+  font-family: "Google Sans Text", sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 24px !important;
+  color: #e3e3e3 !important;
+  margin: 16px 0 6px 0 !important;
+}
+
+.message.assistant .message-body h4 {
+  font-family: "Google Sans Text", sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  line-height: 22px !important;
+  color: #c4c7c5 !important;
+  margin: 14px 0 6px 0 !important;
+}
+
+/* User message box: more short & broader, dynamically resizable based on text length */
+.message.user {
+  display: flex !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 12px 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.message.user .message-body {
+  display: inline-block !important;
+  width: auto !important;
+  max-width: min(75%, 620px) !important;
+  min-width: 0 !important;
+  padding: 10px 22px !important; /* More short & broader padding */
+  border-radius: 24px !important; /* Broader rounded pill like Gemini */
+  background: #282a2d !important;
+  color: #ffffff !important;
+  font-family: "Google Sans Text", "Google Sans", "Product Sans", sans-serif !important;
+  font-size: 1.0625rem !important; /* 17px base, matching assistant message and input */
+  line-height: 1.625 !important; /* Matching general output text */
+  font-weight: 400 !important;
+  letter-spacing: 0.01rem !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  box-sizing: border-box !important;
+  margin-left: auto !important;
+}
+
+.message.user .message-body p {
+  margin: 0 !important;
+  display: inline !important;
+  line-height: 1.5 !important;
+}
+
+body.xmanius-theme-light .message.user {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+body.xmanius-theme-light .message.user .message-body {
+  background: #e9eef6 !important;
+  color: #1f1f1f !important;
+}
+
+.message-body p {
+  margin: 0 0 16px 0 !important; /* 16px / 1rem bottom margin */
+  text-indent: 0 !important; /* Never indent the first line */
+  line-height: 1.625 !important;
+}
+
+.message-body p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.message-body strong,
+.message-body b {
+  font-weight: 550 !important;
+  color: #f1f3f4 !important;
+}
+
+body.xmanius-theme-light .message-body strong,
+body.xmanius-theme-light .message-body b {
+  font-weight: 550 !important;
+  color: #2c3036 !important;
+}
+
+.message-body em,
+.message-body i {
+  font-style: italic !important;
+  color: #dcdcdc !important;
+}
+
+/* ─── 2. Technical & Mathematical Data (Gemini LaTeX & Code Architecture) ─── */
+/* Part 1: Mathematical LaTeX Presentation Architecture (KaTeX) */
+
+/* --- Webfont Declarations (KaTeX Computer Modern Font Family) --- */
+@font-face {
+  font-family: 'KaTeX_Main';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Main-Regular.woff2') format('woff2'),
+       url('/fonts/KaTeX_Main-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'KaTeX_Math';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Math-Italic.woff2') format('woff2'),
+       url('/fonts/KaTeX_Math-Italic.woff2') format('woff2');
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'KaTeX_Size1';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size1-Regular.woff2') format('woff2'),
+       url('/fonts/KaTeX_Size1-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* --- Inline Math ($...$) Typography & Alignment --- */
+.katex {
+  font-family: 'KaTeX_Main', 'Computer Modern', 'Times New Roman', serif !important;
+  font-size: 1.04em !important;             /* Decreased to match: little more than regular 1.0em */
+  line-height: 1.2;
+  text-indent: 0;
+  text-rendering: auto;
+  white-space: nowrap;
+  color: var(--gemini-text-primary, #e3e3e3) !important;
+}
+
+.katex,
+.katex * {
+  font-family: 'KaTeX_Main', 'Computer Modern', 'Times New Roman', serif !important;
+}
+
+.katex .mathnormal,
+.katex .mathit {
+  font-family: 'KaTeX_Math', serif !important;
+  font-style: italic !important;
+}
+
+.katex .mathbf {
+  font-family: 'KaTeX_Main', serif !important;
+  font-weight: bold !important;
+}
+
+.katex .amsrm {
+  font-family: 'KaTeX_AMS', serif !important;
+}
+
+.katex .katex-size1 {
+  font-family: 'KaTeX_Size1', serif !important;
+}
+
+.math-inline {
+  display: inline-block !important;
+  vertical-align: baseline !important;
+  font-size: 1.04em !important;             /* Little more than regular body text */
+  line-height: 1.3 !important;
+  padding: 0 2px !important;
+  color: var(--gemini-text-primary, #e3e3e3) !important;
+}
+
+.math-inline .katex {
+  font-size: 1em !important;                /* Avoid double scaling inside math-inline */
+}
+
+/* Suppress KaTeX error styling (never render bright red #cc0000 on syntax or stream partials) */
+.katex-error {
+  color: inherit !important;
+  background: transparent !important;
+  border: none !important;
+  text-decoration: none !important;
+  font-family: inherit !important;
+}
+
+/* --- Display Math ($$...$$) Block Container --- */
+.katex-display {
+  display: block !important;
+  margin: 1.25rem 0 !important;             /* Vertical breathing room */
+  padding: 0.5rem 0 !important;
+  text-align: center !important;            /* Centered alignment */
+  overflow-x: auto !important;              /* Horizontal scrolling for long equations */
+  overflow-y: hidden !important;
+  font-size: 1.10em !important;             /* Decreased font size: little more than regular (17.5px) */
+  color: var(--gemini-text-primary, #e3e3e3) !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.katex-display > .katex {
+  display: inline-block !important;
+  text-align: initial !important;
+}
+
+.math-block {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 1.25rem 0 !important;
+  padding: 0.5rem 12px !important;
+  text-align: center !important;
+  overflow-x: auto !important;              /* Horizontal overflow scroll */
+  overflow-y: hidden !important;
+  font-size: 1.10em !important;             /* Calibrated: little more than regular */
+  color: var(--gemini-text-primary, #e3e3e3) !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.math-block .katex-display {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 1em !important;                /* Prevents compounding with parent .math-block */
+  display: block !important;
+  text-align: center !important;
+  color: inherit !important;
+}
+
+/* Custom Scrollbars for Equations (Chrome, Safari, Edge) */
+.katex-display::-webkit-scrollbar,
+.math-block::-webkit-scrollbar {
+  height: 4px;
+}
+.katex-display::-webkit-scrollbar-track,
+.math-block::-webkit-scrollbar-track {
+  background: transparent;
+}
+.katex-display::-webkit-scrollbar-thumb,
+.math-block::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.katex-display::-webkit-scrollbar-thumb:hover,
+.math-block::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Inline Code Snippets */
+.message-body code,
+p code,
+li code,
+td code {
+  font-family: "Google Sans Code", "Roboto Mono", Consolas, monospace !important;
+  background: #282a2c !important;
+  color: #e2e2e2 !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-size: 13.5px !important;
+  line-height: 20px !important;
+}
+
+/* Part 2: Code Block Presentation Architecture */
+.code-block {
+  background: #181a1b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  margin: 16px 0 !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.code-block header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 8px 16px !important;
+  background: #181a1b !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.code-block header .code-block-title {
+  font-family: "Google Sans", "Google Sans Text", sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #c4c7c5 !important;
+  letter-spacing: 0.01em !important;
+}
+
+.code-block header .code-block-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.code-block header .code-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  color: #c4c7c5 !important;
+  cursor: pointer !important;
+  transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+              color 150ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.code-block header .code-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.code-block pre {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  overflow-x: auto !important;
+  font-family: "Google Sans Code", "Roboto Mono", Consolas, monospace !important;
+  font-size: 13.5px !important;
+  line-height: 20px !important;
+  tab-size: 2 !important;
+  color: #e3e3e3 !important;
+  background: #181a1b !important;
+}
+
+.code-block pre code {
+  font-family: "Google Sans Code", "Roboto Mono", Consolas, monospace !important;
+  font-size: 13.5px !important;
+  line-height: 20px !important;
+  tab-size: 2 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* ─── 3. High-Density Data (Responsive Markdown Tables) ─── */
+.table-scroll {
+  overflow-x: auto !important;
+  max-width: 100% !important;
+  margin: 16px 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.table-scroll table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  text-align: left !important;
+}
+
+.table-scroll thead th {
+  padding: 10px 14px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2) !important; /* Visually distinct bold header with bottom border */
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+  white-space: nowrap !important;
+}
+
+.table-scroll tbody td {
+  padding: 10px 14px !important;
+  color: #d9dce4 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+  vertical-align: top !important;
+}
+
+.table-scroll tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
+.table-scroll tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* ─── 4. Media & Attachments ─── */
+/* Web Images */
+.message-body img,
+.inline-image-preview {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 8px !important;
+  display: block !important;
+  margin: 10px auto !important;
+}
+
+.inline-image-caption,
+figcaption {
+  display: block !important;
+  margin-top: 6px !important;
+  font-size: 13px !important;
+  color: #9aa0a6 !important;
+  text-align: center !important;
+}
+
+/* Interactive PDF & File Cards */
+.message-file-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  padding: 12px 16px !important;
+  margin: 14px 0 !important;
+  background: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 10px !important;
+  box-sizing: border-box !important;
+  max-width: 520px !important;
+}
+
+.message-file-card-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+}
+
+.message-file-card-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+}
+
+.message-file-card-meta {
+  font-size: 12px !important;
+  color: #9aa0a6 !important;
+  font-style: italic !important;
+}
+
+.message-file-card-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+.message-file-card-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #8ab4f8 !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+.message-file-card-btn:hover {
+  background: rgba(138, 180, 248, 0.15) !important;
+  color: #ffffff !important;
+}
+
+/* ─── 5. Callouts & System Alerts ─── */
+blockquote,
+.message-body blockquote {
+  margin: 16px 0 !important;
+  padding: 12px 18px !important;
+  border-left: 4px solid #8ab4f8 !important; /* distinct left-border */
+  background: rgba(138, 180, 248, 0.08) !important; /* background tint */
+  border-radius: 0 8px 8px 0 !important;
+  color: #e3e3e3 !important;
+  line-height: 1.6 !important;
+}
+
+.message-body blockquote.callout-security,
+.message-body blockquote.callout-warning {
+  border-left-color: #f28b82 !important;
+  background: rgba(242, 139, 130, 0.08) !important;
+}
+
+.message-body blockquote.callout-tip {
+  border-left-color: #81c995 !important;
+  background: rgba(129, 201, 149, 0.08) !important;
+}
+
+.message-body blockquote p {
+  margin: 0 0 8px 0 !important;
+  line-height: 1.6 !important;
+}
+
+.message-body blockquote p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* ─── 6. Text Streaming & Keyframe Animations (Gemini Front-End UI Architecture) ─── */
+@keyframes tokenFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Avoid fading/flickering glitch on streamed tokens */
+.streaming-token {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Original Circular Glowing Cyan Typing Cursor */
+.xmanius-typing-cursor,
+.streaming-cursor {
+  display: inline-block !important;
+  width: 0.72em !important;
+  height: 0.72em !important;
+  min-width: 8px !important;
+  min-height: 8px !important;
+  margin: 0 0 0.04em 0.35em !important;
+  vertical-align: middle !important;
+  border-radius: 50% !important;
+  background: #6de5ff !important;
+  box-shadow: 0 0 10px rgba(109, 229, 255, 0.62) !important;
+  animation: xmanius-cursor-blink 0.8s steps(2, start) infinite !important;
+}
+
+@keyframes xmanius-cursor-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.25; transform: scale(0.9); }
+}
+
+@keyframes geminiGradientShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer-text,
+.gemini-shimmer {
+  background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #4285f4) !important;
+  background-size: 200% auto !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: geminiGradientShimmer 3s linear infinite !important;
+}
+
+/* =============================================================
+   14. LIGHT THEME — KaTeX MATH & CODE BLOCK FIXES
+   (KaTeX was using dark #e3e3e3 !important, invisible on white bg)
+============================================================= */
+body.xmanius-theme-light .katex,
+body.xmanius-theme-light .katex * {
+  color: #1f1f1f !important;
+}
+body.xmanius-theme-light .katex-display {
+  color: #1f1f1f !important;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+body.xmanius-theme-light .math-block,
+body.xmanius-theme-light .math-inline {
+  color: #1f1f1f !important;
+}
+body.xmanius-theme-light .message-body code,
+body.xmanius-theme-light p code,
+body.xmanius-theme-light li code,
+body.xmanius-theme-light td code {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #1a1a2e !important;
+}
+body.xmanius-theme-light .code-block {
+  background: #f5f7fa !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+body.xmanius-theme-light .code-block header {
+  background: #edf0f5 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  color: #444746 !important;
+}
+body.xmanius-theme-light .code-block pre {
+  color: #1f2937 !important;
+}
+body.xmanius-theme-light .code-block pre code {
+  color: #1f2937 !important;
+}
+body.xmanius-theme-light blockquote,
+body.xmanius-theme-light .message-body blockquote {
+  background: rgba(66, 133, 244, 0.06) !important;
+  color: #1f1f1f !important;
+  border-left-color: #1a73e8 !important;
+}
+
+/* Sidebar label visibility fix in light theme */
+body.xmanius-theme-light .sidebar-label {
+  color: #5f6368 !important;
+  font-weight: 500 !important;
+}
+
+/* =============================================================
+   15. MICROPHONE — FRIENDLY FILE:// PROTOCOL ERROR
+   When browser is opened from file:// url, getUserMedia fails.
+   We add a hint overlay class via JS (added below the CSS).
+============================================================= */
+.voice-file-notice {
+  position: fixed !important;
+  bottom: 80px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #282a2d !important;
+  color: #e3e3e3 !important;
+  border: 1px solid #444746 !important;
+  border-radius: 14px !important;
+  padding: 12px 20px !important;
+  font-size: 13.5px !important;
+  line-height: 1.5 !important;
+  max-width: 380px !important;
+  text-align: center !important;
+  z-index: 99999 !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+  animation: voiceNoticeIn 0.2s ease !important;
+}
+.voice-file-notice a {
+  color: #8ab4f8 !important;
+  text-decoration: underline !important;
+}
+body.xmanius-theme-light .voice-file-notice {
+  background: #ffffff !important;
+  color: #1f1f1f !important;
+  border-color: #dadce0 !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+}
+@keyframes voiceNoticeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* =============================================================
+   16. GEMINI IMAGE PRESENTATION ARCHITECTURE
+   Single Image Cards & Multi-Image Carousels
+============================================================= */
+.chat-image-card {
+  margin: 14px 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.chat-image-link {
+  display: inline-block !important;
+  position: relative !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  background: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+}
+
+.chat-image-link:hover {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+.chat-image-img {
+  display: block !important;
+  max-width: 100% !important;
+  max-height: 480px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: cover !important;
+  border-radius: 16px !important;
+  background: #18191a !important;
+  margin: 0 !important;
+}
+
+.chat-image-caption {
+  margin-top: 8px !important;
+  font-size: 13px !important;
+  color: #9aa0a6 !important;
+  line-height: 1.4 !important;
+  text-align: left !important;
+  padding: 0 4px !important;
+}
+
+/* Multi-Image Carousel Container */
+.chat-image-carousel {
+  position: relative !important;
+  width: 100% !important;
+  margin: 16px 0 !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+
+.chat-image-carousel .carousel-track {
+  display: flex !important;
+  gap: 14px !important;
+  overflow-x: auto !important;
+  scroll-snap-type: x mandatory !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  padding: 4px 2px 10px 2px !important;
+}
+
+.chat-image-carousel .carousel-track::-webkit-scrollbar {
+  display: none !important;
+}
+
+.chat-image-carousel .carousel-slide {
+  flex: 0 0 min(320px, 82%) !important;
+  scroll-snap-align: start !important;
+  margin: 0 !important;
+}
+
+.chat-image-carousel .carousel-slide .chat-image-link {
+  width: 100% !important;
+}
+
+.chat-image-carousel .carousel-slide .chat-image-img {
+  width: 100% !important;
+  height: 220px !important;
+  object-fit: cover !important;
+}
+
+.carousel-nav-btn {
+  position: absolute !important;
+  top: 45% !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(30, 31, 32, 0.88) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  padding: 0 !important;
+}
+
+.carousel-nav-btn:hover {
+  background: rgba(45, 46, 48, 0.95) !important;
+  transform: translateY(-50%) scale(1.08) !important;
+}
+
+.carousel-prev {
+  left: 6px !important;
+}
+
+.carousel-next {
+  right: 6px !important;
+}
+
+.carousel-indicators {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-top: 8px !important;
+}
+
+.carousel-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 0 !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: background 0.2s ease, transform 0.2s ease !important;
+}
+
+.carousel-dot.is-active {
+  background: #ffffff !important;
+  transform: scale(1.3) !important;
+}
+
+/* Light Theme Overrides for Image Cards & Carousels */
+body.xmanius-theme-light .chat-image-link {
+  background: #f0f4f9 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body.xmanius-theme-light .chat-image-link:hover {
+  border-color: rgba(0, 0, 0, 0.18) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+}
+
+body.xmanius-theme-light .chat-image-img {
+  background: #e8ecf2 !important;
+}
+
+body.xmanius-theme-light .chat-image-caption {
+  color: #5f6368 !important;
+}
+
+body.xmanius-theme-light .carousel-nav-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #1f1f1f !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+}
+
+body.xmanius-theme-light .carousel-nav-btn:hover {
+  background: #ffffff !important;
+}
+
+body.xmanius-theme-light .carousel-dot {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+body.xmanius-theme-light .carousel-dot.is-active {
+  background: #1a73e8 !important;
+}
+
+/* ==========================================================================
+   15. GEMINI MASTER FORENSIC DESIGN SYSTEM SPECIFICATION & OVERRIDES
+   Exact Token Match & Typographic Hierarchy Specification
+   ========================================================================== */
+
+:root {
+  --gem-font-hero: "Google Sans", "Google Sans Display", "Product Sans", sans-serif;
+  --gem-font-text: "Google Sans Text", "Google Sans", "Product Sans", sans-serif;
+  --gem-font-mono: "Google Sans Code", "Roboto Mono", Consolas, monospace;
+
+  /* Baseline Surface Palette */
+  --gem-surface-canvas: #0f0f0f;
+  --gem-surface-glow: #172861;
+  --gem-surface-container: #1e1f20;
+  --gem-surface-high: #282a2c;
+  --gem-surface-active: #2d2f31;
+  --gem-surface-hover: #212327;
+  --gem-surface-code: #181a1b;
+
+  /* Typography Color Scale */
+  --gem-color-on-surface: #e3e3e3;
+  --gem-color-white: #ffffff;
+  --gem-color-secondary: #c4c7c5;
+  --gem-color-muted: #8e918f;
+  --gem-color-accent: #a8c7fa;
+
+  /* Motion Standards */
+  --gem-timing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --gem-duration-hover: 150ms;
+}
+
+/* ─── 1. Primary Heading & Hero Greeting ("Where should we start?") ─── */
+body.is-empty-state:not(.is-temporary-chat-mode):not(.xmanius-theme-light) .chat-main {
+  position: relative !important;
+  overflow: hidden !important;
+  background-color: #0f0f0f !important;
+  background-image: none !important;
+}
+
+body.is-empty-state:not(.is-temporary-chat-mode):not(.xmanius-theme-light) .chat-main::before {
+  content: "" !important;
+  position: absolute !important;
+  top: calc(44% - 8px) !important;
+  left: 50% !important;
+  width: min(1120px, 96vw) !important;
+  height: min(650px, 75vh) !important;
+  transform: translate(-50%, -50%) !important;
+  background:
+    /* 1. Core Luminous Spark behind greeting & prompt (Peak #172861 / RGB: 23, 40, 97) */
+    radial-gradient(ellipse 500px 220px at 52% 48%, rgba(23, 40, 97, 0.96) 0%, rgba(23, 37, 84, 0.70) 45%, transparent 75%),
+    /* 2. Top-Right High Arching Lobe (over "Where should we start?") */
+    radial-gradient(ellipse 560px 320px at 63% 36%, rgba(23, 38, 87, 0.75) 0%, rgba(21, 33, 71, 0.40) 45%, transparent 75%),
+    /* 3. Bottom Cradle Lobe (under prompt capsule) */
+    radial-gradient(ellipse 680px 280px at 48% 62%, rgba(22, 36, 83, 0.72) 0%, rgba(21, 30, 63, 0.35) 50%, transparent 80%),
+    /* 4. Left Dip & Pill Hook */
+    radial-gradient(ellipse 380px 240px at 32% 51%, rgba(22, 34, 77, 0.55) 0%, rgba(18, 25, 47, 0.25) 50%, transparent 75%),
+    /* 5. Broad Atmospheric Dissipation to #0F0F0F void */
+    radial-gradient(ellipse 960px 520px at 54% 49%, rgba(21, 30, 63, 0.45) 0%, rgba(18, 25, 47, 0.25) 45%, rgba(15, 18, 30, 0.08) 70%, transparent 92%) !important;
+  filter: blur(42px) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  opacity: 1 !important;
+}
+
+body.xmanius-theme-light.is-empty-state .chat-main::before {
+  display: none !important;
+}
+
+body.is-empty-state .greeting-text {
+  font-family: var(--gem-font-hero) !important;
+  font-size: 32px !important;
+  font-weight: 400 !important;
+  line-height: 40px !important;
+  letter-spacing: -0.5px !important;
+  color: var(--gem-color-on-surface) !important;
+  text-align: center !important;
+  text-shadow: none !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+  font-synthesis: none !important;
+}
+
+@media (min-width: 1440px) {
+  body.is-empty-state .greeting-text {
+    font-size: 36px !important;
+    line-height: 44px !important;
+  }
+}
+
+/* ─── 2. Mode Switcher ("Chat" vs "Spark/Cortex BETA") ─── */
+.sidebar-mode-switcher {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 3px !important;
+  background-color: var(--gem-surface-container) !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  gap: 2px !important;
+}
+
+.sidebar-mode-switcher .mode-tab {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 6px 16px !important;
+  border-radius: 24px !important;
+  font-family: var(--gem-font-text) !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  font-weight: 500 !important;
+  color: var(--gem-color-muted) !important;
+  background-color: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background-color var(--gem-duration-hover) var(--gem-timing-standard),
+              color var(--gem-duration-hover) var(--gem-timing-standard) !important;
+}
+
+.sidebar-mode-switcher .mode-tab:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: var(--gem-color-white) !important;
+}
+
+.sidebar-mode-switcher .mode-tab.is-active {
+  background-color: var(--gem-surface-high) !important;
+  color: var(--gem-color-white) !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.sidebar-mode-switcher .mode-beta-badge {
+  font-family: var(--gem-font-text) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+  color: var(--gem-color-accent) !important;
+  background-color: rgba(168, 199, 250, 0.12) !important;
+  padding: 2px 5px !important;
+  border-radius: 4px !important;
+}
+
+/* ─── 3. Action Buttons ("+ New chat", "+ New notebook") ─── */
+.sidebar-nav-item.is-new-chat,
+.sidebar-nav-item[data-new-chat] {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  border-radius: 20px !important;
+  font-family: var(--gem-font-text) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--gem-color-on-surface) !important;
+  background-color: var(--gem-surface-container) !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background-color var(--gem-duration-hover) var(--gem-timing-standard),
+              color var(--gem-duration-hover) var(--gem-timing-standard) !important;
+}
+
+.sidebar-nav-item.is-new-chat:hover,
+.sidebar-nav-item[data-new-chat]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: var(--gem-color-white) !important;
+}
+
+.sidebar-nav-item.is-new-chat svg,
+.sidebar-nav-item[data-new-chat] svg {
+  color: var(--gem-color-on-surface) !important;
+  flex-shrink: 0 !important;
+}
+
+.sidebar-nav-item.is-new-chat:hover svg,
+.sidebar-nav-item[data-new-chat]:hover svg {
+  color: var(--gem-color-white) !important;
+}
+
+/* ─── 4. Section Category Labels ("Notebooks", "Recents") ─── */
+.sidebar-label {
+  font-family: var(--gem-font-text) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.2px !important;
+  color: var(--gem-color-muted) !important;
+  padding: 16px 16px 6px 16px !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+/* ─── 5. Chat Title List Items (Recents) ─── */
+.conversation-row {
+  border-radius: 8px !important;
+  transition: background-color var(--gem-duration-hover) var(--gem-timing-standard) !important;
+}
+
+.conversation-row:hover,
+.conversation-row.is-menu-open {
+  background-color: var(--gem-surface-hover) !important;
+}
+
+.conversation-row.is-active,
+.conversation-row.is-selected {
+  background-color: var(--gem-surface-active) !important;
+}
+
+.conversation-row .conversation {
+  font-family: var(--gem-font-text) !important;
+  font-size: 13.5px !important;
+  line-height: 36px !important;
+  font-weight: 400 !important;
+  color: var(--gem-color-secondary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
+  transition: color var(--gem-duration-hover) var(--gem-timing-standard) !important;
+}
+
+.conversation-row:hover .conversation {
+  color: var(--gem-color-white) !important;
+}
+
+.conversation-row.is-active .conversation,
+.conversation-row.is-selected .conversation {
+  color: var(--gem-color-on-surface) !important;
+  font-weight: 500 !important;
+}
+
+/* ─── 6. Profile Dock (User Footer) ─── */
+.sidebar-account {
+  background-color: transparent !important;
+  border-radius: 9999px !important;
+  transition: background-color var(--gem-duration-hover) var(--gem-timing-standard) !important;
+}
+
+.sidebar-account:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.sidebar-account [data-account-name],
+.sidebar-account-info b {
+  font-family: var(--gem-font-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--gem-color-on-surface) !important;
+  line-height: 1.25 !important;
+}
+
+.sidebar-account [data-account-status],
+.sidebar-account-info small {
+  font-family: var(--gem-font-text) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: var(--gem-color-secondary) !important;
+  line-height: 1.25 !important;
+}
+
+/* ─── 7. General Chat Window & Markdown Output ─── */
+.message.assistant .message-body,
+.markdown-body {
+  font-family: var(--gem-font-text) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 24px !important;
+  letter-spacing: 0.015em !important;
+  color: var(--gem-color-on-surface) !important;
+  margin-top: 0 !important;
+}
+
+.message.assistant .message-body p,
+.markdown-body p {
+  margin-block: 0 16px !important;
+}
+
+.message.assistant .message-body strong,
+.message.assistant .message-body b,
+.markdown-body strong,
+.markdown-body b {
+  font-weight: 600 !important;
+  color: var(--gem-color-white) !important;
+}
+
+/* Headings Scale */
+.message.assistant .message-body h1,
+.markdown-body h1 {
+  font-family: var(--gem-font-hero) !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  line-height: 32px !important;
+  color: #f2f2f2 !important;
+  margin: 24px 0 12px 0 !important;
+}
+
+.message.assistant .message-body h2,
+.markdown-body h2 {
+  font-family: var(--gem-font-hero) !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  line-height: 28px !important;
+  color: #e8eaed !important;
+  margin: 20px 0 8px 0 !important;
+}
+
+.message.assistant .message-body h3,
+.markdown-body h3 {
+  font-family: var(--gem-font-text) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 24px !important;
+  color: var(--gem-color-on-surface) !important;
+  margin: 16px 0 6px 0 !important;
+}
+
+/* ─── 8. Inline Code & Code Block Containers ─── */
+.message-body code:not(pre code),
+.markdown-body code:not(pre code),
+p code,
+li code,
+td code {
+  font-family: var(--gem-font-mono) !important;
+  font-size: 13.5px !important;
+  line-height: 20px !important;
+  background-color: var(--gem-surface-high) !important;
+  color: #e2e2e2 !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+}
+
+.code-block {
+  background-color: var(--gem-surface-code) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  margin: 16px 0 !important;
+  overflow: hidden !important;
+}
+
+.code-block header {
+  background-color: var(--gem-surface-code) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  padding: 8px 16px !important;
+}
+
+.code-block pre {
+  background-color: var(--gem-surface-code) !important;
+  padding: 14px 16px !important;
+  margin: 0 !important;
+  overflow-x: auto !important;
+}
+
+.code-block pre code {
+  font-family: var(--gem-font-mono) !important;
+  font-size: 13.5px !important;
+  line-height: 20px !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+
